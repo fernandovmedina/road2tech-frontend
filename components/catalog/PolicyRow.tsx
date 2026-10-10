@@ -34,7 +34,7 @@ function NumberInput({
         autoComplete="off"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={`min-h-11 w-24 rounded-[10px] border bg-white px-3 text-right text-sm font-semibold tabular-nums ${invalid ? "border-alert" : "border-line"}`}
+        className={`min-h-11 w-24 rounded-control border bg-card px-3 text-right text-sm font-semibold tabular-nums ${invalid ? "border-alert" : "border-line"}`}
       />
       {error && <p id={`${id}-err`} className="max-w-40 text-xs font-medium text-alert-dark">{error}</p>}
     </div>

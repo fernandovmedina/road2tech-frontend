@@ -93,7 +93,7 @@ export function StockView() {
                 type="button"
                 aria-pressed={status === s}
                 onClick={() => setStatus(s)}
-                className={`min-h-11 rounded-full px-4 text-sm font-bold ${status === s ? "bg-primary text-white" : "border border-line bg-white text-muted hover:text-foreground"}`}
+                className={`min-h-11 rounded-full px-4 text-sm font-bold ${status === s ? "bg-foreground text-white" : "border border-line bg-card text-muted hover:text-foreground"}`}
               >
                 {s === "all" ? S.allStatuses : t("stockStatus", s)}
                 {count !== undefined && <span className="ml-1.5 font-semibold opacity-80">{formatNumber(count)}</span>}

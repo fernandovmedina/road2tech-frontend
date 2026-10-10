@@ -1,6 +1,7 @@
 // Deep links between screens (frozen contract: several screens build these URLs).
 // Product detail: /product/[productId]?store=<store_id>&strategy=<draft_id>
-// Calendar:       /calendar?store=<store_id>&product=<product_id>&date=<YYYY-MM-DD>
+// Calendar:       /calendar?store=<store_id>&product=<product_id>&date=<YYYY-MM-DD>&order=<restock suggestion id>
+//                 `order` opens the Orden Restock modal of that suggestion on load (once).
 
 export function productHref(productId: string, opts: { storeId?: string; strategyId?: string } = {}) {
   const p = new URLSearchParams();
@@ -10,11 +11,12 @@ export function productHref(productId: string, opts: { storeId?: string; strateg
   return `/product/${productId}${q ? `?${q}` : ""}`;
 }
 
-export function calendarHref(opts: { productId?: string; date?: string; storeId?: string }) {
+export function calendarHref(opts: { productId?: string; date?: string; storeId?: string; orderId?: string }) {
   const p = new URLSearchParams();
   if (opts.storeId) p.set("store", opts.storeId);
   if (opts.productId) p.set("product", opts.productId);
   if (opts.date) p.set("date", opts.date);
+  if (opts.orderId) p.set("order", opts.orderId);
   const q = p.toString();
   return `/calendar${q ? `?${q}` : ""}`;
 }

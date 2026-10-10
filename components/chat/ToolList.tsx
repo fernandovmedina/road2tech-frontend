@@ -29,7 +29,7 @@ export function ToolList({ tools }: { tools: ChatTool[] }) {
         {tools.map((tool, i) => (
           <li
             key={`${tool.name}-${i}`}
-            className="max-w-full break-words rounded-md bg-sidebar px-2 py-1 font-mono text-xs text-sidebar-text"
+            className="max-w-full break-words rounded-control bg-sidebar px-2 py-1 font-mono text-xs text-sidebar-text"
           >
             {formatTool(tool)}
           </li>

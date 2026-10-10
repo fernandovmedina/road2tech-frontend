@@ -6,6 +6,9 @@ import {
   type RawOffer, type RawProduct, type RawTicketScope, type StockRow,
 } from "../db";
 import { allStatuses } from "../derive";
+import { isLive } from "../strategy/portfolio";
+import { loadOps, rowsOf, sentOrdersByKey } from "../ops/common";
+import { suggestionsFor } from "../ops/restock";
 import { getStorePlan } from "./strategy";
 
 // Mock "backend" for catalogs and dashboard (contract sections 3.1-3.6, 3.14, 3.16). Handlers return the `data`
@@ -366,9 +369,29 @@ type Behavior = {
   product_id: string; related_product_id: string | null;
   affinity: { observed_ticket_share: number | null; estimated_ticket_share: number | null; lift: number | null; tickets_sample: number | null } | null;
   estimated_gain_mxn: number;
+  /** Draft of the store plan that answers this behavior; null when there is none. */
+  strategy_id: string | null;
+  /** Pending restock suggestion (`rs_...`) that answers this behavior; null when there is none. */
+  restock_suggestion_id: string | null;
 };
 
-const sum = (a: number[], from: number, to: number) => {
+/** Builds a title with product names shortened step by step until it fits `max` characters. */
+const SIZE_TAIL = /(\s+(\d+([.,]\d+)?\s?(ml|l|g|kg|oz|pcs|pack|packs)|large|medium|small|bottle|can|family|party|size))+$/i;
+const fitTitle = (make: (name: (n: string) => string) => string, max: number) => {
+  const noSize = (n: string) => n.replace(SIZE_TAIL, "").trim() || n;
+  const noBrand = (n: string) => {
+    const t = noSize(n).split(" ");
+    return t.length >= 3 ? t.slice(1).join(" ") : t.join(" ");
+  };
+  const cut = (len: number) => (n: string) => (n.length <= len ? n : `${n.slice(0, len - 1).trimEnd()}…`);
+  for (const f of [(n: string) => n, noSize, noBrand, (n: string) => cut(18)(noBrand(n)), (n: string) => cut(12)(noBrand(n))]) {
+    const t = make(f);
+    if (t.length <= max) return t;
+  }
+  return make((n) => n.slice(0, 8)).slice(0, max);
+};
+
+const sum =(a: number[], from: number, to: number) => {
   let s = 0;
   for (let i = from; i < to; i++) s += a[i] ?? 0;
   return s;
@@ -388,6 +411,28 @@ async function behaviors({ params, query, empty }: MockContext) {
   const series = sales.series[storeId] ?? {};
   const storeTickets = kpis.scopes[storeId]?.last30.tickets ?? aff.tickets;
 
+  // Live strategies of the store plan: a behavior links to the one that answers it (rejected / expired ones never).
+  const live = (await getStorePlan(storeId)).strategies.filter((st) => isLive(st.status));
+  const rescueOf = (pid: string) =>
+    live
+      .filter((st) => st.strategy_type === "rescue_bundle" && (st.promoted_product_id === pid || st.anchor_product_id === pid))
+      .sort((x, y) => y.expected_margin_increment - x.expected_margin_increment)[0];
+  const comboOf = (a: string, b: string) =>
+    live.find(
+      (st) =>
+        st.strategy_type === "affinity_combo" &&
+        ((st.anchor_product_id === a && st.promoted_product_id === b) || (st.anchor_product_id === b && st.promoted_product_id === a)),
+    );
+
+  // Pending restock suggestions of the store (same generator as GET /stores/:id/restock-suggestions), by product.
+  // A demand or waste alert links to the order that answers it; sent orders no longer count.
+  const ops = await loadOps();
+  // Only orders with something at stake (lost sales or gain) are worth sending a manager to.
+  const worthOrdering = suggestionsFor(ops, rowsOf(ops, storeId) ?? [], sentOrdersByKey()).filter(
+    (s) => s.order_status === "pending" && (s.expected_lost_sales_if_skipped >= 1 || s.expected_gain_if_ordered >= 1),
+  );
+  const restockOf = new Map(worthOrdering.map((s) => [s.product_id, s.id] as const));
+
   // (a) Cross-sell. Observed: pairs measured in this store's tickets (affinity.json byStore). A promotion that makes
   // 8% of the anchor's 14-day units carry the paired product is valued at the margin of the paired product (mock rule).
   const crosssell: Behavior[] = [];
@@ -404,12 +449,14 @@ async function behaviors({ params, query, empty }: MockContext) {
       id: `beh_${storeId}_${pair.a}_${pair.b}`,
       kind: "crosssell",
       source: "observed",
-      title: `${nameOf(pair.a)} se compra junto con ${nameOf(pair.b)}`,
-      text: `${pair.tickets} de ${nf(storeTickets)} tickets de los últimos 30 días llevan ambos productos (${nf(pair.pctTickets, 2)} % de los tickets), ${nf(pair.lift, 1)} veces más de lo esperado por azar. Una promoción cruzada puede subir el ticket.`,
+      title: fitTitle((n) => `${n(nameOf(pair.a))} + ${n(nameOf(pair.b))} se compran juntos`, 60),
+      text: `${pair.tickets} de cada ${nf(storeTickets)} tickets, ${nf(pair.lift, 1)} veces más de lo normal.`,
       product_id: pair.a,
       related_product_id: pair.b,
       affinity: { observed_ticket_share: round4(pair.pctTickets / 100), estimated_ticket_share: null, lift: pair.lift, tickets_sample: storeTickets },
       estimated_gain_mxn: attachGain(pair.a, pair.b),
+      strategy_id: comboOf(pair.a, pair.b)?.draft_id ?? null,
+      restock_suggestion_id: null,
     });
   }
   // Estimated: strong chain-level pairs without enough tickets in this store yet (inferred from the chain share).
@@ -420,60 +467,101 @@ async function behaviors({ params, query, empty }: MockContext) {
       id: `beh_${storeId}_${pair.a}_${pair.b}`,
       kind: "crosssell",
       source: "estimated",
-      title: `${nameOf(pair.a)} podría venderse con ${nameOf(pair.b)}`,
-      text: `En la cadena el ${nf(pair.pctTickets, 2)} % de los tickets lleva ambos productos (${nf(pair.lift, 1)} veces más que el azar); en esta sucursal aún hay pocos tickets para confirmarlo, así que es una estimación.`,
+      title: fitTitle((n) => `${n(nameOf(pair.a))} + ${n(nameOf(pair.b))} podrían venderse juntos`, 60),
+      text: `En la cadena se compran juntos ${nf(pair.lift, 1)} veces más de lo normal.`,
       product_id: pair.a,
       related_product_id: pair.b,
       affinity: { observed_ticket_share: null, estimated_ticket_share: round4(pair.pctTickets / 100), lift: pair.lift, tickets_sample: null },
       estimated_gain_mxn: round2(attachGain(pair.a, pair.b) * 0.6),
+      strategy_id: comboOf(pair.a, pair.b)?.draft_id ?? null,
+      restock_suggestion_id: null,
     });
   }
 
-  // (b) Waste (estimated): the earliest lot expires within 10 days and current stock exceeds what the predicted daily
-  // demand can sell before then. At-risk units recover ~60% of their cost with a markdown (mock rule).
-  const waste: Behavior[] = [];
+  // (b) Waste (estimated): the earliest lot expires and current stock exceeds what the predicted daily demand can sell
+  // before then. Products with a rescue promotion in the plan come first (up to 21 days ahead) and show that
+  // promotion's gain; the others only appear when they expire within 10 days. At-risk units recover ~60% of their
+  // cost with a markdown (mock rule).
+  const wasteLinked: Behavior[] = [];
+  const wasteLoose: Behavior[] = [];
   for (const [pid] of products) {
     const row: StockRow | undefined = stockMap.get(`${storeId}|${pid}`);
     if (!row || !row.earliest_expiry || row.quantity <= 0) continue;
     const daysLeft = diffDays(meta.data_as_of, row.earliest_expiry);
-    if (daysLeft < 0 || daysLeft > 10) continue;
+    const rescue = rescueOf(pid);
+    if (daysLeft < 0 || daysLeft > (rescue ? 21 : 10)) continue;
     const sellable = row.predicted_daily_demand * Math.max(daysLeft, 1);
     const atRisk = Math.floor(Math.min(row.quantity, row.quantity - sellable));
-    if (atRisk < 3) continue;
-    waste.push({
+    if (atRisk < (rescue ? 1 : 3)) continue;
+    const when = daysLeft === 0 ? "hoy" : daysLeft === 1 ? "mañana" : `en ${daysLeft} días`;
+    const b: Behavior = {
       id: `beh_${storeId}_${pid}_waste`,
       kind: "waste",
       source: "estimated",
-      title: `${nameOf(pid)} tiene riesgo de caducar`,
-      text: `El lote más próximo vence en ${daysLeft === 0 ? "menos de un día" : daysLeft === 1 ? "1 día" : `${daysLeft} días`}, quedan ${nf(row.quantity)} piezas y la demanda proyectada vende cerca de ${nf(sellable)}. Unas ${nf(atRisk)} piezas podrían mermarse sin una promoción de rescate.`,
+      title: fitTitle((n) => `${n(nameOf(pid))}: ${nf(atRisk)} ${atRisk === 1 ? "pieza" : "piezas"} en riesgo`, 60),
+      text: `Caducan ${when} y se venderán unas ${nf(Math.round(sellable))} de ${nf(row.quantity)}.`,
       product_id: pid,
       related_product_id: null,
       affinity: null,
-      estimated_gain_mxn: round2(atRisk * (costs.get(pid) ?? 0) * 0.6),
-    });
+      estimated_gain_mxn: rescue && rescue.promoted_product_id === pid ? rescue.expected_margin_increment : round2(atRisk * (costs.get(pid) ?? 0) * 0.6),
+      strategy_id: rescue?.draft_id ?? null,
+      restock_suggestion_id: rescue ? null : restockOf.get(pid) ?? null,
+    };
+    (rescue ? wasteLinked : wasteLoose).push(b);
   }
+  // Waste alerts should lead to a promotion: alerts without one only show when the plan has no rescue at all.
+  const waste = wasteLinked.length > 0 ? wasteLinked : wasteLoose;
 
   // (c) Rising demand (observed in sales): last 14 days vs the 14 before. Needs >= 15% growth and >= 1 unit/day.
   // Gain = extra units expected in the next 14 days valued at unit margin.
-  const demand: Behavior[] = [];
+  const demandLinked: Behavior[] = [];
+  const demandLoose: Behavior[] = [];
   for (const [pid, arr] of Object.entries(series)) {
     if (!products.has(pid)) continue;
     const recent = sum(arr, sales.days - 14, sales.days);
     const prev = sum(arr, sales.days - 28, sales.days - 14);
     if (prev <= 0 || recent / 14 < 1 || recent / prev < 1.15) continue;
     const growth = recent / prev - 1;
-    demand.push({
+    const restockId = restockOf.get(pid) ?? null;
+    (restockId ? demandLinked : demandLoose).push({
       id: `beh_${storeId}_${pid}_demand`,
       kind: "demand",
       source: "observed",
-      title: `Sube la demanda de ${nameOf(pid)}`,
-      text: `Las ventas de los últimos 14 días (${nf(recent)} uds.) superan en ${nf(growth * 100)} % a los 14 días previos (${nf(prev)} uds.). Conviene asegurar el abasto para no perder la venta.`,
+      title: fitTitle((n) => `${n(nameOf(pid))}: demanda +${nf(growth * 100)} %`, 60),
+      text: `Se vendieron ${nf(recent)} en 14 días, antes ${nf(prev)}.`,
       product_id: pid,
       related_product_id: null,
       affinity: null,
       estimated_gain_mxn: round2(Math.max(0, recent - prev) * margin(pid)),
+      strategy_id: null,
+      restock_suggestion_id: restockId,
     });
   }
+  // A restock suggestion whose reason is a demand spike IS a demand peak: surface it even when the 14-day sales
+  // comparison did not flag the product, so a "Pico de demanda" alert always has a real order behind it.
+  for (const sug of worthOrdering) {
+    if (!sug.reasons.includes("demand_spike") || demandLinked.some((b) => b.product_id === sug.product_id)) continue;
+    const arr = sales.series[storeId]?.[sug.product_id];
+    const avg = arr ? sum(arr, sales.days - 14, sales.days) / 14 : 0;
+    const growth = avg > 0 ? sug.predicted_daily_demand / avg - 1 : 0.3;
+    const looseAt = demandLoose.findIndex((b) => b.product_id === sug.product_id);
+    if (looseAt >= 0) demandLoose.splice(looseAt, 1);
+    demandLinked.push({
+      id: `beh_${storeId}_${sug.product_id}_demand`,
+      kind: "demand",
+      source: "estimated",
+      title: fitTitle((n) => `${n(nameOf(sug.product_id))}: demanda +${nf(Math.max(growth, 0.05) * 100)} %`, 60),
+      text: `Se esperan ${nf(sug.predicted_daily_demand, 1)} por día, antes ${nf(avg, 1)}.`,
+      product_id: sug.product_id,
+      related_product_id: null,
+      affinity: null,
+      estimated_gain_mxn: round2(sug.expected_lost_sales_if_skipped),
+      strategy_id: null,
+      restock_suggestion_id: sug.id,
+    });
+  }
+  // Demand peaks should lead to an order: alerts without one only show when no spike of the store has a pending order.
+  const demand = demandLinked.length > 0 ? demandLinked : demandLoose;
 
   const byGain = (a: Behavior, b: Behavior) => b.estimated_gain_mxn - a.estimated_gain_mxn || a.id.localeCompare(b.id);
   const groups = [crosssell, waste, demand].map((g) => g.sort(byGain));

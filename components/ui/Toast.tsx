@@ -18,7 +18,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div aria-live="polite" className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
         {items.map((i) => (
-          <div key={i.id} className="rounded-xl bg-sidebar px-4 py-3 text-sm font-semibold text-white shadow-lg">{i.msg}</div>
+          <div key={i.id} className="rounded-block bg-sidebar px-4 py-3 text-sm font-semibold text-white shadow-lg">{i.msg}</div>
         ))}
       </div>
     </Ctx.Provider>

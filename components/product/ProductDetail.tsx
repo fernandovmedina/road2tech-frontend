@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect } from "react";
-import { copy } from "@/lib/copy";
 import { useFilters } from "@/lib/filters";
 import { ProductBody } from "./ProductBody";
+import { BackLink } from "./ProductHeader";
 import { StorePicker } from "./StorePicker";
 
 /**
@@ -21,16 +20,12 @@ export function ProductDetail({ productId, storeId, strategyId }: { productId: s
     if (storeId && filters.branchId !== storeId) filters.setBranch(storeId);
   }, [storeId]);
 
-  return (
-    <div className="flex flex-col gap-2">
-      <Link href="/" className="inline-flex min-h-11 w-fit items-center gap-2 text-sm font-bold text-primary hover:underline">
-        <span aria-hidden>←</span> {copy.product.back}
-      </Link>
-      {store ? (
-        <ProductBody key={`${productId}:${store}:${strategyId ?? ""}`} productId={productId} storeId={store} strategyId={strategyId} />
-      ) : (
-        <StorePicker />
-      )}
+  return store ? (
+    <ProductBody key={`${productId}:${store}:${strategyId ?? ""}`} productId={productId} storeId={store} strategyId={strategyId} />
+  ) : (
+    <div className="flex flex-col gap-4">
+      <div><BackLink /></div>
+      <StorePicker />
     </div>
   );
 }

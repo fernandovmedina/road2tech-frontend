@@ -1,14 +1,15 @@
 import { useMemo, useState } from "react";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { cn } from "@/lib/cn";
+import { copy } from "@/lib/copy";
 import { formatInteger, formatSignedPercent, formatSignedPoints } from "@/lib/format";
 import type { ScenarioRow } from "@/lib/opportunities/predictionInsights";
 
 type ChartView = "chart" | "table";
 
 const VIEW_OPTIONS = [
-  { value: "chart", label: "Chart" },
-  { value: "table", label: "Table" },
+  { value: "chart", label: copy.opportunities.dumbbell.chart },
+  { value: "table", label: copy.opportunities.dumbbell.table },
 ] as const satisfies readonly { value: ChartView; label: string }[];
 
 const ROW_GRID = "grid grid-cols-[minmax(0,8.5rem)_minmax(0,1fr)_4.5rem] items-center gap-3";
@@ -47,32 +48,37 @@ export function ScenarioDumbbellChart({ rows, normalLabel, eventLabel }: Scenari
   return (
     <section aria-labelledby="scenario-chart-heading" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 id="scenario-chart-heading" className="text-sm font-semibold text-ink">
-          Demand change by product
+        <h3 id="scenario-chart-heading" className="text-sm font-semibold text-foreground">
+          {copy.opportunities.dumbbell.title}
         </h3>
-        <SegmentedControl label="Display as" options={VIEW_OPTIONS} value={view} onChange={setView} />
+        <SegmentedControl
+          label={copy.opportunities.dumbbell.displayAs}
+          options={VIEW_OPTIONS}
+          value={view}
+          onChange={setView}
+        />
       </div>
 
       {view === "chart" ? (
         <div className="flex flex-col gap-1">
-          <ul className="mb-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-secondary">
+          <ul className="mb-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
             <li className="flex items-center gap-1.5">
-              <span className="size-2.5 rounded-full bg-normal-day" aria-hidden />
+              <span className="size-2.5 rounded-full bg-series-baseline" aria-hidden />
               {normalLabel}
             </li>
             <li className="flex items-center gap-1.5">
-              <span className="size-2.5 rounded-full bg-with-event" aria-hidden />
+              <span className="size-2.5 rounded-full bg-series-scenario" aria-hidden />
               {eventLabel}
             </li>
           </ul>
 
-          <div className={cn(ROW_GRID, "text-xs text-ink-secondary")} aria-hidden>
-            <span>Product</span>
-            <span>% vs. an average day</span>
-            <span className="text-right">Event effect</span>
+          <div className={cn(ROW_GRID, "text-xs text-muted")} aria-hidden>
+            <span>{copy.opportunities.dumbbell.product}</span>
+            <span>{copy.opportunities.dumbbell.vsAverage}</span>
+            <span className="text-right">{copy.opportunities.dumbbell.effect}</span>
           </div>
 
-          <ul aria-label="Demand change by product">
+          <ul aria-label={copy.opportunities.dumbbell.ariaList}>
             {rows.map((row) => {
               const { normalDayPct, withEventPct } = row.scenarios;
               const normalX = scale.toPercent(normalDayPct);
@@ -82,48 +88,55 @@ export function ScenarioDumbbellChart({ rows, normalLabel, eventLabel }: Scenari
                 <li
                   key={row.productId}
                   tabIndex={0}
-                  aria-label={`${row.productName}: ${normalLabel} ${formatSignedPercent(normalDayPct)}, ${eventLabel} ${formatSignedPercent(withEventPct)}, event effect ${formatSignedPoints(row.effectPp)}`}
+                  aria-label={copy.opportunities.dumbbell.rowAria(
+                    row.productName,
+                    normalLabel,
+                    formatSignedPercent(normalDayPct),
+                    eventLabel,
+                    formatSignedPercent(withEventPct),
+                    formatSignedPoints(row.effectPp),
+                  )}
                   onPointerEnter={() => setActiveRowId(row.productId)}
                   onPointerLeave={() => setActiveRowId(null)}
                   onFocus={() => setActiveRowId(row.productId)}
                   onBlur={() => setActiveRowId(null)}
                   className={cn(
                     ROW_GRID,
-                    "relative rounded-md py-1.5 outline-none focus-visible:ring-2 focus-visible:ring-brand",
-                    isActive && "bg-ink/[0.03]",
+                    "relative rounded-md py-1.5 outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                    isActive && "bg-foreground/5",
                   )}
                 >
-                  <span className="truncate text-sm text-ink">{row.productName}</span>
+                  <span className="truncate text-sm text-foreground">{row.productName}</span>
                   <div className="relative h-6" aria-hidden>
                     {scale.ticks.map((tick) => (
                       <span
                         key={tick}
-                        className={cn("absolute inset-y-0 w-px", tick === 0 ? "bg-axis" : "bg-hairline")}
+                        className={cn("absolute inset-y-0 w-px", tick === 0 ? "bg-axis" : "bg-line")}
                         style={{ left: `${scale.toPercent(tick)}%` }}
                       />
                     ))}
                     <span
-                      className="absolute top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-with-event/35"
+                      className="absolute top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-series-scenario/35"
                       style={{
                         left: `${Math.min(normalX, eventX)}%`,
                         width: `${Math.abs(eventX - normalX)}%`,
                       }}
                     />
                     <span
-                      className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-normal-day ring-2 ring-surface"
+                      className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-series-baseline ring-2 ring-card"
                       style={{ left: `${normalX}%` }}
                     />
                     <span
-                      className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-with-event ring-2 ring-surface"
+                      className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-series-scenario ring-2 ring-card"
                       style={{ left: `${eventX}%` }}
                     />
                     {isActive && (
                       <div
-                        className="pointer-events-none absolute bottom-full z-10 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-lg bg-ink px-2.5 py-1.5 text-xs text-white shadow-lg"
+                        className="pointer-events-none absolute bottom-full z-10 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-control bg-foreground px-2.5 py-1.5 text-xs text-white shadow-lg"
                         style={{ left: `${Math.min(80, Math.max(20, eventX))}%` }}
                       >
                         <p className="flex items-center gap-1.5">
-                          <span className="h-0.5 w-3 rounded bg-normal-day" />
+                          <span className="h-0.5 w-3 rounded bg-series-baseline" />
                           <span className="font-semibold">{formatSignedPercent(normalDayPct)}</span>
                           <span className="text-white/70">{normalLabel}</span>
                         </p>
@@ -134,12 +147,12 @@ export function ScenarioDumbbellChart({ rows, normalLabel, eventLabel }: Scenari
                         </p>
                         <p className="pl-[18px]">
                           <span className="font-semibold">{formatSignedPoints(row.effectPp)}</span>{" "}
-                          <span className="text-white/70">event effect</span>
+                          <span className="text-white/70">{copy.opportunities.dumbbell.tooltipEffect}</span>
                         </p>
                       </div>
                     )}
                   </div>
-                  <span className="text-right text-sm font-semibold tabular-nums text-ink">
+                  <span className="text-right text-sm font-semibold tabular-nums text-foreground">
                     {formatSignedPoints(row.effectPp)}
                   </span>
                 </li>
@@ -154,7 +167,7 @@ export function ScenarioDumbbellChart({ rows, normalLabel, eventLabel }: Scenari
                 <span
                   key={tick}
                   className={cn(
-                    "absolute top-0 text-[10px] tabular-nums text-ink-secondary",
+                    "absolute top-0 text-[10px] tabular-nums text-muted",
                     index === scale.ticks.length - 1
                       ? "-translate-x-full"
                       : index > 0 && "-translate-x-1/2",
@@ -171,24 +184,24 @@ export function ScenarioDumbbellChart({ rows, normalLabel, eventLabel }: Scenari
       ) : (
         <table className="w-full text-xs">
           <thead>
-            <tr className="text-left text-ink-secondary">
-              <th scope="col" className="pb-2 font-medium">Product</th>
+            <tr className="text-left text-muted">
+              <th scope="col" className="pb-2 font-medium">{copy.opportunities.dumbbell.product}</th>
               <th scope="col" className="pb-2 text-right font-medium">{normalLabel}</th>
               <th scope="col" className="pb-2 text-right font-medium">{eventLabel}</th>
-              <th scope="col" className="pb-2 text-right font-medium">Event effect</th>
-              <th scope="col" className="pb-2 text-right font-medium">Extra stock</th>
+              <th scope="col" className="pb-2 text-right font-medium">{copy.opportunities.dumbbell.effect}</th>
+              <th scope="col" className="pb-2 text-right font-medium">{copy.opportunities.dumbbell.extraStock}</th>
             </tr>
           </thead>
           <tbody className="tabular-nums">
             {rows.map((row) => (
-              <tr key={row.productId} className="border-t border-hairline">
-                <th scope="row" className="py-2 pr-2 text-left font-medium text-ink">
+              <tr key={row.productId} className="border-t border-line">
+                <th scope="row" className="py-2 pr-2 text-left font-medium text-foreground">
                   {row.productName}
                 </th>
-                <td className="py-2 text-right text-ink">{formatSignedPercent(row.scenarios.normalDayPct)}</td>
-                <td className="py-2 text-right text-ink">{formatSignedPercent(row.scenarios.withEventPct)}</td>
-                <td className="py-2 text-right font-semibold text-ink">{formatSignedPoints(row.effectPp)}</td>
-                <td className="py-2 text-right text-ink">+{formatInteger(row.recommendedExtraUnits)}</td>
+                <td className="py-2 text-right text-foreground">{formatSignedPercent(row.scenarios.normalDayPct)}</td>
+                <td className="py-2 text-right text-foreground">{formatSignedPercent(row.scenarios.withEventPct)}</td>
+                <td className="py-2 text-right font-semibold text-foreground">{formatSignedPoints(row.effectPp)}</td>
+                <td className="py-2 text-right text-foreground">+{formatInteger(row.recommendedExtraUnits)}</td>
               </tr>
             ))}
           </tbody>

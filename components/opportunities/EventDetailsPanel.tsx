@@ -8,7 +8,10 @@ import {
   Store,
   Users,
 } from "lucide-react";
+import { Button } from "@/components/ui/Button";
 import { Meter } from "@/components/ui/Meter";
+import { PanelSection } from "@/components/ui/PanelSection";
+import { copy } from "@/lib/copy";
 import {
   formatDistance,
   formatEventSchedule,
@@ -56,17 +59,17 @@ export function EventDetailsPanel({
   const level = confidenceLevel(prediction.confidence);
 
   return (
-    <article className="flex flex-col gap-5" aria-label={`${event.name} details`}>
+    <article className="flex flex-col gap-5" aria-label={copy.opportunities.eventDetails.aria(event.name)}>
       <header className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-ink-secondary">
+        <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-muted">
           <span className="inline-flex items-center gap-1.5">
             <EventTypeIcon type={event.type} className="size-4" />
             {EVENT_TYPE_LABELS[event.type]}
           </span>
           <ImportanceBadge importance={event.importance} />
         </div>
-        <h2 className="text-lg font-semibold leading-snug text-ink">{event.name}</h2>
-        <div className="flex flex-col gap-1 text-sm text-ink-secondary">
+        <h2 className="text-lg font-semibold leading-snug text-foreground">{event.name}</h2>
+        <div className="flex flex-col gap-1 text-sm text-muted">
           <span className="inline-flex items-center gap-1.5">
             <CalendarDays className="size-4 shrink-0" aria-hidden />
             {formatEventSchedule(event.startsAt, event.isAllDay)}
@@ -78,65 +81,59 @@ export function EventDetailsPanel({
         </div>
       </header>
 
-      <section aria-labelledby="projected-change-heading" className="rounded-xl bg-plane p-4">
-        <h3 id="projected-change-heading" className="text-xs font-medium text-ink-secondary">
-          Event effect
-        </h3>
-        <p className="mt-1 text-3xl font-semibold tracking-tight text-ink">
+      <PanelSection
+        title={copy.opportunities.eventDetails.effectTitle}
+        description={copy.opportunities.eventDetails.effectDescription(
+          weekday,
+          formatSignedPercent(normalDayPct),
+          formatSignedPercent(withEventPct),
+          rows.length,
+        )}
+        className="rounded-block bg-background p-4"
+      >
+        <p className="text-3xl font-semibold tracking-tight text-foreground">
           {formatSignedPoints(eventEffectPp(prediction.overallScenarios))}
         </p>
-        <p className="mt-1 text-xs text-ink-secondary">
-          Projected change caused by the event: normal {weekday} {formatSignedPercent(normalDayPct)}{" "}
-          → with the event {formatSignedPercent(withEventPct)}, revenue-weighted across{" "}
-          {rows.length} products.
-        </p>
-        <button
-          type="button"
-          onClick={onCompare}
-          className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-ink px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-ink/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-        >
-          Compare with a normal {weekday}
+        <Button variant="primary" size="sm" onClick={onCompare}>
+          {copy.opportunities.eventDetails.compare(weekday)}
           <ArrowRight className="size-4" aria-hidden />
-        </button>
-      </section>
+        </Button>
+      </PanelSection>
 
       <dl className="grid grid-cols-2 gap-x-4 gap-y-4 text-sm">
-        <EventFact icon={Users} label="Estimated attendance">
+        <EventFact icon={Users} label={copy.opportunities.eventDetails.facts.attendance}>
           {formatInteger(event.estimatedAttendance)}
         </EventFact>
-        <EventFact icon={Banknote} label="Expected extra sales">
+        <EventFact icon={Banknote} label={copy.opportunities.eventDetails.facts.extraSales}>
           {formatMxnCompact(prediction.expectedExtraSalesMxn)}
         </EventFact>
-        <EventFact icon={CircleDashed} label="Influence radius">
+        <EventFact icon={CircleDashed} label={copy.opportunities.eventDetails.facts.radius}>
           {formatDistance(prediction.influenceRadiusMeters)}
         </EventFact>
-        <EventFact icon={Store} label="Affected branches">
-          {prediction.affectedBranches.length} of {totalBranches}
+        <EventFact icon={Store} label={copy.opportunities.eventDetails.facts.branches}>
+          {copy.opportunities.eventDetails.facts.ofTotal(
+            prediction.affectedBranches.length,
+            totalBranches,
+          )}
         </EventFact>
-        <EventFact label="Weather forecast" wide>
+        <EventFact label={copy.opportunities.eventDetails.facts.weather} wide>
           <WeatherSummary weather={event.weather} />
         </EventFact>
-        <EventFact icon={Gauge} label="Prediction confidence" wide>
+        <EventFact icon={Gauge} label={copy.opportunities.eventDetails.facts.confidence} wide>
           <span>
             {formatShare(prediction.confidence)} · {CONFIDENCE_LABELS[level]}
           </span>
-          <Meter value={prediction.confidence} label="Prediction confidence" />
+          <Meter value={prediction.confidence} label={copy.opportunities.eventDetails.facts.confidence} />
         </EventFact>
       </dl>
 
-      <section aria-labelledby="products-heading" className="flex flex-col gap-2">
-        <h3 id="products-heading" className="text-sm font-semibold text-ink">
-          Products with higher demand
-        </h3>
+      <PanelSection title={copy.opportunities.eventDetails.productsTitle}>
         <ProductImpactTable rows={rows} weekdayLabel={weekday} />
-      </section>
+      </PanelSection>
 
-      <section aria-labelledby="branches-heading" className="flex flex-col gap-2">
-        <h3 id="branches-heading" className="text-sm font-semibold text-ink">
-          Affected branches
-        </h3>
+      <PanelSection title={copy.opportunities.eventDetails.branchesTitle}>
         <AffectedBranchList branches={prediction.affectedBranches} branchNames={branchNames} />
-      </section>
+      </PanelSection>
     </article>
   );
 }

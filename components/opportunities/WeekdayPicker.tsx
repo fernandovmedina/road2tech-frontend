@@ -1,4 +1,5 @@
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { copy } from "@/lib/copy";
 import { WEEKDAY_LABELS, WEEKDAY_ORDER } from "@/lib/opportunities/labels";
 import type { Weekday } from "@/types/weekday";
 
@@ -14,9 +15,14 @@ type WeekdayPickerProps = {
 
 export function WeekdayPicker({ value, onChange }: WeekdayPickerProps) {
   return (
-    <div className="flex h-full flex-col justify-center gap-2 rounded-xl border border-ink/10 bg-surface px-4">
-      <p className="text-xs font-medium text-ink-secondary">Normal day to inspect</p>
-      <SegmentedControl label="Weekday" options={OPTIONS} value={value} onChange={onChange} />
+    <div className="flex h-full flex-col justify-center gap-2">
+      <p className="text-xs font-medium text-muted">{copy.opportunities.weekdayPicker.label}</p>
+      <SegmentedControl
+        label={copy.opportunities.weekdayPicker.controlLabel}
+        options={OPTIONS}
+        value={value}
+        onChange={onChange}
+      />
     </div>
   );
 }

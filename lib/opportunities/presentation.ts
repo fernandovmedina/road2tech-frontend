@@ -17,10 +17,30 @@ export type ChangeBin = {
 // Ordinal blue ramp (reference palette steps 250/400/550/700),
 // checked with the dataviz validator in --ordinal mode.
 export const CHANGE_BINS: readonly ChangeBin[] = [
-  { minPp: Number.NEGATIVE_INFINITY, label: "Under +10 pp", fill: "#86b6ef", iconColor: "#0b0b0b" },
-  { minPp: 10, label: "+10 to +20 pp", fill: "#3987e5", iconColor: "#0b0b0b" },
-  { minPp: 20, label: "+20 to +30 pp", fill: "#1c5cab", iconColor: "#ffffff" },
-  { minPp: 30, label: "+30 pp or more", fill: "#0d366b", iconColor: "#ffffff" },
+  {
+    minPp: Number.NEGATIVE_INFINITY,
+    label: "Menos de +10 pp",
+    fill: "var(--color-series-baseline)",
+    iconColor: "var(--color-foreground)",
+  },
+  {
+    minPp: 10,
+    label: "+10 a +20 pp",
+    fill: "color-mix(in srgb, var(--color-series-baseline) 60%, var(--color-series-scenario) 40%)",
+    iconColor: "var(--color-foreground)",
+  },
+  {
+    minPp: 20,
+    label: "+20 a +30 pp",
+    fill: "var(--color-series-scenario)",
+    iconColor: "var(--color-card)",
+  },
+  {
+    minPp: 30,
+    label: "+30 pp o más",
+    fill: "color-mix(in srgb, var(--color-series-scenario) 70%, var(--color-foreground) 30%)",
+    iconColor: "var(--color-card)",
+  },
 ];
 
 export function changeBinFor(effectPp: number): ChangeBin {

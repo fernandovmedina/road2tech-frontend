@@ -1,4 +1,4 @@
-import type { Portfolio, Strategy, StrategyStatus } from "@/types";
+import type { PlanOverlap, Portfolio, Strategy, StrategyStatus } from "@/types";
 import type { Ctx } from "./context";
 import { dm, overlap, pct0, r2 } from "./util";
 
@@ -72,7 +72,50 @@ export function computePortfolio(ctx: Ctx, strategies: Strategy[]): Portfolio {
   };
 }
 
-/** Human-readable overlaps that involve one strategy (for the chat plan summary). */
-export function overlapsOf(portfolio: Portfolio, draftId: string): string[] {
-  return portfolio.conflicts.filter((c) => c.strategy_ids.includes(draftId)).map((c) => c.description);
+const toOverlap = (s: Strategy, type: string): PlanOverlap => ({
+  draft_id: s.draft_id,
+  product_id: s.promoted_product_id,
+  start_date: s.period.start_date,
+  end_date: s.period.end_date,
+  type,
+});
+
+const uniqueOverlaps = (list: PlanOverlap[]) => [...new Map(list.map((o) => [`${o.draft_id}|${o.type}`, o])).values()];
+
+/**
+ * Plan strategies that collide with `draft`, in the shape of plan_summary.overlaps (POST /chat): like the backend, every
+ * live strategy promoting the same product on overlapping dates, plus the mock portfolio's own conflicts (shared
+ * anchor products, same category).
+ */
+export function overlapsOf(portfolio: Portfolio, strategies: Strategy[], draft: Strategy): PlanOverlap[] {
+  const byId = new Map(strategies.map((s) => [s.draft_id, s]));
+  const sameProduct = strategies
+    .filter(
+      (s) =>
+        s.draft_id !== draft.draft_id &&
+        isLive(s.status) &&
+        s.promoted_product_id === draft.promoted_product_id &&
+        overlap(windowOf(s), windowOf(draft)),
+    )
+    .map((s) => toOverlap(s, "overlapping_product"));
+  const conflicts = portfolio.conflicts
+    .filter((c) => c.strategy_ids.includes(draft.draft_id))
+    .flatMap((c) =>
+      c.strategy_ids.flatMap((id) => {
+        const s = id === draft.draft_id ? undefined : byId.get(id);
+        return s ? [toOverlap(s, c.type)] : [];
+      }),
+    );
+  return uniqueOverlaps([...sameProduct, ...conflicts]);
+}
+
+/** Every conflict of the plan, shown once per strategy that loses impact (the second one of each pair). */
+export function planOverlaps(portfolio: Portfolio, strategies: Strategy[]): PlanOverlap[] {
+  const byId = new Map(strategies.map((s) => [s.draft_id, s]));
+  return uniqueOverlaps(
+    portfolio.conflicts.flatMap((c) => {
+      const s = byId.get(c.strategy_ids[1] ?? "");
+      return s ? [toOverlap(s, c.type)] : [];
+    }),
+  );
 }

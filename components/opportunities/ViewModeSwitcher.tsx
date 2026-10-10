@@ -1,4 +1,5 @@
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { copy } from "@/lib/copy";
 import {
   type OpportunityViewMode,
   VIEW_MODE_LABELS,
@@ -13,5 +14,12 @@ type ViewModeSwitcherProps = {
 };
 
 export function ViewModeSwitcher({ value, onChange }: ViewModeSwitcherProps) {
-  return <SegmentedControl label="Map view" options={OPTIONS} value={value} onChange={onChange} />;
+  return (
+    <SegmentedControl
+      label={copy.opportunities.viewMode.label}
+      options={OPTIONS}
+      value={value}
+      onChange={onChange}
+    />
+  );
 }

@@ -30,7 +30,7 @@ export function MonthGrid({
         <div aria-hidden className="grid grid-cols-7 gap-px text-center text-xs font-bold text-muted">
           {C.weekdays.map((w) => <div key={w} className="py-2">{w}</div>)}
         </div>
-        <div className="grid grid-cols-7 gap-px overflow-hidden rounded-xl border border-line bg-line">
+        <div className="grid grid-cols-7 gap-px overflow-hidden rounded-block border border-line bg-line">
           {days.map((d) => (
             <DayCell
               key={d.iso}

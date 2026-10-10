@@ -1,8 +1,15 @@
 "use client";
 
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { keepPreviousData, queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { detectAnalysisIntent } from "@/lib/chatIntent";
+import { copy } from "@/lib/copy";
 import { addDays } from "@/lib/format";
-import { request } from "./client";
+import { coversSuggestion, useSentOrders } from "@/lib/sentOrders";
+import { useFilters } from "@/lib/filters";
+import { ApiError, request } from "./client";
+import { apiMode, chatAnalysisSource } from "./config";
+import { isLiveRoute } from "./liveRoutes";
 import * as S from "./schemas";
 import type { ChatBlock, ChatMessage, DataMode, Product, RangeKey, Store } from "@/types";
 
@@ -25,20 +32,37 @@ export function rangeToDates(asOf: string, range: RangeKey): { from: string; to:
   }
 }
 
+/**
+ * KPIs and the chain summary describe closed days: the backend rejects `to > data_as_of` (400). For the "next N days"
+ * ranges of the forecast mode they get the equivalent-length window that ends at data_as_of instead.
+ * TODO(backend): define what `mode=forecast` means for these two endpoints.
+ */
+function closedWindow(asOf: string, range: RangeKey): { from: string; to: string } {
+  switch (range) {
+    case "next14": return { from: addDays(asOf, -13), to: asOf };
+    case "next30": return { from: addDays(asOf, -29), to: asOf };
+    default: return rangeToDates(asOf, range);
+  }
+}
+
 /* ---------- meta / catalogs ---------- */
 
-export const useMeta = () =>
-  useQuery({ queryKey: qk("meta"), queryFn: async () => (await request("/meta", S.metaSchema)).data, staleTime: Infinity });
+const metaOptions = () =>
+  queryOptions({ queryKey: qk("meta"), queryFn: async () => (await request("/meta", S.metaSchema)).data, staleTime: Infinity });
+
+export const useMeta = () => useQuery(metaOptions());
 
 /** The "today" of the whole UI. `undefined` until /meta answers; dependent queries wait for it. */
 export const useAsOf = (): string | undefined => useMeta().data?.data_as_of;
 
-export const useStores = () =>
-  useQuery({
+export const storesOptions = () =>
+  queryOptions({
     queryKey: qk("stores"),
     queryFn: async () => (await request("/stores", S.itemsOf(S.storeSchema))).data.items,
     staleTime: Infinity,
   });
+
+export const useStores = () => useQuery(storesOptions());
 
 export function useStore(storeId: string | "all"): Store | undefined {
   const stores = useStores().data;
@@ -56,19 +80,22 @@ export const useProducts = (p: PageParams & { categoryId?: string; q?: string } 
   });
 
 /** Whole catalog (120 products) for name lookups and autocomplete; pages of 100 are merged. */
-export function useCatalog() {
-  const q = useQuery({
+export const catalogOptions = () =>
+  queryOptions({
     queryKey: qk("catalog"),
     queryFn: async () => {
-      const a = (await request("/products", S.pageOf(S.productSchema), { query: { page: 1, page_size: 100 } })).data;
-      const rest: Product[] = [];
-      for (let page = 2; (page - 1) * 100 < a.total; page++) {
-        rest.push(...(await request("/products", S.pageOf(S.productSchema), { query: { page, page_size: 100 } })).data.items);
-      }
-      return [...a.items, ...rest];
+      const get = (page: number) => request("/products", S.pageOf(S.productSchema), { query: { page, page_size: 100 } }).then((r) => r.data);
+      // Pages 1 and 2 go out together (the catalog has 120 products); more pages, if any, follow one by one.
+      const [a, b] = await Promise.all([get(1), get(2)]);
+      const all: Product[] = [...a.items, ...b.items];
+      for (let page = 3; (page - 1) * 100 < a.total; page++) all.push(...(await get(page)).items);
+      return all;
     },
     staleTime: Infinity,
   });
+
+export function useCatalog() {
+  const q = useQuery(catalogOptions());
   const byId = new Map((q.data ?? []).map((p) => [p.product_id, p]));
   return { ...q, byId, nameOf: (id: string) => byId.get(id)?.product_name ?? id };
 }
@@ -93,17 +120,40 @@ export const useSupplierOffers = (supplierId: string | undefined, p: PageParams 
 
 /* ---------- dashboard ---------- */
 
-export function useChainSummary(scope: Pick<Scope, "mode" | "range">, zone?: string) {
-  const asOf = useAsOf();
-  return useQuery({
+const chainSummaryOptions = (asOf: string | undefined, scope: Pick<Scope, "mode" | "range">, zone?: string) =>
+  queryOptions({
     queryKey: qk("chain", scope, zone, asOf),
     enabled: !!asOf,
     queryFn: async () => {
-      const { from, to } = rangeToDates(asOf!, scope.range);
+      const { from, to } = closedWindow(asOf!, scope.range);
       return (await request("/chain/summary", S.chainSummarySchema, { query: { from, to, mode: scope.mode, zone } })).data;
     },
-    placeholderData: keepPreviousData,
   });
+
+export function useChainSummary(scope: Pick<Scope, "mode" | "range">, zone?: string) {
+  const asOf = useAsOf();
+  return useQuery({ ...chainSummaryOptions(asOf, scope, zone), placeholderData: keepPreviousData });
+}
+
+/**
+ * Starts the dashboard's first requests as soon as the session exists, so they overlap (and wake the backend's
+ * functions) instead of waiting for the page to ask for them one after another. Same cache keys as the hooks above.
+ * Not needed in mock mode.
+ */
+export function usePrefetchDashboard(enabled: boolean) {
+  const qc = useQueryClient();
+  useEffect(() => {
+    if (!enabled || apiMode === "mock") return;
+    void qc.prefetchQuery(storesOptions());
+    void qc.prefetchQuery(catalogOptions());
+    void qc.fetchQuery(metaOptions()).then(
+      (meta) => {
+        const { mode, range } = useFilters.getState();
+        void qc.prefetchQuery(chainSummaryOptions(meta.data_as_of, { mode, range }));
+      },
+      () => undefined,
+    );
+  }, [enabled, qc]);
 }
 
 export function useStoreKpis(storeId: string | "all", scope: Pick<Scope, "mode" | "range">) {
@@ -112,7 +162,7 @@ export function useStoreKpis(storeId: string | "all", scope: Pick<Scope, "mode" 
     queryKey: qk("kpis", storeId, scope, asOf),
     enabled: !!asOf && storeId !== "all",
     queryFn: async () => {
-      const { from, to } = rangeToDates(asOf!, scope.range);
+      const { from, to } = closedWindow(asOf!, scope.range);
       return (await request(`/stores/${storeId}/kpis`, S.storeKpisSchema, { query: { from, to, mode: scope.mode } })).data;
     },
     placeholderData: keepPreviousData,
@@ -201,26 +251,63 @@ export const useStockPolicy = (storeId: string | undefined, p: PageParams & { ca
 
 /* ---------- restock & calendar ---------- */
 
-export const useRestockSuggestions = (storeId: string | undefined, p: PageParams & { urgentOnly?: boolean } = {}) => {
+/**
+ * Suggestions already ordered from this browser (lib/sentOrders.ts) come back with `order_status: "sent"`, so the
+ * screens stop offering them. Orders go out by e-mail and the backend does not register them yet.
+ */
+export const useRestockSuggestions = (storeId: string | undefined, p: PageParams & { urgentOnly?: boolean; productId?: string } = {}) => {
   const asOf = useAsOf();
+  const { orders } = useSentOrders();
   return useQuery({
+    select: (page) => ({
+      ...page,
+      items: page.items.map((s) => (orders.some((o) => coversSuggestion(o, s)) ? { ...s, order_status: "sent" as const } : s)),
+    }),
     queryKey: qk("restock", storeId, p, asOf),
     enabled: !!storeId && storeId !== "all" && !!asOf,
     queryFn: async () =>
       (await request(`/stores/${storeId}/restock-suggestions`, S.pageOf(S.restockSuggestionSchema), {
-        query: { from: asOf, to: addDays(asOf!, 14), urgent_only: p.urgentOnly, page: p.page ?? 1, page_size: p.pageSize ?? 25 },
+        query: {
+          from: asOf,
+          to: addDays(asOf!, 14),
+          urgent_only: p.urgentOnly,
+          product_id: p.productId,
+          page: p.page ?? 1,
+          page_size: p.pageSize ?? 25,
+        },
       })).data,
     placeholderData: keepPreviousData,
   });
 };
 
-export const useCalendar = (storeId: string | undefined, from: string, to: string, layers?: string) =>
-  useQuery({
+/** Deliveries of orders sent from this browser (lib/sentOrders.ts) are drawn as "en camino" until the backend knows them. */
+export const useCalendar = (storeId: string | undefined, from: string, to: string, layers?: string) => {
+  const { orders } = useSentOrders();
+  return useQuery({
+    select: (cal) => ({
+      ...cal,
+      events: [
+        ...cal.events,
+        ...orders
+          .filter((o) => o.storeId === storeId && o.expectedDelivery >= from && o.expectedDelivery <= to)
+          .map((o) => ({
+            id: `sent_${o.suggestionId}`,
+            date: o.expectedDelivery,
+            kind: "delivery" as const,
+            label_code: "delivery",
+            product_id: o.productId,
+            supplier_id: o.supplierId,
+            order_id: copy.calendar.sentOrderLabel,
+            qty: o.qty,
+          })),
+      ],
+    }),
     queryKey: qk("calendar", storeId, from, to, layers),
     enabled: !!storeId && storeId !== "all",
     queryFn: async () => (await request(`/stores/${storeId}/calendar`, S.calendarSchema, { query: { from, to, layers } })).data,
     placeholderData: keepPreviousData,
   });
+};
 
 /* ---------- plan & strategies ---------- */
 
@@ -239,14 +326,28 @@ function useInvalidating<TArgs, TRes>(fn: (a: TArgs) => Promise<TRes>) {
   return useMutation({ mutationFn: fn, onSuccess: () => qc.invalidateQueries({ queryKey: ["api"] }) });
 }
 
-const action = (draftId: string, verb: "add-to-plan" | "approve" | "reject") =>
-  request(`/drafts/${draftId}/${verb}`, S.strategyActionSchema, { method: "POST", body: {} }).then((r) => r.data);
+type ActionArg = string | { draftId: string; discountPct?: number };
+const action = (arg: ActionArg, verb: "add-to-plan" | "approve" | "reject") => {
+  const { draftId, discountPct } = typeof arg === "string" ? { draftId: arg, discountPct: undefined } : arg;
+  return request(`/drafts/${draftId}/${verb}`, S.strategyActionSchema, {
+    method: "POST",
+    body: discountPct === undefined ? {} : { discount_pct: discountPct },
+  }).then((r) => r.data);
+};
+
+/** One strategy with its discount curve (powers the detail screen and the slider). */
+export const useStrategy = (draftId: string | undefined) =>
+  useQuery({
+    queryKey: qk("strategy", draftId),
+    enabled: !!draftId,
+    queryFn: async () => (await request(`/drafts/${draftId}`, S.strategyDetailSchema)).data,
+  });
 
 /** draft → selected. The backend returns the recalculated portfolio. */
-export const useAddToPlan = () => useInvalidating((draftId: string) => action(draftId, "add-to-plan"));
-/** selected → approved. Call only after an explicit confirmation dialog. */
-export const useApproveStrategy = () => useInvalidating((draftId: string) => action(draftId, "approve"));
-export const useRejectStrategy = () => useInvalidating((draftId: string) => action(draftId, "reject"));
+export const useAddToPlan = () => useInvalidating((arg: ActionArg) => action(arg, "add-to-plan"));
+/** selected → approved, optionally at the discount chosen on the slider. Call only after an explicit confirmation dialog. */
+export const useApproveStrategy = () => useInvalidating((arg: ActionArg) => action(arg, "approve"));
+export const useRejectStrategy = () => useInvalidating((arg: ActionArg) => action(arg, "reject"));
 export const useRegeneratePlan = () =>
   useInvalidating((storeId: string) => request(`/stores/${storeId}/strategies:generate`, S.planSchema, { method: "POST", body: {} }).then((r) => r.data));
 
@@ -254,7 +355,7 @@ export const useRegeneratePlan = () =>
 
 export const useSavePolicy = () =>
   useInvalidating(({ storeId, items }: { storeId: string; items: { product_id: string; reorder_point: number; max_stock: number }[] }) =>
-    request(`/stores/${storeId}/stock-policy`, S.itemsOf(S.policyItemSchema), { method: "PUT", body: { items } }).then((r) => r.data));
+    request(`/stores/${storeId}/stock-policy`, S.policySaveSchema, { method: "PUT", body: { items } }).then((r) => r.data));
 
 export const useSuggestPolicy = () =>
   useMutation({
@@ -262,23 +363,32 @@ export const useSuggestPolicy = () =>
       request(`/stores/${storeId}/stock-policy:suggest`, S.policySuggestionSchema, { method: "POST", body: { product_ids: productIds } }).then((r) => r.data),
   });
 
-/** Sends the order e-mail. Only call after an explicit confirmation. The backend picks the real recipient. */
-export const useSendRestockOrder = () =>
-  useInvalidating(({ suggestionId, supplierId, qty }: { suggestionId: string; supplierId: string; qty: number }) =>
-    request("/restock-orders", S.restockOrderSchema, {
-      method: "POST",
-      body: { suggestion_id: suggestionId, supplier_id: supplierId, qty },
-    }).then((r) => r.data));
+export type OutgoingEmail = { to: string; subject: string; text: string; htmlBody: string; fromName: string };
 
-export const useSendTestEmail = () =>
+/**
+ * Sends one e-mail through Resend (POST /emails). Only call after an explicit confirmation.
+ * The recipient is chosen in the UI (lib/mailSettings.ts); the backend does not redirect it.
+ * TODO(backend): POST /restock-orders would also record the purchase order, but it mails the supplier's own address.
+ */
+export const useSendEmail = () =>
   useMutation({
-    mutationFn: (supplierId: string) =>
-      request(`/suppliers/${supplierId}/test-email`, S.testEmailSchema, { method: "POST", body: {} }).then((r) => r.data),
+    mutationFn: (m: OutgoingEmail) =>
+      request("/emails", S.sentEmailSchema, {
+        method: "POST",
+        body: { to: m.to, subject: m.subject, text: m.text, htmlBody: m.htmlBody, from_name: m.fromName },
+      }).then((r) => r.data),
   });
 
 /* ---------- chat ---------- */
 
-export type ChatResult = { conversationId: string; messageId: string; dropped: number } & Pick<ChatMessage, "tools" | "constraints" | "blocks">;
+export type ChatResult = {
+  conversationId: string;
+  messageId: string;
+  dropped: number;
+  channel: "store" | "analysis";
+  focusStoreId: string | null;
+  focusProductId: string | null;
+} & Pick<ChatMessage, "tools" | "constraints" | "blocks">;
 
 /** Parses blocks one by one: an unknown or invalid block is dropped (and counted), the rest is shown. */
 export function parseChatBlocks(raw: unknown[]): { blocks: ChatBlock[]; dropped: number } {
@@ -292,17 +402,86 @@ export function parseChatBlocks(raw: unknown[]): { blocks: ChatBlock[]; dropped:
   return { blocks, dropped };
 }
 
+/**
+ * The backend rejects messages over 2000 UTF-8 bytes (400). A UTF-16 unit is at most 3 UTF-8 bytes,
+ * so 600 characters always fit.
+ */
+export const CHAT_MESSAGE_MAX_CHARS = 600;
+
 export const useSendChat = () => {
   const qc = useQueryClient();
   // A chat reply may create a draft; only the plan-related data can change.
   return useMutation({ mutationFn: sendChat, onSuccess: () => qc.invalidateQueries({ queryKey: ["api", "plan"] }) });
 };
 
-const sendChat = (async ({ storeId, conversationId, message }: { storeId: string; conversationId: string | null; message: string }): Promise<ChatResult> => {
-    const res = (await request("/chat", S.chatResponseSchema, {
-      method: "POST",
-      body: { store_id: storeId, conversation_id: conversationId, message },
-    })).data;
-    const { blocks, dropped } = parseChatBlocks(res.blocks);
-    return { conversationId: res.conversation_id, messageId: res.message_id, tools: res.tools, constraints: res.interpreted_constraints, blocks, dropped };
+/**
+ * Market evidence (Brave Search) for one product: POST /assistant/product-comparison (contract §3.19). It only runs when
+ * `enabled` (the user asked for it), is cached for 10 minutes and is never retried by itself: every call spends search quota.
+ */
+export function useMarketComparison(storeId: string, productId: string, query: string, enabled: boolean) {
+  return useQuery({
+    queryKey: qk("market", storeId, productId, query),
+    enabled,
+    staleTime: 10 * 60_000,
+    gcTime: 30 * 60_000,
+    retry: false,
+    queryFn: async () =>
+      (await request("/assistant/product-comparison", S.marketComparisonSchema, {
+        method: "POST",
+        body: { store_id: storeId, product_id: productId, query },
+      })).data,
   });
+}
+
+/**
+ * A draft created by the chat can only be acted on where it lives: false when the chat answers from the real backend
+ * but the draft actions (/drafts/*) still answer from sample data. TODO(backend): Go has no /drafts yet (contract D26).
+ */
+export const chatDraftsActionable = isLiveRoute("POST", "/chat") === isLiveRoute("POST", "/drafts");
+
+/** The `code` of an API error (e.g. `brave_not_configured`), so screens can word it without importing the transport's classes. */
+export const apiErrorCode = (e: unknown): string | undefined => (e instanceof ApiError ? e.code : undefined);
+
+/** 404 conversation_not_found: the backend no longer knows the conversation (or it belongs to another store or session). */
+export const isConversationNotFound = (e: unknown) => e instanceof ApiError && e.code === "conversation_not_found";
+
+/** Chain scope and analysis questions (lib/chatIntent.ts) go to the analysis adapter; the rest are store questions for POST /chat. */
+export function chatChannel(storeId: string, message: string): ChatResult["channel"] {
+  return !storeId || storeId === "all" || detectAnalysisIntent(message) !== null ? "analysis" : "store";
+}
+
+const sendChat = async ({
+  storeId,
+  conversationId,
+  contextProductId,
+  message,
+}: {
+  storeId: string;
+  conversationId: string | null;
+  contextProductId: string | null;
+  message: string;
+}): Promise<ChatResult> => {
+  const channel = chatChannel(storeId, message);
+  const path = channel === "analysis" && chatAnalysisSource === "compat" ? "/assistant/analysis" : "/chat";
+  const res = (await request(path, S.chatResponseSchema, {
+    method: "POST",
+    body: {
+      store_id: storeId && storeId !== "all" ? storeId : null,
+      conversation_id: conversationId,
+      context_product_id: contextProductId,
+      message,
+    },
+  })).data;
+  const { blocks, dropped } = parseChatBlocks(res.blocks);
+  return {
+    conversationId: res.conversation_id,
+    messageId: res.message_id,
+    channel,
+    focusStoreId: res.focus_store_id ?? null,
+    focusProductId: res.focus_product_id ?? null,
+    tools: res.tools,
+    constraints: res.interpreted_constraints,
+    blocks,
+    dropped,
+  };
+};

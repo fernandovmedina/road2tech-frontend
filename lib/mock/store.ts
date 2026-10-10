@@ -15,10 +15,14 @@ export type MockState = {
   policies: Record<string, { reorder_point: number; max_stock: number; updated_at: string }>;
   /** store_id → plan generation (bumped by `strategies:generate`) and when it was generated. */
   planMeta: Record<string, { generation: number; generated_at: string }>;
+  /** draft_id → discount (fraction) chosen by the user when adding to the plan / approving. */
+  strategyDiscount: Record<string, number>;
+  /** draft_id → engine snapshot of a chat draft (so it can be re-simulated after a reload). */
+  chatSpecs: Record<string, unknown>;
   demo: DemoState;
 };
 
-const empty = (): MockState => ({ strategyStatus: {}, chatDrafts: {}, sentOrders: {}, policies: {}, planMeta: {}, demo: "normal" });
+const empty = (): MockState => ({ strategyStatus: {}, chatDrafts: {}, sentOrders: {}, policies: {}, planMeta: {}, strategyDiscount: {}, chatSpecs: {}, demo: "normal" });
 
 let state: MockState | null = null;
 

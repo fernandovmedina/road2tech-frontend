@@ -74,3 +74,11 @@
 - [x] 11.2 Estados de carga/vacío/error en cada pantalla y revisión a 1440px y 1024px
 - [x] 11.3 Ejecutar `tsc`, lint y recorrido manual completo (login → dashboard → plan → aprobar → calendario → pedido → stock → proveedores → productos)
 - [ ] 11.4 Archivar el change `build-initial-ui-screens` sin sincronizar requisitos reemplazados
+
+## 12. Rediseño de promociones (feedback de revisión)
+
+- [x] 12.1 Contrato y datos: `GET /drafts/{id}` con curva de descuentos, `discount_pct` en approve y `strategy_id` en comportamientos (schemas, hooks, contrato, mock)
+- [x] 12.2 Dashboard: sección "Promociones para reducir pérdidas y aumentar utilidades" con las 3 mejores (tarjeta simple: línea, tres cifras, acción, "¿Cómo se calculó?") y enlace a las demás
+- [x] 12.3 Dashboard: sección "Comportamientos de compra detectados" corta y con acción por tarjeta (merma → promoción de rescate, demanda → restock/calendario, venta cruzada → combo)
+- [x] 12.4 Detalle de promoción como el diseño anterior: cifras arriba, gráfica, tarjeta con slider alimentado por la curva, "Si no aceptas / Si aceptas", tabla y botones; aceptar envía el descuento elegido
+- [x] 12.5 Chat y calendario usan la tarjeta simple; revisión visual a 1440px y 1024px

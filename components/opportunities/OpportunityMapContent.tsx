@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { StatusMessage } from "@/components/ui/StatusMessage";
+import { copy } from "@/lib/copy";
 import type { OpportunityMapData } from "@/lib/api/opportunityMap";
 import { ALL_PRODUCTS_ID } from "@/lib/api/storeDemand";
+import { t } from "@/lib/labels";
 import { readableTag } from "@/lib/opportunities/storePresentation";
 import { BranchProductOverviewPanel } from "./BranchProductOverviewPanel";
 import { OpportunityMapFrame } from "./OpportunityMapFrame";
@@ -46,12 +48,18 @@ export function OpportunityMapContent({
     (prediction) => prediction.branchId === selectedBranch?.id,
   );
 
-  const categories = useMemo(
-    () => [...new Set(data.products.map((product) => product.category))].sort(),
+  const categoryOptions = useMemo(
+    () =>
+      [...new Set(data.products.map((product) => product.category))]
+        .sort()
+        .map((value) => ({ value, label: t("category", value) })),
     [data.products],
   );
-  const tags = useMemo(
-    () => [...new Set(data.products.flatMap((product) => product.tags))].sort(),
+  const tagOptions = useMemo(
+    () =>
+      [...new Set(data.products.flatMap((product) => product.tags))]
+        .sort()
+        .map((value) => ({ value, label: readableTag(value) })),
     [data.products],
   );
   const matchingProducts = useMemo(() => {
@@ -69,12 +77,12 @@ export function OpportunityMapContent({
 
   if ((!isGeneralView && !selectedProduct) || !selectedBranch || !selectedPrediction) {
     return (
-      <OpportunityMapFrame embedded={embedded}>
+      <OpportunityMapFrame>
         <Card className="p-6">
           <StatusMessage
             tone="empty"
-            title="No demand predictions available"
-            description="Choose another product or remove the mock empty-state parameter from the URL."
+            title={copy.opportunities.empty.title}
+            description={copy.opportunities.empty.description}
           />
         </Card>
       </OpportunityMapFrame>
@@ -82,25 +90,21 @@ export function OpportunityMapContent({
   }
 
   return (
-    <OpportunityMapFrame embedded={embedded}>
+    <OpportunityMapFrame>
       <ProductMapFilters
         products={filterProducts}
-        categories={categories}
-        tags={tags.map(readableTag)}
+        categories={categoryOptions}
+        tags={tagOptions}
         selectedProductId={selectedProductId}
         category={category}
-        tag={tag === "all" ? "all" : readableTag(tag)}
-        search={search}
+        tag={tag}
         onProductChange={onProductChange}
         onCategoryChange={onCategoryChange}
-        onTagChange={(label) => {
-          const rawTag = tags.find((item) => readableTag(item) === label) ?? "all";
-          onTagChange(rawTag);
-        }}
+        onTagChange={onTagChange}
         onSearchChange={setSearch}
       />
 
-      <StoreDemandKpis predictions={data.predictions} />
+      <StoreDemandKpis summary={data.summary} />
 
       <div className={`grid gap-4 xl:grid-cols-[minmax(0,1fr)_27rem] ${embedded ? "xl:min-h-[600px]" : "xl:h-[calc(100dvh-18rem)] xl:min-h-[620px]"}`}>
         <Card className="relative min-h-[32rem] overflow-hidden">
@@ -131,10 +135,7 @@ export function OpportunityMapContent({
         </Card>
       </div>
 
-      <p className="text-xs text-ink-secondary">
-        Synthetic demo aligned with BackendRoad2Tech dataset v2. Forecasts combine product demand,
-        store zone, weather sensitivity and commercial demand drivers. No live backend is connected yet.
-      </p>
+      <p className="text-xs text-muted">{copy.opportunities.footnote}</p>
     </OpportunityMapFrame>
   );
 }

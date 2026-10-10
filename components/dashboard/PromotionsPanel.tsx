@@ -1,58 +1,49 @@
 "use client";
 
 import Link from "next/link";
-import { useStorePlan } from "@/lib/api/hooks";
+import { useCatalog, useStorePlan } from "@/lib/api/hooks";
 import { copy } from "@/lib/copy";
-import { formatMoney } from "@/lib/format";
-import { t } from "@/lib/labels";
-import { calendarHref, productHref } from "@/lib/links";
-import { Badge } from "@/components/ui/Badge";
+import { formatSignedMoney } from "@/lib/format";
+import { productHref } from "@/lib/links";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/States";
+import { isBlockedByConstraint, promoTitle } from "@/components/strategy/strategyFormat";
 
 const A = copy.dashboard.analysis;
-const smallBtn = "inline-flex min-h-10 items-center justify-center rounded-[10px] px-3 text-sm font-semibold transition-colors";
 
-/** Strategies of the selected store's plan, as the backend returns them (no client-side ranking or math). */
+/** Compact list of the store's recommended promotions (same strategies as the plan section, no long texts). */
 export function PromotionsPanel({ storeId }: { storeId: string }) {
   const { data, isPending, isError, refetch } = useStorePlan(storeId);
-  const strategies = (data?.strategies ?? []).filter((s) => s.status !== "rejected");
+  const { nameOf, byId } = useCatalog();
+  const strategies = (data?.strategies ?? [])
+    .filter((s) => s.status !== "rejected" && s.status !== "expired" && !isBlockedByConstraint(s))
+    .sort((a, b) => b.expected_margin_increment - a.expected_margin_increment);
 
   return (
     <div className="flex max-h-[520px] flex-col gap-2 overflow-y-auto pr-1">
       {isError ? (
         <ErrorState onRetry={() => refetch()} />
       ) : isPending ? (
-        [0, 1, 2].map((i) => <Skeleton key={i} className="h-[96px]" />)
+        [0, 1, 2].map((i) => <Skeleton key={i} className="h-16" />)
       ) : strategies.length === 0 ? (
-        <EmptyState text={data?.reason_if_fewer ?? A.noPromos} />
+        <EmptyState text={A.noPromos} />
       ) : (
-        strategies.map((s) => (
-          <div key={s.draft_id} className="rounded-xl border border-line p-3">
-            <p className="text-sm font-bold leading-snug">{s.title}</p>
-            <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
-              <span className="flex flex-wrap items-center gap-1.5">
-                {t("strategyType", s.strategy_type)}
-                <Badge tone={s.status === "approved" || s.status === "scheduled" || s.status === "active" ? "green" : "gray"}>{t("strategyStatus", s.status)}</Badge>
-              </span>
-              <span className="text-sm font-extrabold tabular-nums text-primary">{A.gain} +{formatMoney(s.expected_margin_increment)}</span>
-            </div>
-            <div className="mt-2 flex flex-wrap gap-2">
+        <ul className="flex flex-col gap-2">
+          {strategies.map((s) => (
+            <li key={s.draft_id}>
               <Link
                 href={productHref(s.promoted_product_id, { storeId, strategyId: s.draft_id })}
-                className={`${smallBtn} bg-primary-tint text-primary hover:bg-primary/15`}
+                className="flex min-h-11 flex-col gap-0.5 rounded-block bg-background p-3 transition-colors hover:bg-primary-tint/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
-                {A.viewDetail}
+                <span className="line-clamp-2 text-sm font-bold leading-snug">{promoTitle(s, nameOf, byId.has(s.promoted_product_id))}</span>
+                <span className="text-sm text-muted">
+                  {copy.strategy.promo.gain}{" "}
+                  <span className="font-bold tabular-nums text-primary">{formatSignedMoney(s.expected_margin_increment)}</span>
+                </span>
               </Link>
-              <Link
-                href={calendarHref({ productId: s.promoted_product_id, storeId, date: s.period.start_date })}
-                className={`${smallBtn} border border-line hover:bg-background`}
-              >
-                {copy.common.viewInCalendar}
-              </Link>
-            </div>
-          </div>
-        ))
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

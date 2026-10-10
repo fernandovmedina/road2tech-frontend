@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useRef } from "react";
 import { copy } from "@/lib/copy";
 import { formatDate, formatNumber } from "@/lib/format";
 import { t } from "@/lib/labels";
@@ -18,19 +21,29 @@ const reasonTone: Record<RestockReason, Tone> = {
 export function RestockSuggestionCard({
   suggestion,
   productName,
+  highlighted = false,
   onOrder,
   onFocus,
 }: {
   suggestion: RestockSuggestion;
+  highlighted?: boolean;
   productName: string;
   onOrder: (s: RestockSuggestion) => void;
   onFocus: (productId: string, date: string) => void;
 }) {
   const s = suggestion;
   const sent = s.order_status === "sent";
+  const ref = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (highlighted) ref.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [highlighted]);
 
   return (
-    <article className={`rounded-xl border p-3 ${s.is_urgent && !sent ? "border-alert/50 bg-alert-tint/40" : "border-line"}`}>
+    <article
+      ref={ref}
+      className={`rounded-block border p-3 ${s.is_urgent && !sent ? "border-alert/50 bg-alert-tint/40" : "border-line"} ${highlighted ? "ring-2 ring-primary ring-offset-2" : ""}`}
+    >
       <div className="flex items-start justify-between gap-2">
         <h4 className="text-sm font-bold leading-snug">{productName}</h4>
         <div className="flex flex-wrap justify-end gap-1">

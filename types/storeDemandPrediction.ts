@@ -8,7 +8,8 @@ export type StoreDemandPrediction = {
   upliftPct: number;
   confidence: number;
   inventoryUnits: number;
-  daysOfCover: number;
+  /** `null` when there is no forecast demand, so coverage is unbounded. */
+  daysOfCover: number | null;
   recommendedExtraUnits: number;
   risk: DemandRisk;
   reasons: readonly string[];

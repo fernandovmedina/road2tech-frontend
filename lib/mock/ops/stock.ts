@@ -61,6 +61,7 @@ export function toStockItem(d: OpsData, row: StockRow, sent: RestockOrder[]): St
     status: statusOf(row.quantity, policy),
     earliest_expiry: row.earliest_expiry,
     expiring_qty_7d: expiringQty7d(d, row),
+    expected_waste_units: expectedWasteUnits(row, d.asOf),
     lost_demand_7d: row.lost_demand_7d,
     next_restock_date: nextRestock,
   };
@@ -154,4 +155,12 @@ export function suggestPolicy(d: OpsData, row: StockRow): PolicySuggestion["item
     suggested: { reorder_point: reorderPoint, max_stock: maxStock },
     reason: `Demanda de ${fmt1(demand)} u/día${trend}, lead time típico de ${lead} días y reserva de ${safety} ${safety === 1 ? "día" : "días"}: mínimo ${reorderPoint} u${capNote}.`,
   };
+}
+
+/** Units that will expire unsold: stock beyond what the expected demand sells before the earliest expiry (0 when far away). */
+function expectedWasteUnits(row: StockRow, asOf: string): number {
+  if (!row.earliest_expiry || row.quantity <= 0) return 0;
+  const daysLeft = Math.round((Date.parse(`${row.earliest_expiry}T12:00:00`) - Date.parse(`${asOf}T12:00:00`)) / 86_400_000);
+  if (daysLeft < 0 || daysLeft > 14) return 0;
+  return Math.max(0, Math.floor(row.quantity - row.predicted_daily_demand * Math.max(daysLeft, 1)));
 }
