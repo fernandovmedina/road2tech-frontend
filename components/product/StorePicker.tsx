@@ -15,11 +15,11 @@ export function StorePicker() {
   const setBranch = useFilters((s) => s.setBranch);
 
   if (stores.isError) return <ErrorState onRetry={() => void stores.refetch()} />;
-  if (stores.isPending) return <Skeleton className="h-40 w-full rounded-2xl" />;
+  if (stores.isPending) return <Skeleton className="h-40 w-full rounded-card" />;
 
   return (
     <Card className="flex max-w-xl flex-col gap-3">
-      <h2 className="text-lg font-extrabold">{copy.product.pickStore.title}</h2>
+      <h2 className="text-lg font-bold">{copy.product.pickStore.title}</h2>
       <p className="text-sm text-muted">{copy.product.pickStore.text}</p>
       <Select
         id="product-store-picker"

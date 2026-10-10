@@ -1,25 +1,15 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { Boxes, Hourglass, Trash2, TrendingUp } from "lucide-react";
 import { useAsOf, useStock, useTendency } from "@/lib/api/hooks";
 import { copy } from "@/lib/copy";
 import { formatNumber } from "@/lib/format";
+import { Kpi } from "@/components/ui/Kpi";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { daysBetween } from "./periodText";
 import type { Product, Tendency } from "@/types";
 
 const M = copy.product.metrics;
-
-function Tile({ label, value, hint, tone = "plain" }: { label: string; value: ReactNode; hint?: ReactNode; tone?: "plain" | "warm" }) {
-  const warm = tone === "warm";
-  return (
-    <div className={`rounded-xl px-4 py-3 ${warm ? "bg-accent-tint" : "bg-background"}`}>
-      <dt className={`text-[11px] font-extrabold uppercase tracking-wide ${warm ? "text-accent-dark" : "text-muted"}`}>{label}</dt>
-      <dd className={`mt-1 text-xl font-extrabold tabular-nums ${warm ? "text-accent-dark" : ""}`}>{value}</dd>
-      {hint && <dd className="mt-0.5 text-xs font-bold tabular-nums">{hint}</dd>}
-    </div>
-  );
-}
 
 /** Change of the expected demand against the same number of days just lived. `null` when there is nothing to compare. */
 function demandChange(history: Tendency["history"], forecast: Tendency["forecast"]): number | null {
@@ -31,7 +21,7 @@ function demandChange(history: Tendency["history"], forecast: Tendency["forecast
 }
 
 /**
- * Four tiles under the chart: demand for the next days, stock, days to expiry and expected waste. Stock and expiry
+ * KPI row under the chart: demand for the next days, stock, days to expiry and expected waste. Stock and expiry
  * come from the store's stock record; the demand is the sum of the delivered forecast; the waste comes from the
  * strategy baseline (`expectedWasteUnits`). Anything the backend does not send is shown as "—" (nothing is estimated).
  */
@@ -61,40 +51,53 @@ export function ProductMetrics({
   const expiresBeyondHorizon = !!item && (!item.earliest_expiry || (daysLeft !== null && daysLeft > (forecast.length || 14)));
   const wasteUnits = expectedWasteUnits ?? item?.expected_waste_units ?? (expiresBeyondHorizon ? 0 : null);
   const expirySoon = daysLeft !== null && daysLeft <= 7 && (item?.expiring_qty_7d ?? 0) > 0;
+  const hasChange = change !== null && Math.round(change) !== 0;
 
   return (
-    <section aria-label={M.title}>
-      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Tile
-          label={M.demand(forecast.length || 14)}
-          value={hasForecast ? `${formatNumber(forecast.reduce((sum, p) => sum + p.value, 0))} ${copy.common.units}` : M.none}
-          hint={
-            change === null || Math.round(change) === 0 ? undefined : (
-              <span className={change > 0 ? "text-primary" : "text-alert-dark"}>
-                <span aria-hidden>{change > 0 ? "▲" : "▼"} </span>
-                {formatNumber(Math.abs(change))}%
-                <span className="sr-only"> {M.demandVsPrevious(forecast.length)}</span>
-              </span>
-            )
-          }
-        />
-        {stock.isPending ? (
-          <>
-            <Skeleton className="h-[74px] rounded-xl" />
-            <Skeleton className="h-[74px] rounded-xl" />
-          </>
-        ) : (
-          <>
-            <Tile label={M.stock} value={item ? `${formatNumber(item.closing_qty)} ${copy.common.units}` : M.none} />
-            <Tile label={M.expiresIn} value={<span className={expirySoon ? "text-alert" : ""}>{expiryText}</span>} />
-          </>
-        )}
-        <Tile
-          label={M.expectedWaste}
-          value={wasteUnits === null ? M.none : `${formatNumber(wasteUnits)} ${copy.common.units}`}
-          tone="warm"
-        />
-      </dl>
+    <section aria-label={M.title} className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <Kpi
+        label={M.demand(forecast.length || 14)}
+        value={hasForecast ? `${formatNumber(forecast.reduce((sum, p) => sum + p.value, 0))} ${copy.common.units}` : M.none}
+        icon={TrendingUp}
+        tone="primary"
+        delta={
+          hasChange
+            ? {
+                value: `${change > 0 ? "▲" : "▼"} ${formatNumber(Math.abs(change))}%`,
+                positive: change > 0,
+              }
+            : undefined
+        }
+        caption={hasChange ? M.demandVsPrevious(forecast.length) : undefined}
+      />
+      {stock.isPending ? (
+        <>
+          <Skeleton className="h-[112px] rounded-card" />
+          <Skeleton className="h-[112px] rounded-card" />
+        </>
+      ) : (
+        <>
+          <Kpi
+            label={M.stock}
+            value={item ? `${formatNumber(item.closing_qty)} ${copy.common.units}` : M.none}
+            icon={Boxes}
+            tone="info"
+          />
+          <Kpi
+            label={M.expiresIn}
+            value={expiryText}
+            icon={Hourglass}
+            tone="neutral"
+            valueTone={expirySoon ? "text-alert" : undefined}
+          />
+        </>
+      )}
+      <Kpi
+        label={M.expectedWaste}
+        value={wasteUnits === null ? M.none : `${formatNumber(wasteUnits)} ${copy.common.units}`}
+        icon={Trash2}
+        tone="accent"
+      />
     </section>
   );
 }

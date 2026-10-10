@@ -87,7 +87,7 @@ export function ChatPanel({ storeId, hasStore }: { storeId: string; hasStore: bo
       <Card className="flex flex-col gap-4">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
-            <h2 id="assistant-title" className="text-lg font-extrabold">{C.title}</h2>
+            <h2 id="assistant-title" className="text-lg font-bold">{C.title}</h2>
             <p className="text-sm text-muted">{C.subtitle}</p>
           </div>
           {store && <Badge tone="green">{C.storeLabel}: {displayBranchName(store)}</Badge>}
@@ -100,7 +100,7 @@ export function ChatPanel({ storeId, hasStore }: { storeId: string; hasStore: bo
             aria-live="polite"
             aria-relevant="additions"
             aria-label={C.logLabel}
-            className="flex max-h-[560px] min-h-[220px] flex-col gap-4 overflow-y-auto rounded-xl bg-background p-4"
+            className="flex max-h-[560px] min-h-[220px] flex-col gap-4 overflow-y-auto rounded-block bg-background p-4"
           >
             {messages.map((m) => (
               <ChatMessageView key={m.id} entry={m} onRetry={m.error && m.id === lastId ? () => retry(m) : undefined} />
@@ -140,7 +140,7 @@ export function ChatPanel({ storeId, hasStore }: { storeId: string; hasStore: bo
             disabled={!hasStore}
             placeholder={hasStore ? C.placeholder : C.placeholderNoStore}
             autoComplete="off"
-            className="min-h-11 min-w-0 flex-1 rounded-[10px] border border-line bg-white px-3 text-sm disabled:cursor-not-allowed disabled:bg-background"
+            className="min-h-11 min-w-0 flex-1 rounded-control border border-line bg-card px-3 text-sm disabled:cursor-not-allowed disabled:bg-background"
           />
           <Button type="submit" disabled={!hasStore || pending || !input.trim()}>{C.send}</Button>
         </form>

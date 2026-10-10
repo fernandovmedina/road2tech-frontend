@@ -19,7 +19,7 @@ export function RestockTable({ suggestions }: { suggestions: RestockSuggestion[]
   const { nameOf } = useCatalog();
 
   return (
-    <section aria-label={C.title} className="w-full max-w-3xl rounded-2xl border border-line bg-white p-4">
+    <section aria-label={C.title} className="w-full max-w-3xl rounded-card border border-line bg-card p-4">
       <h3 className="mb-2 text-sm font-bold">{C.title}</h3>
       {suggestions.length === 0 ? (
         <p className="text-sm text-muted">{C.empty}</p>
@@ -59,7 +59,7 @@ export function RestockTable({ suggestions }: { suggestions: RestockSuggestion[]
                   <td className="py-2 text-right">
                     <Link
                       href={calendarHref({ storeId: s.store_id, productId: s.product_id, date: s.order_date })}
-                      className="inline-flex min-h-11 items-center whitespace-nowrap rounded-[10px] px-2 text-sm font-semibold text-primary hover:bg-primary-tint"
+                      className="inline-flex min-h-11 items-center whitespace-nowrap rounded-control px-2 text-sm font-semibold text-primary hover:bg-primary-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                       aria-label={`${copy.common.viewInCalendar}: ${nameOf(s.product_id)}`}
                     >
                       {copy.common.viewInCalendar}

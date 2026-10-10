@@ -11,9 +11,9 @@ const S = copy.product.strategy;
 export function NoPromoCard({ storeName }: { storeName: string }) {
   return (
     <Card className="flex flex-col gap-4">
-      <h2 className="text-lg font-extrabold">{P.title}</h2>
-      <div className="flex flex-col gap-2 rounded-[10px] bg-background px-4 py-4">
-        <p className="text-sm font-extrabold leading-snug">{S.noneTitle(storeName)}</p>
+      <h2 className="text-lg font-bold">{P.title}</h2>
+      <div className="flex flex-col gap-2 rounded-block bg-background px-4 py-4">
+        <p className="text-sm font-bold leading-snug">{S.noneTitle(storeName)}</p>
         <p className="text-sm text-muted">{S.noneText}</p>
       </div>
     </Card>

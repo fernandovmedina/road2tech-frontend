@@ -21,7 +21,7 @@ function Figure({ label, value, valueClass = "" }: { label: string; value: strin
   return (
     <div className="min-w-0">
       <dt className="text-xs font-semibold leading-tight text-muted">{label}</dt>
-      <dd className={`mt-1 text-xl font-extrabold leading-tight tabular-nums ${valueClass}`}>{value}</dd>
+      <dd className={`mt-1 text-lg font-bold leading-tight tabular-nums ${valueClass}`}>{value}</dd>
     </div>
   );
 }
@@ -40,23 +40,23 @@ export function StrategyCard({ strategy, showDetailLink = true }: { strategy: St
   const savesWaste = s.expected_waste_reduction > 0;
 
   return (
-    <article aria-labelledby={headingId} className="flex flex-col gap-4 rounded-2xl border border-line bg-white p-5">
+    <article aria-labelledby={headingId} className="flex flex-col gap-4 rounded-card border border-line bg-card p-5">
       <header className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone="orange">{P.types[s.strategy_type]}</Badge>
           <Badge tone={statusTone[s.status]}>{t("strategyStatus", s.status)}</Badge>
         </div>
-        <h3 id={headingId} className="line-clamp-2 text-base font-extrabold leading-snug">
+        <h3 id={headingId} className="line-clamp-2 text-base font-bold leading-snug">
           {promoTitle(s, nameOf, byId.has(s.promoted_product_id))}
         </h3>
       </header>
 
       {blocked ? (
-        <p role="note" className="rounded-[10px] border border-alert/30 bg-alert-tint px-3 py-2.5 text-sm font-semibold text-alert-dark">
+        <p role="note" className="rounded-block border border-alert/30 bg-alert-tint px-3 py-2.5 text-sm font-semibold text-alert-dark">
           {notRecommendedText(s)}
         </p>
       ) : (
-        <dl className="grid grid-cols-3 items-start gap-3 rounded-xl bg-background p-3">
+        <dl className="grid grid-cols-3 items-start gap-3 rounded-block bg-background p-3">
           <Figure label={P.gain} value={formatSignedMoney(s.expected_margin_increment)} valueClass="text-primary" />
           {savesWaste ? (
             <Figure label={P.waste} value={formatMoney(s.expected_waste_reduction)} />
@@ -73,7 +73,7 @@ export function StrategyCard({ strategy, showDetailLink = true }: { strategy: St
         {showDetailLink && (
           <Link
             href={productHref(s.promoted_product_id, { storeId: s.store_id, strategyId: s.draft_id })}
-            className="inline-flex min-h-11 items-center justify-center rounded-[10px] bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            className="inline-flex min-h-11 items-center justify-center rounded-control bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
             {P.viewAnalysis}
           </Link>

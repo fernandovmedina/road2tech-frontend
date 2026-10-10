@@ -36,7 +36,7 @@ export function ProductBody({ productId, storeId, strategyId }: { productId: str
   const product = catalog.byId.get(productId);
 
   if (catalog.isError) return <ErrorState onRetry={() => void catalog.refetch()} />;
-  if (catalog.isPending) return <Skeleton className="h-96 w-full rounded-2xl" />;
+  if (catalog.isPending) return <Skeleton className="h-96 w-full rounded-card" />;
   if (!product) {
     return (
       <div className="flex flex-col gap-4">

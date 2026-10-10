@@ -4,11 +4,21 @@ import { useMemo } from "react";
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceArea, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { copy } from "@/lib/copy";
 import { formatDate, formatDecimal } from "@/lib/format";
+import { DataLegend, type DataLegendItem } from "@/components/ui/DataLegend";
 import type { Tendency } from "@/types";
 
 const C = copy.product.chart;
 
 export type TrendWindow = { start: string; end: string };
+
+// Chart colors come from the canonical tokens (never hex literals): green = history, orange dashed = forecast,
+// dark blue = treated series ("Si aceptas") and an orange tint for the uncertainty band.
+const HISTORY = "var(--color-primary)";
+const FORECAST = "var(--color-accent)";
+const TREATED = "var(--color-series-scenario)";
+const BAND = "var(--color-accent)";
+const AXIS = "var(--color-axis)";
+const TICK = "var(--color-muted)";
 
 type Row = {
   date: string;
@@ -58,8 +68,8 @@ function clampWindow(rows: Row[], window: TrendWindow | null | undefined): Trend
 }
 
 /**
- * Demand trend: solid green = history, dashed grey = forecast, shaded bands = P50-P80 and P80-P90 from the backend,
- * orange = forecast with the promotion (only when a treated series is given), shaded block = promotion window.
+ * Demand trend: solid green = history, dashed orange = forecast, shaded bands = P50-P80 and P80-P90 from the backend,
+ * dark blue = forecast with the promotion (only when a treated series is given), shaded block = promotion window.
  */
 export function TrendChart({
   history,
@@ -75,7 +85,7 @@ export function TrendChart({
   forecast: Tendency["forecast"];
   treated?: Tendency["treated"];
   window?: TrendWindow | null;
-  /** Tooltip name of the orange series, e.g. "Con promoción (12%)". */
+  /** Tooltip name of the treated series, e.g. "Con promoción (12%)". */
   treatedLabel?: string;
   /** Legend/tooltip name of the dashed series: "Sin promoción" when a promotion is being compared, else "Pronóstico". */
   forecastLabel?: string;
@@ -95,21 +105,33 @@ export function TrendChart({
   const tickLabel = (d: string) =>
     d === today && forecast.length > 0 ? C.today : d === first && history.length > 0 && d !== today ? C.daysAgo(history.length) : d === last && forecast.length > 0 ? C.daysAhead(forecast.length) : formatDate(d);
 
+  const legendItems: DataLegendItem[] = [
+    { color: HISTORY, label: C.history, shape: "line" },
+    { color: FORECAST, label: forecastLabel, shape: "dashed" },
+    ...(hasTreated ? [{ color: TREATED, label: treatedLabel, shape: "line" as const }] : []),
+    ...(hasBands ? [{ color: BAND, label: C.bandInner, shape: "band" as const }] : []),
+  ];
+
   return (
     <div>
-      <ul className="mb-2 flex flex-wrap gap-x-5 gap-y-1 text-xs font-semibold text-muted">
-        <li className="flex items-center gap-1.5"><span aria-hidden className="h-0.5 w-5 bg-primary" />{C.history}</li>
-        <li className="flex items-center gap-1.5"><span aria-hidden className="h-0 w-5 border-t-2 border-dashed border-muted" />{forecastLabel}</li>
-        {hasTreated && <li className="flex items-center gap-1.5"><span aria-hidden className="h-0.5 w-5 bg-accent" />{C.treated}</li>}
-        {hasBands && <li className="flex items-center gap-1.5"><span aria-hidden className="h-3 w-5 rounded-sm bg-muted/25" />{C.bandInner}</li>}
-      </ul>
+      <DataLegend items={legendItems} label={ariaLabel} className="mb-2" />
       <div style={{ height }} role="img" aria-label={ariaLabel}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={rows} margin={{ top: 8, right: 12, bottom: 0, left: -12 }}>
-            <CartesianGrid stroke="#E3E8E6" vertical={false} />
-            <XAxis dataKey="date" ticks={ticks} interval={0} tickFormatter={tickLabel} tick={{ fontSize: 11, fill: "#5B6776" }} tickMargin={6} />
-            <YAxis tick={{ fontSize: 11, fill: "#5B6776" }} width={44} allowDecimals={false} domain={[0, (max: number) => Math.ceil(max * 1.12)]} />
+            <CartesianGrid stroke={AXIS} vertical={false} />
+            <XAxis dataKey="date" ticks={ticks} interval={0} tickFormatter={tickLabel} tick={{ fontSize: 11, fill: TICK }} tickMargin={6} />
+            <YAxis tick={{ fontSize: 11, fill: TICK }} width={44} allowDecimals={false} domain={[0, (max: number) => Math.ceil(max * 1.12)]} />
             <Tooltip
+              cursor={{ stroke: AXIS }}
+              contentStyle={{
+                backgroundColor: "var(--color-card)",
+                border: "1px solid var(--color-line)",
+                borderRadius: "var(--radius-block)",
+                boxShadow: "var(--shadow-card)",
+                fontSize: 12,
+              }}
+              labelStyle={{ color: "var(--color-muted)", fontWeight: 600, marginBottom: 4 }}
+              itemStyle={{ color: "var(--color-foreground)", fontWeight: 500 }}
               labelFormatter={(l) => formatDate(String(l))}
               formatter={(v, n) => [Array.isArray(v) ? `${formatDecimal(v[0])}–${formatDecimal(v[1])}` : formatDecimal(Number(v)), n]}
             />
@@ -117,19 +139,19 @@ export function TrendChart({
               <ReferenceArea
                 x1={win.start}
                 x2={win.end}
-                fill="#E8590C"
+                fill={BAND}
                 fillOpacity={0.1}
                 stroke="none"
                 ifOverflow="visible"
-                label={{ value: C.window, position: "insideTop", fill: "#B34700", fontSize: 11, fontWeight: 700 }}
+                label={{ value: C.window, position: "insideTop", fill: "var(--color-accent-dark)", fontSize: 11, fontWeight: 700 }}
               />
             )}
-            {today && forecast.length > 0 && <ReferenceLine x={today} stroke="#5B6776" strokeDasharray="3 3" strokeOpacity={0.6} />}
-            <Area dataKey="outer" name={C.bandOuter} stroke="none" fill="#5B6776" fillOpacity={0.1} isAnimationActive={false} />
-            <Area dataKey="inner" name={C.bandInner} stroke="none" fill="#5B6776" fillOpacity={0.22} isAnimationActive={false} />
-            <Line dataKey="history" name={C.history} stroke="#0B6E4F" strokeWidth={2.5} dot={false} connectNulls isAnimationActive={false} />
-            <Line dataKey="forecast" name={forecastLabel} stroke="#5B6776" strokeWidth={2} strokeDasharray="6 4" dot={false} connectNulls isAnimationActive={false} />
-            {hasTreated && <Line dataKey="treated" name={treatedLabel} stroke="#E8590C" strokeWidth={2.5} dot={false} connectNulls isAnimationActive={false} />}
+            {today && forecast.length > 0 && <ReferenceLine x={today} stroke={TICK} strokeDasharray="3 3" strokeOpacity={0.6} />}
+            <Area dataKey="outer" name={C.bandOuter} stroke="none" fill={BAND} fillOpacity={0.1} isAnimationActive={false} />
+            <Area dataKey="inner" name={C.bandInner} stroke="none" fill={BAND} fillOpacity={0.22} isAnimationActive={false} />
+            <Line dataKey="history" name={C.history} stroke={HISTORY} strokeWidth={2.5} dot={false} connectNulls isAnimationActive={false} />
+            <Line dataKey="forecast" name={forecastLabel} stroke={FORECAST} strokeWidth={2} strokeDasharray="6 4" dot={false} connectNulls isAnimationActive={false} />
+            {hasTreated && <Line dataKey="treated" name={treatedLabel} stroke={TREATED} strokeWidth={2.5} dot={false} connectNulls isAnimationActive={false} />}
           </ComposedChart>
         </ResponsiveContainer>
       </div>

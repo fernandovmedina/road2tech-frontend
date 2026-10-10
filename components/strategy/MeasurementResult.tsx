@@ -15,8 +15,8 @@ export function MeasurementResult({ strategy }: { strategy: Strategy }) {
     { label: M.units, expected: formatNumber(strategy.treated.units), actual: formatNumber(m.actual.units) },
   ];
   return (
-    <section className="flex flex-col gap-2 rounded-[10px] border border-line bg-background p-3">
-      <h4 className="text-sm font-extrabold">{M.title}</h4>
+    <section className="flex flex-col gap-2 rounded-block border border-line bg-background p-3">
+      <h4 className="text-sm font-bold">{M.title}</h4>
       <table className="w-full text-sm tabular-nums">
         <thead>
           <tr className="text-left text-xs text-muted">
