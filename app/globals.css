@@ -38,6 +38,20 @@
   --color-heat-4: #e8590c;
   --color-heat-5: #a61e1e;
 
+  /* Demand map palette. Kept separate so data colors remain stable across the app. */
+  --color-ink: #101828;
+  --color-ink-secondary: #5b6776;
+  --color-ink-muted: #87928f;
+  --color-surface: #ffffff;
+  --color-plane: #f3f5f4;
+  --color-hairline: #e3e8e6;
+  --color-axis: #bdc8c4;
+  --color-brand: #0b6e4f;
+  --color-brand-soft: #e3f3ec;
+  --color-critical: #c92a2a;
+  --color-normal-day: #86b6ef;
+  --color-with-event: #1c5cab;
+
   --font-sans: var(--font-manrope), system-ui, sans-serif;
   --radius-card: 16px;
   --radius-control: 10px;

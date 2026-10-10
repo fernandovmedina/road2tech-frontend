@@ -1,0 +1,99 @@
+/* Leaflet overrides for the demand opportunity map (colors match app/globals.css tokens). */
+
+.opportunity-map.leaflet-container {
+  font-family: inherit;
+  background: #f2f1ee;
+}
+
+/* Neutral base map so the data colors carry the meaning. */
+.opportunity-map .leaflet-tile-pane {
+  filter: grayscale(1) brightness(1.04) contrast(0.9);
+}
+
+/* Event bubbles are rendered as permanent tooltips; strip Leaflet's tooltip chrome. */
+.leaflet-tooltip.opportunity-point {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+}
+
+/* Transparent, focusable hit area under each bubble. */
+.opportunity-hit-area {
+  border-radius: 9999px;
+}
+
+.opportunity-hit-area:focus-visible {
+  outline: 2px solid #0b0b0b;
+  outline-offset: 4px;
+}
+
+.branch-marker__dot {
+  display: block;
+  width: 12px;
+  height: 12px;
+  margin: 1px;
+  border: 2px solid #52514e;
+  border-radius: 3px;
+  background: #fcfcfb;
+  box-shadow: 0 0 0 2px rgb(252 252 251 / 0.9);
+}
+
+.branch-marker__dot--affected {
+  border-color: #0b0b0b;
+  background: #0b0b0b;
+}
+
+.leaflet-tooltip.branch-label {
+  padding: 2px 6px;
+  border: 1px solid rgb(11 11 11 / 0.1);
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgb(11 11 11 / 0.08);
+  color: #0b0b0b;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.store-demand-marker {
+  background: transparent;
+  border: 0;
+}
+
+.store-demand-marker__dot {
+  display: grid;
+  place-items: center;
+  border: 3px solid #fcfcfb;
+  border-radius: 9999px;
+  background: var(--marker-fill);
+  box-shadow: 0 2px 8px rgb(11 11 11 / 0.22), 0 0 0 1px rgb(11 11 11 / 0.08);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.store-demand-marker:hover .store-demand-marker__dot,
+.store-demand-marker:focus-visible .store-demand-marker__dot,
+.store-demand-marker__dot--selected {
+  transform: scale(1.12);
+  box-shadow: 0 4px 14px rgb(11 11 11 / 0.28), 0 0 0 4px var(--marker-soft);
+}
+
+.store-demand-marker:focus-visible {
+  outline: none;
+}
+
+.leaflet-tooltip.store-demand-tooltip {
+  padding: 8px 10px;
+  border: 1px solid rgb(11 11 11 / 0.1);
+  border-radius: 10px;
+  background: rgb(252 252 251 / 0.97);
+  box-shadow: 0 6px 18px rgb(11 11 11 / 0.14);
+}
+
+.leaflet-tooltip-top.store-demand-tooltip::before {
+  border-top-color: rgb(252 252 251 / 0.97);
+}
