@@ -7,7 +7,7 @@ import { ToastProvider } from "@/components/ui/Toast";
 
 export function Providers({ children }: { children: ReactNode }) {
   const [client] = useState(
-    () => new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, retry: false, refetchOnWindowFocus: false } } }),
+    () => new QueryClient({ defaultOptions: { queries: { staleTime: 5 * 60_000, retry: false, refetchOnWindowFocus: false } } }),
   );
   return (
     <QueryClientProvider client={client}>

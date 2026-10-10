@@ -1,8 +1,13 @@
 "use client";
 
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { keepPreviousData, queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { copy } from "@/lib/copy";
 import { addDays } from "@/lib/format";
+import { coversSuggestion, useSentOrders } from "@/lib/sentOrders";
+import { useFilters } from "@/lib/filters";
 import { request } from "./client";
+import { apiMode } from "./config";
 import * as S from "./schemas";
 import type { ChatBlock, ChatMessage, DataMode, Product, RangeKey, Store } from "@/types";
 
@@ -40,18 +45,22 @@ function closedWindow(asOf: string, range: RangeKey): { from: string; to: string
 
 /* ---------- meta / catalogs ---------- */
 
-export const useMeta = () =>
-  useQuery({ queryKey: qk("meta"), queryFn: async () => (await request("/meta", S.metaSchema)).data, staleTime: Infinity });
+const metaOptions = () =>
+  queryOptions({ queryKey: qk("meta"), queryFn: async () => (await request("/meta", S.metaSchema)).data, staleTime: Infinity });
+
+export const useMeta = () => useQuery(metaOptions());
 
 /** The "today" of the whole UI. `undefined` until /meta answers; dependent queries wait for it. */
 export const useAsOf = (): string | undefined => useMeta().data?.data_as_of;
 
-export const useStores = () =>
-  useQuery({
+const storesOptions = () =>
+  queryOptions({
     queryKey: qk("stores"),
     queryFn: async () => (await request("/stores", S.itemsOf(S.storeSchema))).data.items,
     staleTime: Infinity,
   });
+
+export const useStores = () => useQuery(storesOptions());
 
 export function useStore(storeId: string | "all"): Store | undefined {
   const stores = useStores().data;
@@ -69,19 +78,22 @@ export const useProducts = (p: PageParams & { categoryId?: string; q?: string } 
   });
 
 /** Whole catalog (120 products) for name lookups and autocomplete; pages of 100 are merged. */
-export function useCatalog() {
-  const q = useQuery({
+const catalogOptions = () =>
+  queryOptions({
     queryKey: qk("catalog"),
     queryFn: async () => {
-      const a = (await request("/products", S.pageOf(S.productSchema), { query: { page: 1, page_size: 100 } })).data;
-      const rest: Product[] = [];
-      for (let page = 2; (page - 1) * 100 < a.total; page++) {
-        rest.push(...(await request("/products", S.pageOf(S.productSchema), { query: { page, page_size: 100 } })).data.items);
-      }
-      return [...a.items, ...rest];
+      const get = (page: number) => request("/products", S.pageOf(S.productSchema), { query: { page, page_size: 100 } }).then((r) => r.data);
+      // Pages 1 and 2 go out together (the catalog has 120 products); more pages, if any, follow one by one.
+      const [a, b] = await Promise.all([get(1), get(2)]);
+      const all: Product[] = [...a.items, ...b.items];
+      for (let page = 3; (page - 1) * 100 < a.total; page++) all.push(...(await get(page)).items);
+      return all;
     },
     staleTime: Infinity,
   });
+
+export function useCatalog() {
+  const q = useQuery(catalogOptions());
   const byId = new Map((q.data ?? []).map((p) => [p.product_id, p]));
   return { ...q, byId, nameOf: (id: string) => byId.get(id)?.product_name ?? id };
 }
@@ -106,17 +118,40 @@ export const useSupplierOffers = (supplierId: string | undefined, p: PageParams 
 
 /* ---------- dashboard ---------- */
 
-export function useChainSummary(scope: Pick<Scope, "mode" | "range">, zone?: string) {
-  const asOf = useAsOf();
-  return useQuery({
+const chainSummaryOptions = (asOf: string | undefined, scope: Pick<Scope, "mode" | "range">, zone?: string) =>
+  queryOptions({
     queryKey: qk("chain", scope, zone, asOf),
     enabled: !!asOf,
     queryFn: async () => {
       const { from, to } = closedWindow(asOf!, scope.range);
       return (await request("/chain/summary", S.chainSummarySchema, { query: { from, to, mode: scope.mode, zone } })).data;
     },
-    placeholderData: keepPreviousData,
   });
+
+export function useChainSummary(scope: Pick<Scope, "mode" | "range">, zone?: string) {
+  const asOf = useAsOf();
+  return useQuery({ ...chainSummaryOptions(asOf, scope, zone), placeholderData: keepPreviousData });
+}
+
+/**
+ * Starts the dashboard's first requests as soon as the session exists, so they overlap (and wake the backend's
+ * functions) instead of waiting for the page to ask for them one after another. Same cache keys as the hooks above.
+ * Not needed in mock mode.
+ */
+export function usePrefetchDashboard(enabled: boolean) {
+  const qc = useQueryClient();
+  useEffect(() => {
+    if (!enabled || apiMode === "mock") return;
+    void qc.prefetchQuery(storesOptions());
+    void qc.prefetchQuery(catalogOptions());
+    void qc.fetchQuery(metaOptions()).then(
+      (meta) => {
+        const { mode, range } = useFilters.getState();
+        void qc.prefetchQuery(chainSummaryOptions(meta.data_as_of, { mode, range }));
+      },
+      () => undefined,
+    );
+  }, [enabled, qc]);
 }
 
 export function useStoreKpis(storeId: string | "all", scope: Pick<Scope, "mode" | "range">) {
@@ -214,9 +249,18 @@ export const useStockPolicy = (storeId: string | undefined, p: PageParams & { ca
 
 /* ---------- restock & calendar ---------- */
 
+/**
+ * Suggestions already ordered from this browser (lib/sentOrders.ts) come back with `order_status: "sent"`, so the
+ * screens stop offering them. Orders go out by e-mail and the backend does not register them yet.
+ */
 export const useRestockSuggestions = (storeId: string | undefined, p: PageParams & { urgentOnly?: boolean; productId?: string } = {}) => {
   const asOf = useAsOf();
+  const { orders } = useSentOrders();
   return useQuery({
+    select: (page) => ({
+      ...page,
+      items: page.items.map((s) => (orders.some((o) => coversSuggestion(o, s)) ? { ...s, order_status: "sent" as const } : s)),
+    }),
     queryKey: qk("restock", storeId, p, asOf),
     enabled: !!storeId && storeId !== "all" && !!asOf,
     queryFn: async () =>
@@ -234,13 +278,34 @@ export const useRestockSuggestions = (storeId: string | undefined, p: PageParams
   });
 };
 
-export const useCalendar = (storeId: string | undefined, from: string, to: string, layers?: string) =>
-  useQuery({
+/** Deliveries of orders sent from this browser (lib/sentOrders.ts) are drawn as "en camino" until the backend knows them. */
+export const useCalendar = (storeId: string | undefined, from: string, to: string, layers?: string) => {
+  const { orders } = useSentOrders();
+  return useQuery({
+    select: (cal) => ({
+      ...cal,
+      events: [
+        ...cal.events,
+        ...orders
+          .filter((o) => o.storeId === storeId && o.expectedDelivery >= from && o.expectedDelivery <= to)
+          .map((o) => ({
+            id: `sent_${o.suggestionId}`,
+            date: o.expectedDelivery,
+            kind: "delivery" as const,
+            label_code: "delivery",
+            product_id: o.productId,
+            supplier_id: o.supplierId,
+            order_id: copy.calendar.sentOrderLabel,
+            qty: o.qty,
+          })),
+      ],
+    }),
     queryKey: qk("calendar", storeId, from, to, layers),
     enabled: !!storeId && storeId !== "all",
     queryFn: async () => (await request(`/stores/${storeId}/calendar`, S.calendarSchema, { query: { from, to, layers } })).data,
     placeholderData: keepPreviousData,
   });
+};
 
 /* ---------- plan & strategies ---------- */
 

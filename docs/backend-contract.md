@@ -16,6 +16,7 @@ Base URL: `https://avbylri05m.execute-api.us-east-1.amazonaws.com` (Go Lambdas s
 |---|---|
 | **Desplegado y consumido por el frontend** | `GET /meta`, `/stores`, `/chain/summary`, `/stores/{id}/kpis`, `/heat`, `/stores/{id}/behaviors`, `/stores/{id}/stock`, `/stock/summary`, `GET/PUT /stores/{id}/stock-policy`, `POST /stores/{id}/stock-policy:suggest`, `GET /stores/{id}/restock-suggestions`, `GET /stores/{id}/calendar`, `GET /suppliers`, `/suppliers/{id}/offers`, `GET /products`, `POST /emails`, `POST /auth/signin`, `POST /auth/logout` |
 | **Desplegado pero fuera del frontend** | `POST /chat` (se reemplaza por el agente LangGraph + CopilotKit, change `integrate-copilot-agent-chat`); `POST /restock-orders` y `POST /suppliers/{id}/test-email` (mandan al correo del proveedor, o a `DEMO_MAILBOX` si la Lambda la tiene, y el frontend no puede elegir el destinatario) |
+| **Propuesto, aún no pedido al backend** | `GET /predictions/stores` y `GET /stores/{id}/predictions/products` (§3.20 y §3.21): pronóstico de demanda por tienda y producto que alimenta el mapa de demanda del dashboard. Hoy el mapa lo simula en el cliente; ver D20 a D25 |
 | **No existe aún (404)** | Los 7 M0: `GET /stores/{id}/tendency`, `POST /stores/{id}/strategies:generate`, `strategies:prompt`, `GET /drafts/{id}`, `POST /drafts/{id}/add-to-plan`, `approve`, `reject`, `GET /stores/{id}/plan` |
 
 Los M0 existen en `BackendRoad2Tech/services/copilot-api` (FastAPI, datos en CSV/PostgreSQL), pero **no están desplegados** y su forma difiere de este contrato (por ejemplo `/stores/{id}/overview`, `/stores/{id}/restock`).
@@ -24,6 +25,8 @@ Cómo lo usa el frontend: `NEXT_PUBLIC_API_MODE=hybrid` manda al backend real lo
 
 Correo a proveedores (decisión actual): el frontend arma el mensaje (`lib/emailTemplates.ts`) y lo manda con `POST /emails` (§3.19 de `api/ENDPOINTS.md` del backend: `to`, `subject`, `text`, `htmlBody`, `from_name`) a la dirección configurada por el usuario en la interfaz (`lib/mailSettings.ts`; valor inicial `daniel.sunflores@gmail.com`, se guarda en el navegador). Así el destinatario no depende de variables de entorno del backend y ningún proveedor recibe correo real. Como no pasa por `POST /restock-orders`, el pedido **no queda registrado** (no hay PO, no suma `on_order` ni cambia la sugerencia). **Petición para backend:** que `POST /restock-orders` acepte un `to` opcional (o que registre el pedido sin enviar) para unir ambas cosas.
 
+Para no ofrecer el mismo pedido dos veces, el frontend guarda en el navegador los pedidos que el usuario ya envió (`lib/sentOrders.ts`): esa sugerencia y las demás del mismo producto cuya fecha de pedido sea anterior a la llegada salen marcadas `order_status: "sent"` ("Pedido enviado", sin botón y fuera del calendario), y el calendario dibuja la entrega "En camino". Es solo memoria de lo que hizo el usuario: no calcula nada y no ve pedidos de otros navegadores ni usuarios. Cuando el backend registre la orden y la descuente de sus propias sugerencias (`on_order`/pedidos abiertos), este registro local sobra.
+
 Diferencias entre el backend desplegado y este contrato, ya absorbidas por el frontend:
 - El login es `POST /auth/signin` (no `/auth/login`) y existe `POST /auth/logout`, que revoca el token.
 - `GET /stores/{id}/stock`: `coverage_days` es `null` cuando el producto no tiene demanda prevista (la tabla muestra "—").
@@ -31,7 +34,8 @@ Diferencias entre el backend desplegado y este contrato, ya absorbidas por el fr
 - `GET /chain/summary` y `GET /stores/{id}/kpis` responden `400 invalid_request` si `to > data_as_of`. En modo "Predicción ML" (rangos futuros) el frontend les pide la ventana equivalente que termina en `data_as_of`. **Duda para backend:** ¿qué significa `mode=forecast` en estos dos endpoints? Hoy devuelven lo mismo que `actual`. `GET /heat` y `GET /stores/{id}/behaviors` sí aceptan rangos futuros.
 - `PUT /stores/{id}/stock-policy` devuelve solo `{store_id, items:[{product_id, reorder_point, max_stock, updated_at}], updated_at}`; la pantalla vuelve a pedir la página.
 - `GET /stores/{id}/behaviors` no trae `strategy_id` ni `restock_suggestion_id` (necesitan el plan, que depende de los M0): las tarjetas de merma no enlazan a una promoción mientras tanto. Con el rango por defecto solo devuelve alertas de merma.
-- `ai_opportunity_mxn` y el portafolio valen 0 hasta que existan los M0.
+- `ai_opportunity_mxn`, `portfolio_impact` y la oportunidad del ranking valen 0 hasta que existan los M0. Mientras tanto, en `hybrid` el frontend toma esas cifras del motor mock (`lib/api/hybridOverlay.ts`) para que coincidan con las promociones que muestra; el resto de los KPI vienen del backend.
+- **Latencia (medida el 2026-10-10):** la primera llamada tras un rato sin uso es lenta (arranque en frío de las Lambdas: `kpis` 20 s, `stock/summary` 9.7 s, `heat` 6 s, `restock-suggestions` 5.5 s); con las Lambdas calientes responden en 0.4 a 1.7 s. **Petición para backend:** concurrencia aprovisionada o un ping periódico en las Lambdas del dashboard, y revisar por qué `kpis` y `stock/summary` tardan tanto en frío. El frontend ayuda precargando `meta`, `stores`, el catálogo y el resumen de cadena al iniciar sesión, y guardando las respuestas 5 minutos.
 
 ---
 
@@ -99,6 +103,8 @@ Resumen:
 | 3.16 | GET | `/products` |
 | 3.17 | POST | `/chat` |
 | 3.18 | POST | `/auth/signin`, `/auth/logout` |
+| 3.20 | GET | `/predictions/stores` |
+| 3.21 | GET | `/stores/{store_id}/predictions/products` |
 
 ### 3.1 `GET /meta`
 
@@ -661,6 +667,116 @@ Credenciales incorrectas: `401 invalid_credentials`. Token ausente, inválido, v
 
 `POST /auth/logout` (con `Authorization`, body vacío) revoca la sesión del token: `{ "data": { "logged_out": true } }`.
 
+### 3.20 `GET /predictions/stores`
+
+Pronóstico de demanda de **todas las tiendas** para un producto, o para el conjunto de productos que cumplan los filtros. Alimenta el mapa de demanda del dashboard (un marcador por tienda, color por `risk`, tamaño por `predicted_daily_demand`) y sus cuatro KPI. Nombre, coordenadas y zona de cada tienda salen de `GET /stores`; el frontend une por `store_id`.
+
+Parámetros: `product_id` (opcional; sin él agrega todos los productos que pasen los filtros y devuelve `product_id: null`), `category_id` (opcional), `tag` (opcional, ver D20), `horizon_days` (opcional; por defecto `default_plan_days` de `/meta`, 7).
+
+```json
+{
+  "request_id": "req_01HZY",
+  "data_as_of": "2026-09-30",
+  "data": {
+    "product_id": "P001",
+    "horizon_days": 7,
+    "target_days": 4,
+    "filters": { "category_id": null, "tag": null },
+    "summary": {
+      "stores_count": 25,
+      "current_daily_demand": 611.4,
+      "predicted_daily_demand": 742.0,
+      "average_uplift_pct": 0.21,
+      "stores_at_risk": 6,
+      "recommended_extra_qty": 318
+    },
+    "items": [
+      {
+        "store_id": "S001",
+        "product_id": "P001",
+        "products_count": 1,
+        "current_daily_demand": 24.1,
+        "predicted_daily_demand": 31.4,
+        "uplift_pct": 0.303,
+        "confidence": 0.86,
+        "closing_qty": 75,
+        "on_order_qty": 279,
+        "coverage_days": 2.4,
+        "recommended_extra_qty": 51,
+        "risk": "watch",
+        "reason_codes": ["zone_pattern", "weather_hot", "weekend_event"]
+      }
+    ]
+  }
+}
+```
+
+Las cifras del ejemplo son ilustrativas (salvo `closing_qty` y `on_order_qty` de `S001`/`P001`, que son los del extracto real). La forma exacta está en `storeDemandSchema` (`lib/api/schemas.ts`).
+
+Reglas:
+
+- **Una fila por tienda**, siempre las 25: si el filtro no aplica a una tienda, la fila va con ceros y `risk: "healthy"`, no se omite. Si ningún producto cumple los filtros: `items: []` y `summary` en ceros.
+- **Los números son los de los demás endpoints**, no un cálculo paralelo (hoy el mock del mapa sí lo es y por eso no coincide con el stock real):
+  - `closing_qty` y `on_order_qty` = los de `GET /stores/{id}/stock`; `coverage_days` = el de ese endpoint (`null` si no hay demanda prevista).
+  - `predicted_daily_demand` = el de `restock-suggestions` y del stock.
+  - `current_daily_demand` = promedio de unidades vendidas en los últimos 14 días (`avg_daily_units_14d` del extracto).
+- `uplift_pct` es **fracción** (`0.21` = +21 %), como el resto del contrato.
+- `recommended_extra_qty` = unidades para cubrir `target_days` de demanda prevista menos lo disponible (`closing_qty`), nunca negativa. `target_days` viaja en la respuesta para que la leyenda diga "objetivo de N días" sin hardcodearlo.
+- `risk` ∈ `critical | watch | healthy` lo calcula el backend con la **misma regla que `status`** de §3.7 (ver D21). El frontend no lo deriva de `coverage_days`.
+- En filas agregadas (`product_id: null`): `current_daily_demand`, `predicted_daily_demand`, `closing_qty`, `on_order_qty` y `recommended_extra_qty` son sumas; `coverage_days` = `closing_qty / predicted_daily_demand`; `risk`, `confidence` y `reason_codes` los define el backend (**duda D21**).
+- `summary` lo calcula el backend (hoy lo suma el cliente). `stores_at_risk` = tiendas con `risk != "healthy"`. `average_uplift_pct` propuesto: `predicted_daily_demand / current_daily_demand - 1` de la cadena (ponderado por demanda); hoy el mapa promedia el uplift de cada tienda sin ponderar, y hay que decidir cuál se muestra.
+- `reason_codes`: lista corta y estable (máx. 3) que el frontend traduce a español, igual que los motivos de restock. Propuesta inicial: `zone_pattern`, `weather_hot`, `weather_cold`, `weekend_event`, `commute_peak`, `payday`, `holiday`, `local_trend_up`. Un código desconocido se muestra tal cual; **avisen si agregan códigos** (D23).
+- Es un pronóstico: siempre mira hacia adelante desde `data_as_of`; no acepta `from`/`to`.
+
+### 3.21 `GET /stores/{store_id}/predictions/products`
+
+Los productos de **una tienda** ordenados por prioridad, para el panel lateral del mapa ("Productos prioritarios"). Cada fila tiene la forma de §3.20 sin `store_id` ni `products_count`; nombre y categoría salen de `GET /products`.
+
+Parámetros: `category_id`, `tag` (D20), `horizon_days`, `sort` (`priority` por defecto | `predicted_daily_demand` | `uplift_pct` | `recommended_extra_qty`), `page`, `page_size` (máx. 100; el panel pide 8).
+
+```json
+{
+  "data": {
+    "store_id": "S001",
+    "horizon_days": 7,
+    "target_days": 4,
+    "filters": { "category_id": null, "tag": null },
+    "items": [
+      {
+        "product_id": "P001",
+        "current_daily_demand": 24.1,
+        "predicted_daily_demand": 31.4,
+        "uplift_pct": 0.303,
+        "confidence": 0.86,
+        "closing_qty": 75,
+        "on_order_qty": 279,
+        "coverage_days": 2.4,
+        "recommended_extra_qty": 51,
+        "risk": "watch",
+        "reason_codes": ["weather_hot", "weekend_event"]
+      }
+    ],
+    "page": 1, "page_size": 8, "total": 120
+  }
+}
+```
+
+- `sort=priority` (el orden lo da el backend, el frontend no reordena): `critical` primero, luego `watch`, luego `healthy`; dentro de cada nivel, mayor `recommended_extra_qty` y después mayor `predicted_daily_demand`.
+- Tienda desconocida: 404 `store_not_found`, como el resto de `/stores/{id}/...`.
+- El detalle de **una tienda y un producto** (panel derecho al elegir un producto) no necesita endpoint propio: es la fila de la tienda en `GET /predictions/stores?product_id=`.
+
+### Relación con otros endpoints
+
+| Pantalla / endpoint | Qué responde |
+|---|---|
+| Mapa de demanda (§3.20, §3.21) | **Qué se espera vender y si alcanza el stock**, por tienda y producto |
+| `GET /heat` (§3.5) | Lo que **se vendió** (rango pedido); no es un pronóstico |
+| `GET /stores/{id}/stock` (§3.7) | Estado del stock y mínimos/máximos editables; debe coincidir con `closing_qty`, `coverage_days` y `risk` de §3.20 |
+| `restock-suggestions` (§3.11) | Qué **pedir**, a qué proveedor y cuándo; usa el mismo `predicted_daily_demand` |
+| M0 `tendency` y `plan` | Serie diaria con P50/P80/P90 y promociones; su `forecast` debe promediar el mismo `predicted_daily_demand` de §3.20 |
+
+Cuando exista el modelo de predicción real **este es el punto de enganche**: el modelo escribe el pronóstico una sola vez y todos estos endpoints leen de ahí. Si dos pantallas muestran cifras distintas para la misma tienda, producto y día, es un error de datos, no de presentación.
+
 ---
 
 ## 4. Formas de Strategy y Portfolio
@@ -793,7 +909,8 @@ Pedido al backend: regenerar con `python3 scripts/dataset/run_all.py` (o el gate
 7. **Filtros de la UI:** sucursal, "Datos" (`actual | forecast`) y rango relativo a `data_as_of` (últimos 7/30, próximos 14/30 días) se traducen a `from`, `to`, `mode`.
 8. **Validación:** el frontend valida cada respuesta con esquemas zod; una respuesta con forma distinta se muestra como error con `request_id`. Cambios de contrato → avisar para actualizar el esquema.
 9. **Modo mock:** `NEXT_PUBLIC_API_MODE=mock|http`, `NEXT_PUBLIC_API_URL`. Con mock aparece la insignia "Datos de ejemplo".
-10. **Escala:** 25 tiendas, 120 productos, 20 categorías, 19 proveedores; listas paginadas en servidor.
+10. **Mapa de demanda:** hoy usa un mock propio (`lib/mock/storeDemand.ts`, cifras generadas con un hash) que no coincide con el stock real. Se migrará a §3.20 y §3.21 con el mismo sobre y esquemas que el resto; el frontend no sumará ni promediará nada y no calculará el riesgo.
+11. **Escala:** 25 tiendas, 120 productos, 20 categorías, 19 proveedores; listas paginadas en servidor.
 
 ---
 
@@ -804,6 +921,7 @@ Pedido al backend: regenerar con `python3 scripts/dataset/run_all.py` (o el gate
 - [ ] CSV regenerados con `run_all.py`, `validate.py` en verde, y los 5 archivos faltantes disponibles (§6).
 - [ ] Los 7 endpoints M0 con fixtures de éxito/error y la forma de Strategy/Portfolio de §4 (incluye `proposed_discount_pct`, `baseline`/`treated`, `confidence_interval`, `reason_if_fewer`).
 - [ ] `GET /meta`, `GET /chain/summary`, `GET /stores`, `GET /stores/{id}/kpis`, `GET /heat`, `GET /stores/{id}/behaviors`.
+- [ ] `GET /predictions/stores` y `GET /stores/{id}/predictions/products` (§3.20, §3.21) con cifras idénticas a `stock`, `restock-suggestions` y `tendency` para la misma tienda, producto y día.
 - [ ] `GET /stores/{id}/stock` paginado/filtrado y `GET /stock/summary` con `out+low+ok+over = total`.
 - [ ] `GET/PUT /stores/{id}/stock-policy` y `POST .../stock-policy:suggest` con `reason`.
 - [ ] `GET /stores/{id}/restock-suggestions` con fechas de pedido/entrega separadas, `is_urgent`, `reasons`, alternativas con costo y fecha por oferta; cantidad nunca menor a `min_order_qty`.
@@ -843,6 +961,15 @@ Pedido al backend: regenerar con `python3 scripts/dataset/run_all.py` (o el gate
 - **D18. Edición de proveedores.** El frontend los muestra de solo lectura. Si se necesita alta o edición, agregar `POST /suppliers` y `PUT /suppliers/{id}`.
 - **D19. Demanda prevista de productos de temporada.** En `purchase_orders.predicted_daily_demand` / `stock` el producto de temporada fuera de su ventana (ej. "Three Kings' Cake", se vende solo del 26-dic al 10-ene) trae demanda prevista positiva (≈ 5.9 u/día en septiembre) aunque sus ventas reales son 0. El forecast/optimizador debe respetar la ventana de venta; el mock del frontend lo ignora con una regla local.
 
+
+### Peticiones por el mapa de demanda (§3.20 y §3.21)
+
+- **D20. Etiquetas de producto.** El mapa filtra por "motor de demanda" (`beer`, `energy`, `hot_coffee`, `party_snack`, `ice`, `disposable`...), pero el dataset y `GET /products` no traen etiquetas. Propuesta: `tags: string[]` en cada producto de `GET /products` y filtro `tag` en §3.20 y §3.21. Si no se van a ofrecer, el filtro se quita de la interfaz y solo queda categoría. El esquema del frontend ya acepta `tags` opcional.
+- **D21. Riesgo de demanda vs. estado de stock.** `risk` (`critical | watch | healthy`) y `status` de §3.7 (`out | low | ok | over`) deben decir lo mismo. Propuesta: `critical` = `out` o cobertura menor al lead time; `watch` = `low` o cobertura menor a lead time + `safety_days`; `healthy` = el resto. Falta definir también cómo se agrega el riesgo cuando `product_id` es `null`.
+- **D22. `confidence`.** ¿Cómo la define el modelo (p. ej. `1 - (p90 - p50) / p50` acotada a 0..1, o la que entregue el modelo)? El frontend solo la muestra como porcentaje.
+- **D23. Códigos de `reason_codes`.** Lista definitiva y estable (la de §3.20 es un punto de partida) y si pueden traer parámetros (por ejemplo el nombre del evento cercano).
+- **D24. Horizonte y objetivo.** ¿`horizon_days` admite los valores de `meta.horizons.forecast_days` (7, 14, 30)? ¿`target_days` es configuración global o por tienda?
+- **D25. Qué descuenta `recommended_extra_qty`.** El ejemplo de §3.20 solo resta `closing_qty`. ¿Debe restar también `on_order_qty` (lo que ya viene en camino) o los pedidos retrasados? Hoy el mapa no lo hace y por eso sugiere stock extra aunque haya pedidos abiertos.
 
 ### Cambios por rediseño de promociones (v2 del contrato)
 

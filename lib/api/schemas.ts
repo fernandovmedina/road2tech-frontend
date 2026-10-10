@@ -59,6 +59,8 @@ export const productSchema = z.object({
   weather_sensitivity: z.string(),
   base_daily_demand: z.number(),
   default_supplier: z.object({ supplier_id: z.string(), unit_cost: money, min_order_qty: z.number() }),
+  /** Demand-driver labels (`beer`, `energy`, ...) used to filter the demand map. TODO(backend): D20, not in the dataset yet. */
+  tags: z.array(z.string()).optional(),
 });
 
 export const supplierSchema = z.object({
@@ -171,6 +173,78 @@ export const tendencySchema = z.object({
   drivers: z.array(z.string()),
   risks: z.array(z.object({ code: z.string(), message: z.string() })),
   ai_summary: z.string().nullable(),
+});
+
+/* ---------- demand predictions (demand map) ---------- */
+
+// GET /predictions/stores and GET /stores/{id}/predictions/products (contract 3.20 and 3.21). One row is the
+// forecast for a store x product (or a store x all products when `product_id` is null) over `horizon_days`.
+// Store name, coordinates and zone come from GET /stores; product name and category from GET /products.
+
+export const demandRiskSchema = z.enum(["critical", "watch", "healthy"]);
+
+const demandPredictionFields = {
+  /** Mean units/day over the last 14 days (same value as `avg_daily_units_14d` in the stock data). */
+  current_daily_demand: z.number(),
+  /** Mean P50 units/day over the next `horizon_days` (same forecast as `predicted_daily_demand` in stock and restock). */
+  predicted_daily_demand: z.number(),
+  /** Fraction: 0.21 = +21 % over `current_daily_demand`. */
+  uplift_pct: fraction,
+  /** Fraction 0..1. TODO(backend): D22, how the model defines it. */
+  confidence: fraction,
+  /** On-hand units at `data_as_of`: same number as `closing_qty` in GET /stores/{id}/stock. */
+  closing_qty: z.number(),
+  on_order_qty: z.number(),
+  /** `null` when there is no forecast demand (coverage is unbounded), like `coverage_days` in the stock data. */
+  coverage_days: z.number().nullable(),
+  /** Units to add so the forecast demand of `target_days` days is covered (0 when nothing is needed). */
+  recommended_extra_qty: z.number(),
+  risk: demandRiskSchema,
+  /** Stable codes the frontend translates (`weather_hot`, `weekend_event`...). An unknown code is shown as is. */
+  reason_codes: z.array(z.string()),
+};
+
+export const storeDemandItemSchema = z.object({
+  store_id: z.string(),
+  /** `null` = aggregate of all products that match the filters. */
+  product_id: z.string().nullable(),
+  /** Products included in this row (1 for a single product). */
+  products_count: z.number(),
+  ...demandPredictionFields,
+});
+
+export const storeDemandSchema = z.object({
+  product_id: z.string().nullable(),
+  horizon_days: z.number(),
+  /** Days of demand `recommended_extra_qty` aims to cover. */
+  target_days: z.number(),
+  filters: z.object({ category_id: z.string().nullable(), tag: z.string().nullable() }),
+  /** Chain totals for the rows below; computed by the backend, the frontend only formats them. */
+  summary: z.object({
+    stores_count: z.number(),
+    current_daily_demand: z.number(),
+    predicted_daily_demand: z.number(),
+    average_uplift_pct: fraction,
+    stores_at_risk: z.number(),
+    recommended_extra_qty: z.number(),
+  }),
+  items: z.array(storeDemandItemSchema),
+});
+
+export const branchProductDemandItemSchema = z.object({
+  product_id: z.string(),
+  ...demandPredictionFields,
+});
+
+export const branchProductDemandSchema = z.object({
+  store_id: z.string(),
+  horizon_days: z.number(),
+  target_days: z.number(),
+  filters: z.object({ category_id: z.string().nullable(), tag: z.string().nullable() }),
+  items: z.array(branchProductDemandItemSchema),
+  page: z.number(),
+  page_size: z.number(),
+  total: z.number(),
 });
 
 /* ---------- stock ---------- */

@@ -467,6 +467,7 @@ export const copy = {
   calendar: {
     title: "Calendario de restock",
     subtitle: "Entregas, estrategias y alertas por sucursal",
+    sentOrderLabel: "Pedido enviado por correo",
     promoList: { title: "Promociones del plan", none: "No hay promociones activas en el plan de esta sucursal.", gain: "Ganarías" },
     gantt: {
       title: "Promociones del plan",

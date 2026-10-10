@@ -21,6 +21,12 @@ export type Heat = z.infer<typeof S.heatSchema>;
 export type Behavior = z.infer<typeof S.behaviorSchema>;
 export type Tendency = z.infer<typeof S.tendencySchema>;
 
+export type DemandRisk = z.infer<typeof S.demandRiskSchema>;
+export type StoreDemandItem = z.infer<typeof S.storeDemandItemSchema>;
+export type StoreDemand = z.infer<typeof S.storeDemandSchema>;
+export type BranchProductDemandItem = z.infer<typeof S.branchProductDemandItemSchema>;
+export type BranchProductDemand = z.infer<typeof S.branchProductDemandSchema>;
+
 export type StockStatus = z.infer<typeof S.stockStatusSchema>;
 export type StockItem = z.infer<typeof S.stockItemSchema>;
 export type StockSummary = z.infer<typeof S.stockSummarySchema>;

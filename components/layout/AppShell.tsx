@@ -2,6 +2,7 @@
 
 import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { usePrefetchDashboard } from "@/lib/api/hooks";
 import { useAuth } from "@/lib/auth-context";
 import { copy } from "@/lib/copy";
 import { Sidebar } from "./Sidebar";
@@ -12,6 +13,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 export function AppShell({ children }: { children: ReactNode }) {
   const { session, ready } = useAuth();
   const router = useRouter();
+  usePrefetchDashboard(ready && !!session);
 
   useEffect(() => {
     if (ready && !session) router.replace("/login");

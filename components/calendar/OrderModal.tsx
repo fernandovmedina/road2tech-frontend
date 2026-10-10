@@ -8,6 +8,7 @@ import { buildOrderEmail } from "@/lib/emailTemplates";
 import { formatDate, formatMoney, formatMoneyExact, formatNumber } from "@/lib/format";
 import { t } from "@/lib/labels";
 import { useMailRecipient } from "@/lib/mailSettings";
+import { useSentOrders } from "@/lib/sentOrders";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
@@ -44,6 +45,7 @@ function OrderForm({ suggestion, onClose }: { suggestion: RestockSuggestion | nu
   const catalog = useCatalog();
   const send = useSendEmail();
   const { recipient } = useMailRecipient();
+  const sentOrders = useSentOrders();
   const toast = useToast();
 
   const [supplierId, setSupplierId] = useState(suggestion?.supplier.supplier_id ?? "");
@@ -120,7 +122,23 @@ function OrderForm({ suggestion, onClose }: { suggestion: RestockSuggestion | nu
     });
     send.mutate(
       { to: recipient, subject: M.subjectValue(productName, branchName), fromName: branchName, ...body },
-      { onSuccess: () => toast.show(M.sentTitle) },
+      {
+        onSuccess: (res) => {
+          // Remember the order so this suggestion is not offered again (and not sent twice).
+          sentOrders.add({
+            suggestionId: suggestion.id,
+            storeId: suggestion.store_id,
+            productId: suggestion.product_id,
+            supplierId: choice.supplierId,
+            qty,
+            orderDate: suggestion.order_date,
+            expectedDelivery: choice.expectedDelivery,
+            sentAt: res.sent_at,
+            to: res.email.to,
+          });
+          toast.show(M.sentTitle);
+        },
+      },
     );
   }
 
