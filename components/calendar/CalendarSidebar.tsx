@@ -1,33 +1,43 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useCatalog, useRestockSuggestions } from "@/lib/api/hooks";
 import { copy } from "@/lib/copy";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { PanelSection } from "@/components/ui/PanelSection";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tabs } from "@/components/ui/Tabs";
 import { EmptyState, ErrorState } from "@/components/ui/States";
 import type { RestockSuggestion } from "@/types";
-import { PlanStrategies } from "./PlanStrategies";
 import { RestockSuggestionCard } from "./RestockSuggestionCard";
-import { SupplierSummaryList } from "./SupplierSummaryList";
 
 const C = copy.calendar;
 const FIRST_PAGE = 25;
 
-type Tab = "products" | "suppliers";
+export type SidebarTab = "products" | "promotions";
 
 export function CalendarSidebar({
   storeId,
+  highlightId = null,
   onOrder,
   onFocus,
+  tab,
+  onTab,
+  promotions,
+  className = "",
 }: {
+  className?: string;
   storeId: string;
+  tab: SidebarTab;
+  onTab: (t: SidebarTab) => void;
+  /** Content of the "Promociones" tab (the live promotions of the plan). */
+  promotions: ReactNode;
+  /** Suggestion to mark and scroll to (the one opened from a "Ver pedido sugerido" link). */
+  highlightId?: string | null;
   onOrder: (s: RestockSuggestion) => void;
   onFocus: (productId: string, date: string) => void;
 }) {
-  const [tab, setTab] = useState<Tab>("products");
   const [limit, setLimit] = useState(FIRST_PAGE);
   const suggestions = useRestockSuggestions(storeId, { pageSize: limit });
   const catalog = useCatalog();
@@ -39,21 +49,24 @@ export function CalendarSidebar({
   const total = suggestions.data?.total ?? 0;
 
   return (
-    <Card className="flex flex-col gap-4">
+    // The card fills the height its parent gives it (the calendar's height); the list scrolls inside.
+    <Card className={`flex h-full min-h-0 flex-col gap-4 ${className}`}>
       <Tabs
         label={C.title}
         value={tab}
-        onChange={setTab}
-        tabs={[{ id: "products", label: C.tabs.products }, { id: "suppliers", label: C.tabs.suppliers }]}
+        onChange={onTab}
+        tabs={[{ id: "products", label: C.tabs.products }, { id: "promotions", label: C.tabs.promotions }]}
       />
 
-      {suggestions.isError ? (
+      <div className="relative min-h-0 flex-1 overflow-y-auto pr-1">
+      {tab === "promotions" ? (
+        promotions
+      ) : suggestions.isError ? (
         <ErrorState onRetry={() => suggestions.refetch()} />
       ) : suggestions.isPending ? (
         <div className="flex flex-col gap-2" aria-busy="true">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-28" />)}</div>
-      ) : tab === "products" ? (
-        <div className="flex flex-col gap-3">
-          <h3 className="mt-1 text-sm font-extrabold">{C.suggestions.title}</h3>
+      ) : (
+        <PanelSection title={C.suggestions.title}>
           {items.length === 0 ? (
             <EmptyState text={C.suggestions.nothingToRestock} />
           ) : (
@@ -62,6 +75,7 @@ export function CalendarSidebar({
                 <RestockSuggestionCard
                   key={s.id}
                   suggestion={s}
+                  highlighted={s.id === highlightId}
                   productName={catalog.nameOf(s.product_id)}
                   onOrder={onOrder}
                   onFocus={onFocus}
@@ -77,11 +91,9 @@ export function CalendarSidebar({
               </div>
             </>
           )}
-          <PlanStrategies storeId={storeId} />
-        </div>
-      ) : (
-        <SupplierSummaryList suggestions={items} />
+        </PanelSection>
       )}
+      </div>
     </Card>
   );
 }

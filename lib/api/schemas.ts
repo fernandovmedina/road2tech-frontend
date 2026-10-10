@@ -59,6 +59,8 @@ export const productSchema = z.object({
   weather_sensitivity: z.string(),
   base_daily_demand: z.number(),
   default_supplier: z.object({ supplier_id: z.string(), unit_cost: money, min_order_qty: z.number() }),
+  /** Demand-driver labels (`beer`, `energy`, ...) used to filter the demand map. TODO(backend): D20, not in the dataset yet. */
+  tags: z.array(z.string()).optional(),
 });
 
 export const supplierSchema = z.object({
@@ -109,15 +111,19 @@ export const chainSummarySchema = z.object({
     stores_with_plan: z.number(),
     strategies_count: z.number(),
   }),
-  store_ranking: z.array(
-    z.object({
-      store_id: z.string(),
-      colonia: z.string(),
-      zone_type: z.string(),
-      opportunity_mxn: money,
-      strategies_count: z.number(),
-    }),
-  ),
+  // The backend sends `null` instead of [] when the zone filter matches no store.
+  store_ranking: z
+    .array(
+      z.object({
+        store_id: z.string(),
+        colonia: z.string(),
+        zone_type: z.string(),
+        opportunity_mxn: money,
+        strategies_count: z.number(),
+      }),
+    )
+    .nullable()
+    .transform((v) => v ?? []),
 });
 
 export const storeKpisSchema = z.object({
@@ -150,6 +156,10 @@ export const behaviorSchema = z.object({
     })
     .nullable(),
   estimated_gain_mxn: money,
+  /** Plan strategy that answers this behavior (e.g. the rescue promotion for a waste alert); null when none. */
+  strategy_id: z.string().nullable().optional(),
+  /** Restock suggestion (`rs_...`) that answers this behavior (e.g. the order for a demand peak); null when none. */
+  restock_suggestion_id: z.string().nullable().optional(),
 });
 
 /* ---------- trends ---------- */
@@ -163,6 +173,79 @@ export const tendencySchema = z.object({
   drivers: z.array(z.string()),
   risks: z.array(z.object({ code: z.string(), message: z.string() })),
   ai_summary: z.string().nullable(),
+});
+
+/* ---------- demand predictions (demand map) ---------- */
+
+// GET /predictions/stores and GET /stores/{id}/predictions/products (contract 3.20 and 3.21). One row is the
+// forecast for a store x product (or a store x all products when `product_id` is null) over `horizon_days`.
+// Store name, coordinates and zone come from GET /stores; product name and category from GET /products.
+
+export const demandRiskSchema = z.enum(["critical", "watch", "healthy"]);
+
+const demandPredictionFields = {
+  /** Mean units/day over the last 14 days (same value as `avg_daily_units_14d` in the stock data). */
+  current_daily_demand: z.number(),
+  /** Mean P50 units/day over the next `horizon_days` (same forecast as `predicted_daily_demand` in stock and restock). */
+  predicted_daily_demand: z.number(),
+  /** Fraction: 0.21 = +21 % over `current_daily_demand`. */
+  uplift_pct: fraction,
+  /** Fraction 0..1. TODO(backend): D22, how the model defines it. */
+  confidence: fraction,
+  /** On-hand units at `data_as_of`: same number as `closing_qty` in GET /stores/{id}/stock. */
+  closing_qty: z.number(),
+  on_order_qty: z.number(),
+  /** `null` when there is no forecast demand (coverage is unbounded), like `coverage_days` in the stock data. */
+  coverage_days: z.number().nullable(),
+  /** Units to add so the forecast demand of `target_days` days is covered (0 when nothing is needed). */
+  recommended_extra_qty: z.number(),
+  risk: demandRiskSchema,
+  /** Stable codes the frontend translates (`weather_hot`, `weekend_event`...). An unknown code is shown as is. */
+  // The backend sends `null` instead of [] when the forecast has no driver for the product.
+  reason_codes: z.array(z.string()).nullable().transform((v) => v ?? []),
+};
+
+export const storeDemandItemSchema = z.object({
+  store_id: z.string(),
+  /** `null` = aggregate of all products that match the filters. */
+  product_id: z.string().nullable(),
+  /** Products included in this row (1 for a single product). */
+  products_count: z.number(),
+  ...demandPredictionFields,
+});
+
+export const storeDemandSchema = z.object({
+  product_id: z.string().nullable(),
+  horizon_days: z.number(),
+  /** Days of demand `recommended_extra_qty` aims to cover. */
+  target_days: z.number(),
+  filters: z.object({ category_id: z.string().nullable(), tag: z.string().nullable() }),
+  /** Chain totals for the rows below; computed by the backend, the frontend only formats them. */
+  summary: z.object({
+    stores_count: z.number(),
+    current_daily_demand: z.number(),
+    predicted_daily_demand: z.number(),
+    average_uplift_pct: fraction,
+    stores_at_risk: z.number(),
+    recommended_extra_qty: z.number(),
+  }),
+  items: z.array(storeDemandItemSchema),
+});
+
+export const branchProductDemandItemSchema = z.object({
+  product_id: z.string(),
+  ...demandPredictionFields,
+});
+
+export const branchProductDemandSchema = z.object({
+  store_id: z.string(),
+  horizon_days: z.number(),
+  target_days: z.number(),
+  filters: z.object({ category_id: z.string().nullable(), tag: z.string().nullable() }),
+  items: z.array(branchProductDemandItemSchema),
+  page: z.number(),
+  page_size: z.number(),
+  total: z.number(),
 });
 
 /* ---------- stock ---------- */
@@ -187,10 +270,13 @@ export const stockItemSchema = z.object({
   ),
   reorder_point: z.number(),
   max_stock: z.number(),
-  coverage_days: z.number(),
+  /** `null` when the product has no forecast demand (coverage is unbounded). */
+  coverage_days: z.number().nullable(),
   status: stockStatusSchema,
   earliest_expiry: isoDate.nullable(),
   expiring_qty_7d: z.number(),
+  /** Units expected to expire unsold (0 when nothing will be wasted). Optional until the backend sends it. */
+  expected_waste_units: z.number().optional(),
   lost_demand_7d: z.number(),
   next_restock_date: isoDate.nullable(),
 });
@@ -214,6 +300,13 @@ export const policyItemSchema = z.object({
   reorder_point: z.number(),
   max_stock: z.number(),
   updated_at: z.string().nullable(),
+});
+
+/** Answer of PUT /stores/{id}/stock-policy: only the saved values (the screen refetches the page afterwards). */
+export const policySaveSchema = z.object({
+  store_id: z.string().optional(),
+  items: z.array(z.object({ product_id: z.string(), reorder_point: z.number(), max_stock: z.number(), updated_at: z.string().nullable() })),
+  updated_at: z.string().optional(),
 });
 
 export const policyPageSchema = pageOf(policyItemSchema).extend({ store_id: z.string() });
@@ -292,6 +385,13 @@ export const restockOrderSchema = z.object({
   demo_redirect: z.boolean(),
 });
 
+/** Answer of POST /emails (free-form message sent with Resend to the address in the body). */
+export const sentEmailSchema = z.object({
+  status: z.literal("sent"),
+  sent_at: z.string(),
+  email: z.object({ to: z.string(), subject: z.string(), provider_message_id: z.string().optional() }),
+});
+
 export const testEmailSchema = z.object({
   supplier_id: z.string(),
   status: z.literal("sent"),
@@ -306,6 +406,8 @@ export const calendarEventSchema = z.discriminatedUnion("kind", [
   z.object({
     id: z.string(), date: isoDate, kind: z.literal("delivery"), label_code: z.string(),
     product_id: z.string(), supplier_id: z.string(), order_id: z.string(), qty: z.number(),
+    /** true once the order arrived (actual delivery date known); absent in older mocks. */
+    delivered: z.boolean().optional(),
   }),
   z.object({
     id: z.string(), date: isoDate, kind: z.literal("strategy"), strategy_id: z.string(),
@@ -319,6 +421,8 @@ export const calendarEventSchema = z.discriminatedUnion("kind", [
     qty: z.number().optional(),
     order_id: z.string().optional(),
     expected_delivery_date: isoDate.optional(),
+    /** Set when the late order already arrived; null/absent while it is still pending. */
+    actual_delivery_date: isoDate.nullable().optional(),
     delay_days: z.number().optional(),
   }),
 ]);
@@ -407,6 +511,23 @@ export const strategySchema = z.object({
   requires_approval: z.boolean(),
 });
 
+/** One point of the discount curve: the whole result if the discount were `discount_pct` (0..max, step 0.01). */
+export const discountPointSchema = z.object({
+  discount_pct: fraction,
+  treated: scenario,
+  expected_units_increment: z.number(),
+  expected_sales_increment: money,
+  expected_margin_increment: money,
+  expected_waste_reduction: money,
+  confidence_interval: ci,
+});
+
+/** GET /drafts/{id}: the strategy plus the curve that drives the discount slider (no money math in the client). */
+export const strategyDetailSchema = strategySchema.extend({
+  optimal_discount_pct: fraction,
+  discount_curve: z.array(discountPointSchema),
+});
+
 export const portfolioSchema = z.object({
   net_expected_margin_increment: money,
   confidence_interval: ci,
@@ -439,6 +560,24 @@ export const planOverlapSchema = z.object({
   type: z.string(), // "overlapping_product" today; translated with t("overlapType", …)
 });
 
+/** One external result of the market comparison: plain text from a Brave Search lookup made by the backend. */
+export const marketItemSchema = z.object({
+  title: z.string(),
+  url: z.string().url(),
+  source: z.string(),
+  description: z.string(),
+  price_text: z.string().nullable().optional(),
+});
+
+/** POST /assistant/product-comparison (docs/backend-contract.md §3.19); it is also a chat block. */
+export const marketComparisonSchema = z.object({
+  type: z.literal("market_comparison"),
+  provider: z.literal("brave"),
+  query: z.string(),
+  searched_at: z.string(),
+  items: z.array(marketItemSchema).max(8),
+});
+
 export const chatBlockSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("text"), text: z.string() }),
   z.object({
@@ -458,21 +597,7 @@ export const chatBlockSchema = z.discriminatedUnion("type", [
     overlaps: z.array(planOverlapSchema),
   }),
   z.object({ type: z.literal("restock_table"), suggestions: z.array(restockSuggestionSchema) }),
-  z.object({
-    type: z.literal("market_comparison"),
-    provider: z.literal("brave"),
-    query: z.string(),
-    searched_at: z.string(),
-    items: z.array(
-      z.object({
-        title: z.string(),
-        url: z.string().url(),
-        source: z.string(),
-        description: z.string(),
-        price_text: z.string().nullable().optional(),
-      }),
-    ).max(8),
-  }),
+  marketComparisonSchema,
 ]);
 
 export const chatResponseSchema = z.object({

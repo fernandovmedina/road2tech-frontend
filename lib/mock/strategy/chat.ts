@@ -1,14 +1,16 @@
 import { restockSuggestionSchema } from "@/lib/api/schemas";
 import { displayBranchName } from "@/lib/branding";
+import { detectAnalysisIntent } from "@/lib/chatIntent";
+import { t } from "@/lib/labels";
 import type { ChatResponse, ChatTool, Strategy } from "@/types";
 import { MockHttpError } from "../errors";
-import type { RawProduct } from "../db";
+import type { RawProduct, StockRow } from "../db";
 import { loadCtx, type Ctx } from "./context";
-import { evaluateSpec, type Spec } from "./engine";
-import { allStrategies, saveChatDraft } from "./plan";
+import { evaluateSpec, rescueSpecFor, waste_horizon_days, type Evaluated, type Spec } from "./engine";
+import { allStrategies, generationOf, saveChatDraft } from "./plan";
 import { computePortfolio, isLive, overlapsOf, planOverlaps } from "./portfolio";
 import { buildTendency, liveStrategyFor } from "./tendency";
-import { addDays, datesBetween, dayLabel, dm, hashId, mxn, n1, norm, pct0, r2, weekdayEn, weekdayEs } from "./util";
+import { addDays, datesBetween, dayLabel, diffDays, dm, hashId, mxn, n1, norm, pct0, r2, weekdayEn, weekdayEs } from "./util";
 
 // Mock of POST /chat (the LangGraph agent). Rule-based intent detection over the Spanish message; the answer is a
 // list of GenUI blocks plus the tools the "agent" ran. The chat proposes drafts only: it never approves anything.
@@ -22,9 +24,6 @@ const EXAMPLES = [
   "Aumenta las energéticas el sábado, máximo 10 % de descuento",
 ];
 
-const PROMOTION_ANALYSIS = /(evalua(?:r)? (?:hasta )?(?:cinco|5) promociones|mejor(?:es)? promocion(?:es)?|plan de promociones|que recomiendas|que conviene|oportunidades? (?:comerciales?|de venta)|como (?:mejorar|subir|incrementar) (?:las )?ventas|analiza (?:la )?sucursal)/i;
-const INVENTORY_CATALOG = /(que productos (?:hay|tengo)|productos (?:en|del) (?:el )?(?:inventario|stock)|inventario disponible|lista(?:do)? (?:de|del) (?:inventario|stock))/i;
-const TREND_RANKING = /((?:mayor|menor|mas alta|mas baja|alta|baja) tendencia|tendencia (?:mayor|menor|mas alta|mas baja|alta|baja)|(?:mas|menos) (?:se vende|ventas tiene))/i;
 
 let counter = 0;
 
@@ -578,10 +577,269 @@ function outlookAnswer(ctx: Ctx, outlook: InventoryOutlook, fromChain: boolean):
   return `${scope}${conclusion} ${numbers}${outlook.tendency.ai_summary ?? ""}`.trim();
 }
 
+/* ---------- waste risk ---------- */
+
+type WasteRisk = { storeId: string; product: RawProduct; row: StockRow; daysToExpiry: number; units: number; cost: number };
+
 /**
- * Chain/store inventory analysis used while Lambda still requires store_id and has no stock-vs-demand answer.
+ * Stock that will still be on the shelf when it expires, valued at cost: quantity minus the predicted daily demand until
+ * the earliest expiry. It is the engine's baseline-waste rule, so this ranking agrees with the plan's rescue bundles.
+ */
+function wasteRisks(ctx: Ctx, storeIds: string[], productIds: Set<string> | null): WasteRisk[] {
+  const out: WasteRisk[] = [];
+  for (const storeId of storeIds) {
+    for (const row of ctx.stockByStore.get(storeId) ?? []) {
+      if ((productIds && !productIds.has(row.product_id)) || row.quantity <= 0 || !row.earliest_expiry) continue;
+      const daysToExpiry = diffDays(ctx.asOf, row.earliest_expiry);
+      if (daysToExpiry < 0 || daysToExpiry > waste_horizon_days) continue;
+      const units = row.quantity - Math.max(0.1, row.predicted_daily_demand) * daysToExpiry;
+      const product = ctx.productById.get(row.product_id);
+      const unitCost = ctx.costByProduct.get(row.product_id)?.unit_cost;
+      if (units <= 0 || !product || unitCost === undefined) continue;
+      out.push({ storeId, product, row, daysToExpiry, units, cost: units * unitCost });
+    }
+  }
+  return out.sort((a, b) => b.cost - a.cost || a.daysToExpiry - b.daysToExpiry || a.storeId.localeCompare(b.storeId));
+}
+
+const inDays = (n: number) => (n <= 0 ? "hoy" : n === 1 ? "mañana" : `en ${n} días`);
+const periodText = (start: string, end: string) => (start === end ? `El ${dm(start)}` : `Del ${dm(start)} al ${dm(end)}`);
+
+function orderLine(row: StockRow): string {
+  if (row.on_order_qty <= 0 || !row.next_eta) return "No tiene pedidos abiertos: no hace falta cancelar nada.";
+  return row.earliest_expiry && row.next_eta <= row.earliest_expiry
+    ? `Hay un pedido abierto de ${n1(row.on_order_qty)} u que llega el ${dm(row.next_eta)}, antes de la caducidad: revísalo o redúcelo para no sumar inventario que no se va a vender.`
+    : `El pedido abierto de ${n1(row.on_order_qty)} u llega el ${dm(row.next_eta)}, después de la caducidad: no necesita cambios.`;
+}
+
+/** Why there is no rescue promotion to propose for this stock, in one sentence. */
+function noRescueReason(risk: WasteRisk, ev: Evaluated | null, existing: Strategy | undefined): string {
+  if (existing) return `La promoción de rescate de este producto ya está ${t("strategyStatus", existing.status).toLowerCase()} en el plan.`;
+  if (risk.daysToExpiry < 3) return `Caduca ${inDays(risk.daysToExpiry)}: ya no alcanza el tiempo para una promoción con vigencia.`;
+  if (risk.product.shelf_life_days > 60) return "Es un producto de vida útil larga: las promociones de rescate se reservan para perecederos.";
+  if (ev?.outcome === "rejected") {
+    const why = ev.strategy.constraints.violations.map((v) => v.message.replace(/\.$/, "")).join("; ");
+    return `La promoción de rescate chocó con una restricción: ${why}.`;
+  }
+  return "El motor no encontró una promoción de rescate con impacto suficiente.";
+}
+
+/** Nothing will expire unsold (or the named product has no expiry date to worry about). */
+function replyNoWasteRisk(ctx: Ctx, requestedStore: string | null, named: RawProduct[]): Reply {
+  const store = requestedStore ? ctx.storeById.get(requestedStore) : undefined;
+  const tools = [
+    tool("get_current_store_context", { store_id: requestedStore, include: ["stock", "inbound_orders"] }),
+    tool("get_expiring_inventory", { ...(requestedStore ? { store_id: requestedStore } : {}), horizon_days: waste_horizon_days, rank_by: "projected_waste_cost" }),
+  ];
+  if (named.length > 0) {
+    const names = named.slice(0, 3).map((p) => p.product_name).join(", ");
+    return {
+      tools,
+      constraints: null,
+      blocks: [text(`${names} no tiene riesgo de merma en los próximos ${waste_horizon_days} días: según la demanda prevista se vende antes de caducar, o no tiene una caducidad registrada.`)],
+    };
+  }
+  if (!store) {
+    return { tools, constraints: null, blocks: [text(`No encontré productos con riesgo de merma en ninguna sucursal en los próximos ${waste_horizon_days} días.`)] };
+  }
+  const soonest = (ctx.stockByStore.get(store.store_id) ?? [])
+    .filter((row) => row.quantity > 0 && row.earliest_expiry && diffDays(ctx.asOf, row.earliest_expiry) >= 0 && diffDays(ctx.asOf, row.earliest_expiry) <= waste_horizon_days)
+    .sort((a, b) => a.earliest_expiry!.localeCompare(b.earliest_expiry!))
+    .slice(0, 3)
+    .map((row) => `${ctx.productById.get(row.product_id)?.product_name ?? row.product_id} (el ${dm(row.earliest_expiry!)}, ${n1(row.quantity)} u)`);
+  return {
+    tools,
+    constraints: null,
+    blocks: [
+      text(
+        `No encontré productos con riesgo de merma en ${displayBranchName(store)} en los próximos ${waste_horizon_days} días: lo que caduca se vende antes de su fecha según la demanda prevista.` +
+          (soonest.length ? ` Lo más cercano a caducar: ${soonest.join("; ")}.` : ""),
+      ),
+    ],
+  };
+}
+
+type Rescue = { spec: Spec | null; ev: Evaluated | null; existing: Strategy | undefined; strategy: Strategy | null };
+
+const USABLE_STATUSES: readonly Strategy["status"][] = ["draft", "selected", "approved", "scheduled", "active"];
+
+/** The engine's rescue promotion for one at-risk stock, or why there is none. Pure: nothing is saved here. */
+function rescueFor(ctx: Ctx, all: Strategy[], risk: WasteRisk): Rescue {
+  const spec = rescueSpecFor(ctx, risk.storeId, risk.row, generationOf(risk.storeId));
+  const ev = spec ? evaluateSpec(ctx, spec, `${ctx.asOf}T12:00:00Z`, "draft") : null;
+  const proposed = ev?.outcome === "viable" ? ev.strategy : null;
+  // Same spec and generation as the plan, so an automatic rescue bundle of the plan is found here instead of duplicated.
+  const existing = proposed ? all.find((s) => s.draft_id === proposed.draft_id) : undefined;
+  const usable = !!proposed && (!existing || USABLE_STATUSES.includes(existing.status));
+  return { spec, ev, existing, strategy: usable ? (existing ?? { ...proposed, status: "draft" }) : null };
+}
+
+/**
+ * "Which product is going to be thrown away, and what do I do about it?" Lists the products that will expire unsold
+ * (biggest loss at cost first) and builds the step-by-step plan for the biggest one that can still be rescued with a
+ * promotion. That promotion is the engine's own rescue bundle (the plan's, when it already has one), so the figures match
+ * the "Plan comercial"; a new one is saved as a chat draft that is only added to the plan and approved from there.
+ * What cannot be rescued with a promotion (it expires in less than 3 days) is flagged as urgent instead of hidden.
+ */
+async function replyWasteRescue(
+  ctx: Ctx,
+  risks: WasteRisk[],
+  fromChain: boolean,
+): Promise<{ reply: Reply; storeId: string; productId: string }> {
+  const storeId = risks[0].storeId;
+  const store = ctx.storeById.get(storeId)!;
+  const { all } = await allStrategies(storeId);
+  const storeRisks = risks.filter((r) => r.storeId === storeId);
+  const rescues = storeRisks.slice(0, 5).map((risk) => ({ risk, ...rescueFor(ctx, all, risk) }));
+  const focus = rescues.find((r) => r.strategy) ?? rescues[0];
+  const { risk: top, spec, ev, existing, strategy } = focus;
+  const { product, row } = top;
+  const expiry = row.earliest_expiry!;
+  const isNewDraft = !!strategy && !existing;
+  if (strategy && isNewDraft) saveChatDraft(strategy);
+
+  const lead = fromChain
+    ? `Analicé las sucursales y fijé ${displayBranchName(store)} porque ahí está el mayor riesgo de merma. Estos productos pueden terminar en merma (de mayor a menor pérdida a costo):`
+    : `${displayBranchName(store)}: estos productos pueden terminar en merma (de mayor a menor pérdida a costo):`;
+  const bullets = rescues.slice(0, 3).map(({ risk, strategy: s }) => {
+    const tail = s ? " Se puede rescatar con una promoción." : risk.daysToExpiry < 3 ? " Ya no alcanza el tiempo para una promoción." : "";
+    const sold = risk.row.quantity - risk.units;
+    const soldText = sold < 0.5 ? "no da tiempo de venderlas" : `se venderían unas ${n1(sold)}`;
+    return (
+      `• ${risk.product.product_name}: caduca el ${dm(risk.row.earliest_expiry!)} (${inDays(risk.daysToExpiry)}); hay ${n1(risk.row.quantity)} u y ${soldText}: ` +
+      `sobrarían unas ${n1(risk.units)} u (${mxn(risk.cost)} a costo).${tail}`
+    );
+  });
+  const planTitle =
+    top === rescues[0].risk
+      ? `Plan para no desperdiciar ${product.product_name}:`
+      : `Plan para no desperdiciar ${product.product_name}, el de mayor merma que todavía se puede rescatar con una promoción:`;
+
+  const steps: string[] = [];
+  if (strategy) {
+    const anchor = strategy.anchor_product_id ? ctx.productById.get(strategy.anchor_product_id)?.product_name : undefined;
+    const ci = strategy.confidence_interval;
+    steps.push(
+      `${periodText(strategy.period.start_date, strategy.period.end_date)}: ${strategy.title}, con ${pct0(strategy.proposed_discount_pct)} de descuento. ` +
+        `Se esperan ${n1(strategy.expected_units_increment)} u adicionales y se evitan ${mxn(strategy.expected_waste_reduction)} de merma (margen incremental ${mxn(strategy.expected_margin_increment)}, rango 80 %: ${mxn(ci.low)} a ${mxn(ci.high)}).`,
+      `En tienda: colócalo a la vista y pide a caja que lo ofrezca${anchor ? ` junto con ${anchor}` : ""} en cada ticket durante esos días.`,
+      orderLine(row),
+      `Seguimiento: el ${dm(addDays(strategy.period.end_date, 1))} revisa cuántas piezas quedan; si sobran, retíralas al caducar (${dm(expiry)}) y regístralas como merma.`,
+    );
+  } else {
+    steps.push(
+      noRescueReason(top, ev, existing),
+      "En tienda: colócalo a la vista y ofrécelo en caja desde hoy; si tu política lo permite, aplica un descuento de liquidación.",
+      orderLine(row),
+      `Seguimiento: al llegar la caducidad (${dm(expiry)}) retira lo que quede, regístralo como merma y revisa el máximo de este producto para el siguiente pedido.`,
+    );
+  }
+  const closing = !strategy
+    ? "Son estimaciones con los datos de la tienda."
+    : existing
+      ? `Esta promoción ya está en el plan${existing.status === "selected" ? "" : ` (${t("strategyStatus", existing.status).toLowerCase()})`}: ábrela para revisarla. Son simulaciones, no ganancias garantizadas.`
+      : "Es un borrador: agrégalo al plan para que cuente en el portafolio; la aprobación se hace desde el plan, con confirmación. Son simulaciones, no ganancias garantizadas.";
+
+  const tools: ChatTool[] = [
+    tool("get_current_store_context", { store_id: storeId, include: ["stock", "inbound_orders", "active_promotions"] }),
+    tool("get_expiring_inventory", { ...(fromChain ? {} : { store_id: storeId }), horizon_days: waste_horizon_days, rank_by: "projected_waste_cost" }),
+    tool("get_product_tendency", { store_id: storeId, product_id: product.product_id, history_days: 21, forecast_days: 14 }),
+  ];
+  if (spec) {
+    tools.push(
+      tool("simulate_strategy", {
+        strategy_type: "rescue_bundle", store_id: storeId, product_id: product.product_id, anchor_product_id: spec.anchorId,
+        start_date: spec.start, end_date: spec.end,
+      }),
+    );
+  }
+  if (strategy && isNewDraft) {
+    tools.push(tool("optimize_portfolio", { store_id: storeId, include_draft: strategy.draft_id }), tool("create_promotion_draft", { store_id: storeId, draft_id: strategy.draft_id }));
+  }
+
+  const blocks: unknown[] = [
+    text(
+      [
+        lead,
+        ...bullets,
+        planTitle,
+        ...steps.map((step, i) => `${i + 1}) ${step}`),
+        closing,
+      ].join("\n"),
+    ),
+  ];
+  if (strategy) {
+    blocks.push({ type: "strategy_card", strategy, requires_approval: true });
+    if (isNewDraft) blocks.push(planSummaryBlock(ctx, all, strategy).block);
+  }
+  const tendency = await buildTendency(storeId, product.product_id, 21, 14);
+  blocks.push({
+    type: "forecast_chart",
+    store_id: storeId,
+    product_id: product.product_id,
+    history: tendency.history,
+    forecast: tendency.forecast,
+    ...(tendency.treated ? { treated: tendency.treated } : {}),
+  });
+  return { reply: { tools, constraints: null, blocks }, storeId, productId: product.product_id };
+}
+
+/**
+ * Waste-risk questions. Null when the message names a product and only asks about it: that keeps the per-product
+ * outlook (stock vs. demand, first expiry) below. Without a product it ranks the store (or the chain) and answers with a plan.
+ */
+async function replyWaste(
+  ctx: Ctx,
+  requestedStore: string | null,
+  message: string,
+  wantsPlan: boolean,
+): Promise<{ reply: Reply; storeId: string | null; productId: string | null } | null> {
+  const named = findProducts(ctx, requestedStore, message).products;
+  if (named.length > 0 && !wantsPlan) return null;
+  const storeIds = requestedStore ? [requestedStore] : ctx.stores.map((s) => s.store_id);
+  const risks = wasteRisks(ctx, storeIds, named.length > 0 ? new Set(named.map((p) => p.product_id)) : null);
+  if (risks.length === 0) {
+    return { reply: replyNoWasteRisk(ctx, requestedStore, named), storeId: requestedStore, productId: named.length === 1 ? named[0].product_id : null };
+  }
+  return replyWasteRescue(ctx, risks, requestedStore === null);
+}
+
+/* ---------- analysis entry point ---------- */
+
+function chartProductIdOf(reply: Reply): string | null {
+  const chart = reply.blocks.find((block) => typeof block === "object" && block !== null && "type" in block && block.type === "forecast_chart");
+  return chart && typeof chart === "object" && "product_id" in chart && typeof chart.product_id === "string" ? chart.product_id : null;
+}
+
+/** Wraps an analysis reply in the response and remembers the conversation's store and product for the follow-ups. */
+function analysisResponse(
+  requestedConversation: string | null,
+  scopeStore: string | null,
+  message: string,
+  reply: Reply,
+  focusStoreId: string | null,
+  focusProductId: string | null,
+): ChatResponse {
+  counter++;
+  const conversationId = requestedConversation ?? `conv_analysis_${hashId(`${scopeStore ?? "all"}|${counter}|${message}`)}`;
+  const messageId = `msg_${hashId(`${conversationId}|${counter}|${message}`)}`;
+  analysisConversations.set(conversationId, { storeId: focusStoreId, productId: focusProductId });
+  return {
+    conversation_id: conversationId,
+    message_id: messageId,
+    focus_store_id: focusStoreId,
+    focus_product_id: focusProductId,
+    tools: reply.tools,
+    interpreted_constraints: reply.constraints,
+    blocks: reply.blocks,
+  };
+}
+
+/**
+ * Chain/store analysis used while Lambda still requires store_id and has no stock-vs-demand answer.
  * It returns the same closed GenUI block union, so components do not know whether the answer came from this
- * compatibility endpoint or POST /chat.
+ * compatibility endpoint or POST /chat. Which question is being asked comes from lib/chatIntent.ts, the same
+ * detector that routes the message here.
  */
 export async function handleAnalysis(body: unknown): Promise<ChatResponse> {
   const b = (body && typeof body === "object" ? body : {}) as {
@@ -603,61 +861,27 @@ export async function handleAnalysis(body: unknown): Promise<ChatResponse> {
   if (requestedConversation && !previous)
     throw new MockHttpError(404, "conversation_not_found", "La conversación de análisis ya no está disponible.");
 
+  const respond = (reply: Reply, focusStoreId: string | null, focusProductId: string | null) =>
+    analysisResponse(requestedConversation, requestedStore, message, reply, focusStoreId, focusProductId);
+  const intent = detectAnalysisIntent(message);
+
   // General commercial-decision questions use the deterministic plan engine. They never go to the LLM-only path,
   // which may describe a plausible promotion without actually comparing forecast, history, stock and constraints.
-  if (requestedStore && PROMOTION_ANALYSIS.test(norm(message))) {
+  if (requestedStore && intent?.kind === "promotion_plan") {
     const { all } = await allStrategies(requestedStore);
-    const reply = await replyPlan(ctx, requestedStore, all);
-    counter++;
-    const conversationId = requestedConversation ?? `conv_analysis_${hashId(`${requestedStore}|${counter}|${message}`)}`;
-    const messageId = `msg_${hashId(`${conversationId}|${counter}|${message}`)}`;
-    analysisConversations.set(conversationId, { storeId: requestedStore, productId: null });
-    return {
-      conversation_id: conversationId,
-      message_id: messageId,
-      focus_store_id: requestedStore,
-      focus_product_id: null,
-      tools: reply.tools,
-      interpreted_constraints: reply.constraints,
-      blocks: reply.blocks,
-    };
+    return respond(await replyPlan(ctx, requestedStore, all), requestedStore, null);
   }
 
-  if (requestedStore && INVENTORY_CATALOG.test(norm(message))) {
-    const reply = replyInventory(ctx, requestedStore);
-    counter++;
-    const conversationId = requestedConversation ?? `conv_analysis_${hashId(`${requestedStore}|${counter}|${message}`)}`;
-    const messageId = `msg_${hashId(`${conversationId}|${counter}|${message}`)}`;
-    analysisConversations.set(conversationId, { storeId: requestedStore, productId: null });
-    return {
-      conversation_id: conversationId,
-      message_id: messageId,
-      focus_store_id: requestedStore,
-      focus_product_id: null,
-      tools: reply.tools,
-      interpreted_constraints: reply.constraints,
-      blocks: reply.blocks,
-    };
+  if (requestedStore && intent?.kind === "inventory_catalog") return respond(replyInventory(ctx, requestedStore), requestedStore, null);
+
+  if (requestedStore && intent?.kind === "trend_ranking") {
+    const reply = await replyTrendRanking(ctx, requestedStore, intent.direction);
+    return respond(reply, requestedStore, chartProductIdOf(reply));
   }
 
-  if (requestedStore && TREND_RANKING.test(norm(message))) {
-    const direction = /menor|baja|menos/.test(norm(message)) ? "lowest" : "highest";
-    const reply = await replyTrendRanking(ctx, requestedStore, direction);
-    const chart = reply.blocks.find((block) => typeof block === "object" && block !== null && "type" in block && block.type === "forecast_chart");
-    const productId = chart && typeof chart === "object" && "product_id" in chart && typeof chart.product_id === "string" ? chart.product_id : null;
-    counter++;
-    const conversationId = requestedConversation ?? `conv_analysis_${hashId(`${requestedStore}|${counter}|${message}`)}`;
-    const messageId = `msg_${hashId(`${conversationId}|${counter}|${message}`)}`;
-    analysisConversations.set(conversationId, { storeId: requestedStore, productId });
-    return {
-      conversation_id: conversationId,
-      message_id: messageId,
-      focus_store_id: requestedStore,
-      focus_product_id: productId,
-      tools: reply.tools,
-      interpreted_constraints: reply.constraints,
-      blocks: reply.blocks,
-    };
+  if (intent?.kind === "waste_risk") {
+    const waste = await replyWaste(ctx, requestedStore, message, intent.wantsPlan);
+    if (waste) return respond(waste.reply, waste.storeId, waste.productId);
   }
 
   const contextProductId =
@@ -672,22 +896,18 @@ export async function handleAnalysis(body: unknown): Promise<ChatResponse> {
       ? [...ctx.products].sort((a, b) => b.base_daily_demand - a.base_daily_demand)[0]
       : undefined);
 
-  counter++;
-  const conversationId = requestedConversation ?? `conv_analysis_${hashId(`${requestedStore ?? "all"}|${counter}|${message}`)}`;
-  const messageId = `msg_${hashId(`${conversationId}|${counter}|${message}`)}`;
   if (!product) {
-    analysisConversations.set(conversationId, { storeId: requestedStore, productId: null });
-    return {
-      conversation_id: conversationId,
-      message_id: messageId,
-      focus_store_id: requestedStore,
-      focus_product_id: null,
-      tools: [tool("search_products", { query: message })],
-      interpreted_constraints: null,
-      blocks: [
-        text("Dime qué producto quieres analizar. Por ejemplo: «¿Tengo stock suficiente de Coca-Cola 600 ml?» o «¿Se agotará Tecate Light al final del mes?»."),
-      ],
-    };
+    return respond(
+      {
+        tools: [tool("search_products", { query: message })],
+        constraints: null,
+        blocks: [
+          text("Dime qué producto quieres analizar. Por ejemplo: «¿Tengo stock suficiente de Coca-Cola 600 ml?» o «¿Se agotará Tecate Light al final del mes?»."),
+        ],
+      },
+      requestedStore,
+      null,
+    );
   }
 
   const storeIds = requestedStore
@@ -698,50 +918,48 @@ export async function handleAnalysis(body: unknown): Promise<ChatResponse> {
   ).filter((item): item is InventoryOutlook => item !== null);
   const outlook = candidates.sort(strongestSignal)[0];
   if (!outlook) {
-    analysisConversations.set(conversationId, { storeId: requestedStore, productId: product.product_id });
-    return {
-      conversation_id: conversationId,
-      message_id: messageId,
-      focus_store_id: requestedStore,
-      focus_product_id: product.product_id,
-      tools: [tool("get_chain_inventory_outlook", { product_id: product.product_id })],
-      interpreted_constraints: null,
-      blocks: [text(`No encontré inventario disponible de ${product.product_name} para construir el análisis.`)],
-    };
+    return respond(
+      {
+        tools: [tool("get_chain_inventory_outlook", { product_id: product.product_id })],
+        constraints: null,
+        blocks: [text(`No encontré inventario disponible de ${product.product_name} para construir el análisis.`)],
+      },
+      requestedStore,
+      product.product_id,
+    );
   }
 
-  analysisConversations.set(conversationId, { storeId: outlook.storeId, productId: product.product_id });
-  return {
-    conversation_id: conversationId,
-    message_id: messageId,
-    focus_store_id: outlook.storeId,
-    focus_product_id: product.product_id,
-    tools: [
-      tool(requestedStore ? "get_store_inventory_outlook" : "get_chain_inventory_outlook", {
-        ...(requestedStore ? { store_id: requestedStore } : {}),
-        product_id: product.product_id,
-        horizon_days: 30,
-      }),
-      tool("get_product_tendency", {
-        store_id: outlook.storeId,
-        product_id: product.product_id,
-        history_days: 21,
-        forecast_days: 30,
-      }),
-    ],
-    interpreted_constraints: null,
-    blocks: [
-      text(outlookAnswer(ctx, outlook, requestedStore === null)),
-      {
-        type: "forecast_chart",
-        store_id: outlook.storeId,
-        product_id: product.product_id,
-        history: outlook.tendency.history,
-        forecast: outlook.tendency.forecast,
-        ...(outlook.tendency.treated ? { treated: outlook.tendency.treated } : {}),
-      },
-    ],
-  };
+  return respond(
+    {
+      tools: [
+        tool(requestedStore ? "get_store_inventory_outlook" : "get_chain_inventory_outlook", {
+          ...(requestedStore ? { store_id: requestedStore } : {}),
+          product_id: product.product_id,
+          horizon_days: 30,
+        }),
+        tool("get_product_tendency", {
+          store_id: outlook.storeId,
+          product_id: product.product_id,
+          history_days: 21,
+          forecast_days: 30,
+        }),
+      ],
+      constraints: null,
+      blocks: [
+        text(outlookAnswer(ctx, outlook, requestedStore === null)),
+        {
+          type: "forecast_chart",
+          store_id: outlook.storeId,
+          product_id: product.product_id,
+          history: outlook.tendency.history,
+          forecast: outlook.tendency.forecast,
+          ...(outlook.tendency.treated ? { treated: outlook.tendency.treated } : {}),
+        },
+      ],
+    },
+    outlook.storeId,
+    product.product_id,
+  );
 }
 
 // Same validations and error codes as the backend's POST /chat (api/functions/chat/main.go).

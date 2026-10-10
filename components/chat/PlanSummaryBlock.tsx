@@ -14,22 +14,23 @@ const dates = (from: string, to: string) => (from === to ? formatDate(from) : `$
 /** Current plan vs. plan with the draft. Every figure comes from the backend; nothing is computed here. */
 export function PlanSummaryBlock({ block }: { block: BlockOf<"plan_summary"> }) {
   const { nameOf } = useCatalog();
+  const deltaUp = block.delta >= 0;
   return (
-    <section aria-label={C.title} className="w-full max-w-3xl rounded-2xl border border-line bg-white p-4">
+    <section aria-label={C.title} className="w-full max-w-3xl rounded-card border border-line bg-card p-4">
       <h3 className="text-sm font-bold">{C.title}</h3>
       <p className="text-xs text-muted">{C.hint}</p>
       <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-xl bg-background p-3">
-          <dt className="text-xs font-semibold text-muted">{C.current}</dt>
-          <dd className="text-lg font-extrabold">{formatMoney(block.current_net_expected_margin_increment)}</dd>
+        <div className="rounded-block bg-decline p-3">
+          <dt className="text-xs font-semibold text-foreground/80">{C.current}</dt>
+          <dd className="text-lg font-bold text-foreground">{formatMoney(block.current_net_expected_margin_increment)}</dd>
         </div>
-        <div className="rounded-xl bg-background p-3">
-          <dt className="text-xs font-semibold text-muted">{C.withDraft}</dt>
-          <dd className="text-lg font-extrabold">{formatMoney(block.with_draft_net_expected_margin_increment)}</dd>
+        <div className="rounded-block bg-accept p-3">
+          <dt className="text-xs font-semibold text-white/80">{C.withDraft}</dt>
+          <dd className="text-lg font-bold text-white">{formatMoney(block.with_draft_net_expected_margin_increment)}</dd>
         </div>
-        <div className={`rounded-xl p-3 ${block.delta >= 0 ? "bg-primary-tint" : "bg-alert-tint"}`}>
+        <div className={`rounded-block p-3 ${deltaUp ? "bg-primary-tint" : "bg-alert-tint"}`}>
           <dt className="text-xs font-semibold text-muted">{C.delta}</dt>
-          <dd className={`text-lg font-extrabold ${block.delta >= 0 ? "text-primary" : "text-alert-dark"}`}>
+          <dd className={`text-lg font-bold ${deltaUp ? "text-primary" : "text-alert-dark"}`}>
             {formatSignedMoney(block.delta)}
           </dd>
         </div>

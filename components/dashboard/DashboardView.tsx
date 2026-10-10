@@ -22,11 +22,17 @@ export function DashboardView() {
         <DashboardControls />
       </PageHeader>
       <KpiCards scope={scope} />
-      {storeId ? <BehaviorCards scope={scope} storeId={storeId} /> : <ChainNotice />}
+      {storeId ? (
+        <>
+          <PlanPanel storeId={storeId} />
+          <BehaviorCards scope={scope} storeId={storeId} />
+        </>
+      ) : (
+        <ChainNotice />
+      )}
       <BranchAnalysis scope={scope} />
       {/* Right below the map in every view; chain analysis can focus a store as the conversation progresses. */}
       <AssistantChat storeId={storeId ?? ""} />
-      {storeId && <PlanPanel storeId={storeId} />}
     </div>
   );
 }

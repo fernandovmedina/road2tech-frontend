@@ -52,9 +52,9 @@ export function buildScenarioRows(
 export type ConfidenceLevel = "high" | "medium" | "low";
 
 export const CONFIDENCE_LABELS: Record<ConfidenceLevel, string> = {
-  high: "High",
-  medium: "Medium",
-  low: "Low",
+  high: "Alta",
+  medium: "Media",
+  low: "Baja",
 };
 
 export function confidenceLevel(confidence: number): ConfidenceLevel {

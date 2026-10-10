@@ -2,6 +2,7 @@
 
 import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { usePrefetchDashboard } from "@/lib/api/hooks";
 import { useAuth } from "@/lib/auth-context";
 import { copy } from "@/lib/copy";
 import { Sidebar } from "./Sidebar";
@@ -12,6 +13,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 export function AppShell({ children }: { children: ReactNode }) {
   const { session, ready } = useAuth();
   const router = useRouter();
+  usePrefetchDashboard(ready && !!session);
 
   useEffect(() => {
     if (ready && !session) router.replace("/login");
@@ -29,7 +31,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-screen">
       <a
         href="#main-content"
-        className="sr-only rounded-lg bg-white px-4 py-2 text-sm font-bold text-primary focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50"
+        className="sr-only rounded-control bg-card px-4 py-2 text-sm font-bold text-primary focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50"
       >
         {copy.shell.skipToContent}
       </a>

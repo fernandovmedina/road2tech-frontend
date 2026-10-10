@@ -1,36 +1,40 @@
 import { AlertTriangle, Boxes, TrendingUp, Warehouse } from "lucide-react";
-import { Card } from "@/components/ui/Card";
+import { Kpi } from "@/components/ui/Kpi";
+import { copy } from "@/lib/copy";
+import type { OpportunityMapSummary } from "@/lib/api/opportunityMap";
 import { formatInteger, formatSignedPercent } from "@/lib/format";
-import type { StoreDemandPrediction } from "@/types/storeDemandPrediction";
 
-export function StoreDemandKpis({ predictions }: { predictions: readonly StoreDemandPrediction[] }) {
-  const totalDemand = predictions.reduce((sum, prediction) => sum + prediction.predictedDailyDemand, 0);
-  const averageUplift = predictions.length
-    ? predictions.reduce((sum, prediction) => sum + prediction.upliftPct, 0) / predictions.length
-    : 0;
-  const atRisk = predictions.filter((prediction) => prediction.risk !== "healthy").length;
-  const extraUnits = predictions.reduce((sum, prediction) => sum + prediction.recommendedExtraUnits, 0);
-  const stats = [
-    { label: "Forecast demand", value: `${formatInteger(totalDemand)} units/day`, caption: "Across 25 branches", icon: TrendingUp, tone: "text-brand bg-brand-soft" },
-    { label: "Average uplift", value: formatSignedPercent(averageUplift), caption: "Compared with current demand", icon: Warehouse, tone: "text-[#7f4b00] bg-[#fff0d2]" },
-    { label: "Branches to watch", value: `${atRisk}`, caption: "Low stock coverage", icon: AlertTriangle, tone: "text-critical bg-[#fbe2e2]" },
-    { label: "Suggested extra stock", value: `${formatInteger(extraUnits)} units`, caption: "Four-day target", icon: Boxes, tone: "text-[#16785f] bg-[#d9f0e8]" },
-  ];
-
+export function StoreDemandKpis({ summary }: { summary: OpportunityMapSummary }) {
   return (
     <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-      {stats.map((stat) => (
-        <Card key={stat.label} className="flex items-center gap-3 px-4 py-3">
-          <span className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${stat.tone}`}>
-            <stat.icon className="size-4" aria-hidden />
-          </span>
-          <div className="min-w-0">
-            <p className="text-xs font-medium text-ink-secondary">{stat.label}</p>
-            <p className="mt-0.5 truncate text-xl font-semibold tracking-tight text-ink">{stat.value}</p>
-            <p className="truncate text-[11px] text-ink-muted">{stat.caption}</p>
-          </div>
-        </Card>
-      ))}
+      <Kpi
+        label={copy.opportunities.kpis.forecastDemand}
+        value={copy.opportunities.unitsPerDay(formatInteger(summary.totalDemand))}
+        caption={copy.opportunities.kpis.forecastDemandCaption}
+        icon={TrendingUp}
+        tone="primary"
+      />
+      <Kpi
+        label={copy.opportunities.kpis.averageUplift}
+        value={formatSignedPercent(summary.averageUplift)}
+        caption={copy.opportunities.kpis.averageUpliftCaption}
+        icon={Warehouse}
+        tone="warning"
+      />
+      <Kpi
+        label={copy.opportunities.kpis.branchesToWatch}
+        value={String(summary.atRiskBranches)}
+        caption={copy.opportunities.kpis.branchesToWatchCaption}
+        icon={AlertTriangle}
+        tone="alert"
+      />
+      <Kpi
+        label={copy.opportunities.kpis.suggestedExtraStock}
+        value={copy.opportunities.units(formatInteger(summary.extraUnits))}
+        caption={copy.opportunities.kpis.suggestedExtraStockCaption}
+        icon={Boxes}
+        tone="primary"
+      />
     </div>
   );
 }

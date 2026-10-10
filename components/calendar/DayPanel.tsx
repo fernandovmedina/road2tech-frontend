@@ -6,27 +6,46 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import type { CalendarContext } from "@/types";
 import { describeContext } from "./contextInfo";
-import { kindDot, type DescribedEvent } from "./eventPresentation";
+import { categoryDot, type DescribedEvent } from "./eventPresentation";
 
 const C = copy.calendar;
 
-function EventItem({ item, storeId, strategyProductId }: { item: DescribedEvent; storeId: string; strategyProductId: (strategyId: string) => string | undefined }) {
+function EventItem({
+  item,
+  storeId,
+  strategyProductId,
+  onOrder,
+}: {
+  item: DescribedEvent;
+  storeId: string;
+  strategyProductId: (strategyId: string) => string | undefined;
+  onOrder: (s: NonNullable<DescribedEvent["suggestion"]>) => void;
+}) {
   const productId =
     item.event.kind === "strategy" ? strategyProductId(item.event.strategy_id) : item.productId ?? undefined;
   const strategyId = item.event.kind === "strategy" ? item.event.strategy_id : undefined;
   return (
     <li className="flex items-start gap-2">
-      <span aria-hidden className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-sm ${kindDot[item.kind]}`} />
+      <span aria-hidden className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-sm ${categoryDot[item.category]}`} />
       <div className="min-w-0">
         <p className="font-semibold">{item.label}</p>
         {item.details.length > 0 && <p className="text-xs text-muted">{item.details.join(" · ")}</p>}
-        {productId && (
-          <Link
-            href={productHref(productId, { storeId, strategyId })}
-            className="mt-0.5 inline-flex min-h-11 items-center text-xs font-bold text-primary hover:underline"
-          >
-            {C.events.viewProduct}
-          </Link>
+        {(item.suggestion || productId) && (
+          <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
+            {item.suggestion && (
+              <Button size="sm" onClick={() => onOrder(item.suggestion!)}>
+                {C.events.orderBtn}
+              </Button>
+            )}
+            {productId && (
+              <Link
+                href={productHref(productId, { storeId, strategyId })}
+                className="inline-flex min-h-11 items-center text-xs font-bold text-primary hover:underline"
+              >
+                {C.events.viewProduct}
+              </Link>
+            )}
+          </div>
         )}
       </div>
     </li>
@@ -41,6 +60,7 @@ export function DayPanel({
   context,
   focus,
   strategyProductId,
+  onOrder,
   onPickDate,
   onClearFocus,
 }: {
@@ -50,6 +70,7 @@ export function DayPanel({
   context: CalendarContext | undefined;
   focus: { name: string; events: DescribedEvent[] } | null;
   strategyProductId: (strategyId: string) => string | undefined;
+  onOrder: (s: NonNullable<DescribedEvent["suggestion"]>) => void;
   onPickDate: (iso: string) => void;
   onClearFocus: () => void;
 }) {
@@ -60,9 +81,9 @@ export function DayPanel({
   return (
     <div className="mt-4 flex flex-col gap-4">
       {focus && (
-        <section aria-label={C.focus.product} className="rounded-xl border border-line bg-white p-4">
+        <section aria-label={C.focus.product} className="rounded-block bg-background p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-sm font-extrabold">
+            <h3 className="text-sm font-bold">
               {C.focus.product}: {focus.name}
             </h3>
             <Button variant="secondary" size="sm" onClick={onClearFocus}>{C.focus.clear}</Button>
@@ -78,9 +99,9 @@ export function DayPanel({
                     <button
                       type="button"
                       onClick={() => onPickDate(d.event.date)}
-                      className="flex min-h-11 w-full items-center gap-2 rounded-lg px-2 text-left text-sm hover:bg-background"
+                      className="flex min-h-11 w-full items-center gap-2 rounded-control px-2 text-left text-sm hover:bg-background"
                     >
-                      <span aria-hidden className={`h-2.5 w-2.5 shrink-0 rounded-sm ${kindDot[d.kind]}`} />
+                      <span aria-hidden className={`h-2.5 w-2.5 shrink-0 rounded-sm ${categoryDot[d.category]}`} />
                       <span className="shrink-0 font-bold">{formatDate(d.event.date)}</span>
                       <span className="truncate">{d.label}</span>
                     </button>
@@ -93,8 +114,8 @@ export function DayPanel({
       )}
 
       {date && (
-        <section aria-label={C.selectedDay} className="rounded-xl bg-background p-4">
-          <h3 className="text-sm font-extrabold">
+        <section aria-label={C.selectedDay} className="rounded-block bg-background p-4">
+          <h3 className="text-sm font-bold">
             {C.selectedDay}: {formatDateLong(date)}
           </h3>
           {events.length === 0 ? (
@@ -102,14 +123,14 @@ export function DayPanel({
           ) : (
             <ul className="mt-2 flex flex-col gap-2 text-sm">
               {events.map((d) => (
-                <EventItem key={d.event.id} item={d} storeId={storeId} strategyProductId={strategyProductId} />
+                <EventItem key={d.event.id} item={d} storeId={storeId} strategyProductId={strategyProductId} onOrder={onOrder} />
               ))}
             </ul>
           )}
 
           {ctx && (
             <div className="mt-3 border-t border-line pt-3">
-              <h4 className="text-xs font-extrabold text-muted">{C.contextLayer}</h4>
+              <h4 className="text-xs font-bold text-muted">{C.contextLayer}</h4>
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                 {ctx.tags.map((tag) => (
                   <Badge key={tag.key} tone={tag.tone === "info" ? "blue" : "gray"}>{tag.text}</Badge>

@@ -13,6 +13,7 @@ import {
 import { RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { MapContainer, TileLayer, ZoomControl } from "react-leaflet";
+import { copy } from "@/lib/copy";
 import type { LabelSide, OpportunityPoint } from "@/lib/opportunities/presentation";
 import type { Branch } from "@/types/branch";
 import { BranchLayer } from "./BranchLayer";
@@ -108,7 +109,7 @@ export function OpportunityMapCanvas({
         zoomSnap={0.25}
         zoomControl={false}
         scrollWheelZoom
-        className="opportunity-map size-full"
+        className="opportunity-map basemap-neutral size-full"
       >
         <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} subdomains="abcd" maxZoom={19} />
         <ZoomControl position="topright" />
@@ -139,10 +140,10 @@ export function OpportunityMapCanvas({
       <button
         type="button"
         onClick={() => map?.flyToBounds(homeBounds, { ...HOME_FIT, duration: 0.6 })}
-        className="absolute left-3 top-3 z-[1001] inline-flex items-center gap-1.5 rounded-lg border border-ink/10 bg-surface/95 px-2.5 py-1.5 text-xs font-medium text-ink shadow-sm transition-colors hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+        className="absolute left-3 top-3 z-[1001] inline-flex items-center gap-1.5 rounded-control border border-line bg-card/95 px-2.5 py-1.5 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >
         <RotateCcw className="size-3.5" aria-hidden />
-        Reset view
+        {copy.opportunities.map.resetView}
       </button>
 
       <MapLegend showEventKeys={showEventLegend} maxExtraSalesMxn={maxExtraSalesMxn} />

@@ -16,29 +16,33 @@ function buildSteps(status: StrategyStatus): Step[] {
   return FLOW.map((s, i) => ({ status: s, state: i < at ? "done" : i === at ? "current" : "pending" }));
 }
 
-const styles: Record<StepState, string> = {
-  done: "bg-primary-tint text-primary",
-  current: "bg-primary text-white",
-  pending: "bg-[#EEF1F0] text-muted",
+const bar: Record<StepState, string> = {
+  done: "bg-primary/40",
+  current: "bg-primary",
+  pending: "bg-line",
 };
-const terminalStyles: Partial<Record<StrategyStatus, string>> = {
-  rejected: "bg-alert text-white",
-  expired: "bg-sidebar text-white",
+const terminalBar: Partial<Record<StrategyStatus, string>> = {
+  rejected: "bg-alert",
+  expired: "bg-muted",
 };
 
-/** Lifecycle line: Borrador → En el plan → Aprobada → Programada → Activa → Medida, plus the terminal states. */
+/**
+ * Compact lifecycle line: one thin segment per step (Borrador → En el plan → Aprobada → Programada → Activa → Medida,
+ * plus the terminal states). Only the current step is named on small screens; all names show from `sm` up.
+ */
 export function StatusTimeline({ status }: { status: StrategyStatus }) {
   const steps = buildSteps(status);
   return (
-    <ol aria-label={S.label} className="flex flex-wrap items-center gap-y-2 text-xs">
-      {steps.map((step, i) => {
+    <ol aria-label={S.label} className="flex items-start gap-1">
+      {steps.map((step) => {
         const terminal = step.status === "rejected" || step.status === "expired";
-        const cls = step.state === "current" && terminal ? (terminalStyles[step.status] ?? styles.current) : styles[step.state];
+        const color = step.state === "current" && terminal ? (terminalBar[step.status] ?? bar.current) : bar[step.state];
+        const current = step.state === "current";
         return (
-          <li key={step.status} aria-current={step.state === "current" ? "step" : undefined} className="flex items-center">
-            {i > 0 && <span aria-hidden className="mx-1 h-px w-3 bg-line" />}
-            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-bold ${cls}`}>
-              {step.state === "done" && <span aria-hidden>✓</span>}
+          <li key={step.status} aria-current={current ? "step" : undefined} className={`min-w-0 flex-1 ${current ? "" : "hidden sm:block"}`}>
+            <span aria-hidden className={`block h-1.5 rounded-full ${color}`} />
+            <span className={`mt-1 block truncate text-xs leading-tight ${current ? "font-bold text-foreground" : "font-medium text-muted"}`}>
+              {step.state === "done" && <span aria-hidden>✓ </span>}
               {t("strategyStatus", step.status)}
               <span className="sr-only"> ({S[step.state]})</span>
             </span>

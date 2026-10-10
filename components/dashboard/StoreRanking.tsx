@@ -28,7 +28,7 @@ export function StoreRanking({
   return (
     <Card className="flex flex-col gap-3">
       <div>
-        <h3 className="text-base font-extrabold">{R.title}</h3>
+        <h3 className="text-base font-bold">{R.title}</h3>
         <p className="text-xs text-muted">{R.subtitle}</p>
       </div>
       <div className="flex max-h-[430px] flex-col gap-2 overflow-y-auto pr-1">
@@ -47,14 +47,14 @@ export function StoreRanking({
                 type="button"
                 aria-label={R.selectBranch(name)}
                 onClick={() => onSelect(r.store_id)}
-                className="flex min-h-[60px] items-center gap-3 rounded-xl border border-line p-3 text-left transition-colors hover:border-primary hover:bg-primary-tint/50"
+                className="flex min-h-[60px] items-center gap-3 rounded-block bg-background p-3 text-left transition-colors hover:bg-primary-tint/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
-                <span aria-hidden className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-background text-xs font-extrabold text-muted">{i + 1}</span>
+                <span aria-hidden className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-card text-xs font-bold text-muted">{i + 1}</span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-bold">{name}</span>
                   <span className="block truncate text-xs text-muted">{t("zone", r.zone_type)} · {R.strategies(r.strategies_count)}</span>
                 </span>
-                <span className="text-sm font-extrabold tabular-nums text-primary">+{formatMoney(r.opportunity_mxn)}</span>
+                <span className="text-sm font-bold tabular-nums text-primary">+{formatMoney(r.opportunity_mxn)}</span>
               </button>
             );
           })

@@ -1,6 +1,7 @@
 import { MockHttpError } from "./errors";
 import { getState } from "./store";
 import { routes as catalogRoutes } from "./handlers/catalog";
+import { routes as marketRoutes } from "./handlers/market";
 import { routes as opsRoutes } from "./handlers/ops";
 import { routes as strategyRoutes } from "./handlers/strategy";
 
@@ -23,7 +24,7 @@ export type MockRoute = {
   handler: (ctx: MockContext) => unknown | Promise<unknown>;
 };
 
-const compiled = [...catalogRoutes, ...opsRoutes, ...strategyRoutes].map((r) => {
+const compiled = [...catalogRoutes, ...marketRoutes, ...opsRoutes, ...strategyRoutes].map((r) => {
   const names: string[] = [];
   const src = r.path
     .replace(/[.*+?^${}()|[\]\\]/g, (m) => (m === ":" ? m : `\\${m}`))

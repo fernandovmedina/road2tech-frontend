@@ -12,7 +12,8 @@ const welcome: ChatEntry = { id: "welcome", role: "assistant", blocks: [{ type: 
 
 /**
  * Conversation with the assistant for one store, plus the reply whose interfaces are on display.
- * The panel is keyed by store, so a new store starts a new conversation (the backend conversation is per store).
+ * Choosing another store by hand remounts the panel (AssistantChat) and starts a new conversation; when a reply focuses a
+ * store the conversation continues there, with a new backend conversation (those are per store and channel).
  * `canAutoShow` lets the panel keep the current interface on screen (e.g. while one of its dialogs is open).
  */
 export function useAssistantConversation(
@@ -59,7 +60,11 @@ export function useAssistantConversation(
       ]);
       // A reply with charts, tables or proposals goes straight to "Interfaces generadas".
       if (reply.blocks.some(isInterfaceBlock) && canAutoShow()) setShownId(id);
-      if (reply.focusStoreId && reply.focusStoreId !== storeId) onFocusStore?.(reply.focusStoreId);
+      if (reply.focusStoreId && reply.focusStoreId !== storeId) {
+        // The user already has an analysis in this conversation: the store plan must not start by itself on top of it.
+        automaticRunStarted.current = true;
+        onFocusStore?.(reply.focusStoreId);
+      }
     } catch {
       setMessages((m) => [
         ...m,

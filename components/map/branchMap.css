@@ -1,0 +1,49 @@
+/* Heat-map markers for the dashboard (BranchMap). Colors come from the canonical tokens. */
+
+.branch-map-marker {
+  background: transparent;
+  border: 0;
+}
+
+.branch-map-marker__dot {
+  display: block;
+  border: 1.5px solid var(--color-card);
+  border-radius: 9999px;
+  background: var(--marker-fill);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.branch-map-marker:hover .branch-map-marker__dot,
+.branch-map-marker:focus-visible .branch-map-marker__dot,
+.branch-map-marker__dot--selected {
+  transform: scale(1.1);
+}
+
+/* Selection keeps the fill and adds a foreground ring (never relies on color alone). */
+.branch-map-marker__dot--selected {
+  box-shadow: 0 0 0 2px var(--color-foreground);
+}
+
+.branch-map-marker__dot--muted {
+  opacity: 0.55;
+}
+
+.branch-map-marker:focus-visible {
+  outline: none;
+}
+
+.branch-map-marker:focus-visible .branch-map-marker__dot {
+  box-shadow: 0 0 0 2px var(--color-foreground), 0 0 0 4px var(--color-primary);
+}
+
+.branch-map-marker__star-wrap {
+  background: transparent;
+  border: 0;
+}
+
+.branch-map-marker__star {
+  color: var(--color-foreground);
+  font-size: 22px;
+  line-height: 22px;
+  text-shadow: 0 0 3px var(--color-card), 0 0 3px var(--color-card);
+}

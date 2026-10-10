@@ -8,16 +8,18 @@ import { formatRate } from "@/lib/format";
 import { t } from "@/lib/labels";
 import { calendarHref, productHref } from "@/lib/links";
 import { Button } from "@/components/ui/Button";
+import { SearchField } from "@/components/ui/SearchField";
 import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/States";
-import { useDebouncedValue } from "./useDebouncedValue";
 import type { Product } from "@/types";
 
 const A = copy.dashboard.analysis;
 const PAGE = 10;
 
-const smallBtn = "inline-flex min-h-10 items-center justify-center rounded-[10px] px-3 text-sm font-semibold transition-colors";
+// Navigation links styled like the standard small buttons (Button renders a <button>, not an <a>).
+const smallBtn =
+  "inline-flex min-h-10 items-center justify-center rounded-control px-3 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
 
 // TODO(backend): the dashboard asks for products "en alza / en baja" with a trend arrow, but no endpoint returns a
 // per-product trend. Proposal: GET /products?sort=trend_desc|trend_asc adding `trend_pct` (+ units/day) to each row.
@@ -26,10 +28,9 @@ const smallBtn = "inline-flex min-h-10 items-center justify-center rounded-[10px
 /** Catalog list for the dashboard side panel: server-side search/category, capped results, "Ver más". */
 export function ProductsPanel({ storeId, pinnedProductId }: { storeId: string; pinnedProductId: string | null }) {
   const searchId = useId();
-  const [search, setSearch] = useState("");
+  const [q, setQ] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [limit, setLimit] = useState(PAGE);
-  const q = useDebouncedValue(search.trim());
 
   const categories = useMeta().data?.categories ?? [];
   const catalog = useCatalog();
@@ -45,17 +46,12 @@ export function ProductsPanel({ storeId, pinnedProductId }: { storeId: string; p
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-1">
-        <label htmlFor={searchId} className="text-xs font-semibold text-muted">{A.searchInList}</label>
-        <input
-          id={searchId}
-          type="search"
-          value={search}
-          placeholder={A.searchInListPlaceholder}
-          onChange={(e) => { setSearch(e.target.value); setLimit(PAGE); }}
-          className="min-h-11 rounded-[10px] border border-line bg-white px-3 text-sm"
-        />
-      </div>
+      <SearchField
+        id={searchId}
+        label={A.searchInList}
+        placeholder={A.searchInListPlaceholder}
+        onSearch={(value) => { setQ(value); setLimit(PAGE); }}
+      />
       <Select
         id="category-filter"
         label={copy.common.category}
@@ -77,7 +73,7 @@ export function ProductsPanel({ storeId, pinnedProductId }: { storeId: string; p
           <EmptyState text={A.noRows} />
         ) : (
           rows.map((p) => (
-            <div key={p.product_id} className={`rounded-xl border p-3 ${p.product_id === pinnedProductId ? "border-accent bg-accent-tint/40" : "border-line"}`}>
+            <div key={p.product_id} className={`rounded-block p-3 ${p.product_id === pinnedProductId ? "bg-accent-tint/40" : "bg-background"}`}>
               <p className="truncate text-sm font-bold">{p.product_name}</p>
               <p className="text-xs text-muted">
                 {t("category", p.category_id)} · <span className="tabular-nums">{formatRate(p.base_daily_demand)} {copy.common.perDay}</span>

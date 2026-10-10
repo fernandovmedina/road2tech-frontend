@@ -28,7 +28,7 @@ export function SupplierOffers({ supplier }: { supplier: Supplier }) {
   return (
     <Card className="overflow-hidden p-0">
       <div className="flex flex-wrap items-end justify-between gap-4 px-5 pt-5">
-        <h2 className="text-lg font-extrabold">{O.title(supplier.supplier_name)}</h2>
+        <h2 className="text-lg font-bold">{O.title(supplier.supplier_name)}</h2>
         <div className="flex flex-wrap items-end gap-3">
           <SearchField id="offers-search" label={O.search} placeholder={O.searchPlaceholder} onSearch={(v) => { setQ(v); setPage(1); }} className="w-56" />
           <Select

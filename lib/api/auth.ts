@@ -1,9 +1,10 @@
 import { z } from "zod";
 import type { Session } from "@/types";
-import { goesToBackend } from "./config";
 import { ApiError } from "./envelope";
+import { isLiveRoute } from "./liveRoutes";
 
-// The mock keeps the demo account; the real backend is POST /auth/signin (see docs/backend-contract.md §3.18).
+// Mock mode keeps the demo account; whenever /auth goes to the real backend (hybrid and http modes, or a path forced with
+// NEXT_PUBLIC_API_HTTP_PATHS) the login is POST /auth/signin (see docs/backend-contract.md).
 const DEMO_EMAIL = "demo@stockcopilot.com";
 const DEMO_PASSWORD = "demo1234";
 export const SESSION_KEY = "stockcopilot.session";
@@ -16,10 +17,11 @@ const sessionSchema = z.object({
 });
 
 const SIGNIN_PATH = "/auth/signin";
+const LOGOUT_PATH = "/auth/logout";
 const MOCK_TOKEN_PREFIX = "mock-token-";
 
 export async function login(email: string, password: string): Promise<Session> {
-  if (!goesToBackend(SIGNIN_PATH)) {
+  if (!isLiveRoute("POST", SIGNIN_PATH)) {
     await new Promise((r) => setTimeout(r, 600));
     if (email.trim().toLowerCase() !== DEMO_EMAIL || password !== DEMO_PASSWORD) {
       throw new AuthError("invalid_credentials");
@@ -39,8 +41,17 @@ export async function login(email: string, password: string): Promise<Session> {
   }
 }
 
+const logoutSchema = z.object({ logged_out: z.boolean() });
+
+/** Revokes the token on the backend. Best effort: the local session is cleared by the caller either way. */
 export async function logout(): Promise<void> {
-  // TODO(backend): revoke token (POST /auth/logout) once the endpoint exists.
+  if (!isLiveRoute("POST", LOGOUT_PATH)) return;
+  try {
+    const { httpRequest } = await import("./http");
+    await httpRequest(LOGOUT_PATH, logoutSchema, { method: "POST" });
+  } catch {
+    /* expired or unreachable: nothing left to revoke */
+  }
 }
 
 export function readStoredSession(): Session | null {
@@ -48,7 +59,7 @@ export function readStoredSession(): Session | null {
     const raw = window.localStorage.getItem(SESSION_KEY);
     const session = raw ? (JSON.parse(raw) as Session) : null;
     // A sample-data session cannot call the real backend: ask for a real login instead of failing on the first call.
-    if (session?.token.startsWith(MOCK_TOKEN_PREFIX) && goesToBackend(SIGNIN_PATH)) return null;
+    if (session?.token.startsWith(MOCK_TOKEN_PREFIX) && isLiveRoute("POST", SIGNIN_PATH)) return null;
     return session;
   } catch {
     return null;

@@ -21,6 +21,12 @@ export type Heat = z.infer<typeof S.heatSchema>;
 export type Behavior = z.infer<typeof S.behaviorSchema>;
 export type Tendency = z.infer<typeof S.tendencySchema>;
 
+export type DemandRisk = z.infer<typeof S.demandRiskSchema>;
+export type StoreDemandItem = z.infer<typeof S.storeDemandItemSchema>;
+export type StoreDemand = z.infer<typeof S.storeDemandSchema>;
+export type BranchProductDemandItem = z.infer<typeof S.branchProductDemandItemSchema>;
+export type BranchProductDemand = z.infer<typeof S.branchProductDemandSchema>;
+
 export type StockStatus = z.infer<typeof S.stockStatusSchema>;
 export type StockItem = z.infer<typeof S.stockItemSchema>;
 export type StockSummary = z.infer<typeof S.stockSummarySchema>;
@@ -30,6 +36,7 @@ export type PolicySuggestion = z.infer<typeof S.policySuggestionSchema>;
 export type RestockReason = z.infer<typeof S.restockReasonSchema>;
 export type RestockSuggestion = z.infer<typeof S.restockSuggestionSchema>;
 export type RestockOrder = z.infer<typeof S.restockOrderSchema>;
+export type SentEmail = z.infer<typeof S.sentEmailSchema>;
 export type TestEmailResult = z.infer<typeof S.testEmailSchema>;
 
 export type CalendarEvent = z.infer<typeof S.calendarEventSchema>;
@@ -40,6 +47,8 @@ export type StrategyStatus = z.infer<typeof S.strategyStatusSchema>;
 export type StrategyType = z.infer<typeof S.strategyTypeSchema>;
 export type StrategyDriver = z.infer<typeof S.strategyDriverSchema>;
 export type Strategy = z.infer<typeof S.strategySchema>;
+export type DiscountPoint = z.infer<typeof S.discountPointSchema>;
+export type StrategyDetail = z.infer<typeof S.strategyDetailSchema>;
 export type Portfolio = z.infer<typeof S.portfolioSchema>;
 export type Plan = z.infer<typeof S.planSchema>;
 export type StrategyAction = z.infer<typeof S.strategyActionSchema>;
@@ -47,6 +56,7 @@ export type StrategyAction = z.infer<typeof S.strategyActionSchema>;
 export type ChatTool = z.infer<typeof S.chatToolSchema>;
 export type PlanOverlap = z.infer<typeof S.planOverlapSchema>;
 export type ChatBlock = z.infer<typeof S.chatBlockSchema>;
+export type MarketComparison = z.infer<typeof S.marketComparisonSchema>;
 export type ChatResponse = z.infer<typeof S.chatResponseSchema>;
 /** One entry of the conversation kept in the UI. */
 export type ChatMessage = {

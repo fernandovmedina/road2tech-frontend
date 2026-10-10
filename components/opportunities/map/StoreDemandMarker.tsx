@@ -1,6 +1,7 @@
 import { divIcon, type LeafletEventHandlerFnMap } from "leaflet";
 import { useMemo } from "react";
 import { Marker, Tooltip } from "react-leaflet";
+import { copy } from "@/lib/copy";
 import { formatInteger, formatSignedPercent } from "@/lib/format";
 import { RISK_PRESENTATION, ZONE_LABELS } from "@/lib/opportunities/storePresentation";
 import type { Branch } from "@/types/branch";
@@ -61,10 +62,10 @@ export function StoreDemandMarker({
         className="store-demand-tooltip"
       >
         <div className="min-w-44">
-          <p className="font-semibold text-ink">{branch.name}</p>
-          <p className="mt-0.5 text-[11px] text-ink-secondary">{ZONE_LABELS[branch.zoneType]}</p>
+          <p className="font-semibold text-foreground">{branch.name}</p>
+          <p className="mt-0.5 text-[11px] text-muted">{ZONE_LABELS[branch.zoneType]}</p>
           <div className="mt-2 flex items-center justify-between gap-4 text-xs">
-            <span>{formatInteger(prediction.predictedDailyDemand)} units/day</span>
+            <span>{copy.opportunities.unitsPerDay(formatInteger(prediction.predictedDailyDemand))}</span>
             <strong style={{ color: risk.color }}>{formatSignedPercent(prediction.upliftPct)}</strong>
           </div>
         </div>

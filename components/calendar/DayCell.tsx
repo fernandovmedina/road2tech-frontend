@@ -3,12 +3,12 @@ import { formatDateLong } from "@/lib/format";
 import type { CalendarContext } from "@/types";
 import type { GridDay } from "./calendarMath";
 import { describeContext } from "./contextInfo";
-import { kindChip, type DescribedEvent } from "./eventPresentation";
+import { categoryChip, type DescribedEvent } from "./eventPresentation";
 
 const C = copy.calendar;
 const MAX_CHIPS = 3;
 
-const tagTone = { info: "bg-info-tint text-info", muted: "bg-[#EEF1F0] text-muted" } as const;
+const tagTone = { info: "bg-info-tint text-info", muted: "bg-line text-muted" } as const;
 
 export function DayCell({
   day,
@@ -34,7 +34,7 @@ export function DayCell({
 
   return (
     <div
-      className={`flex min-h-[112px] flex-col gap-1 p-1.5 ${day.inMonth ? "bg-white" : "bg-background/70"} ${selected ? "ring-2 ring-inset ring-primary" : ""}`}
+      className={`flex min-h-[112px] flex-col gap-1 p-1.5 ${day.inMonth ? "bg-card" : "bg-background/70"} ${selected ? "ring-2 ring-inset ring-primary" : ""}`}
     >
       <button
         type="button"
@@ -72,7 +72,7 @@ export function DayCell({
           type="button"
           onClick={() => onSelect(day.iso)}
           title={d.label}
-          className={`min-h-6 truncate rounded-md border px-1.5 py-0.5 text-left text-[11px] font-semibold ${kindChip[d.kind]} ${
+          className={`min-h-6 truncate rounded-md border px-1.5 py-0.5 text-left text-[11px] font-semibold ${categoryChip[d.category]} ${
             focusProductId && d.productId === focusProductId ? "ring-2 ring-foreground" : ""
           }`}
         >

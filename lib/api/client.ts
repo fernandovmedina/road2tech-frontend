@@ -1,11 +1,13 @@
 import type { z } from "zod";
 import { getState, mutate, resetState } from "@/lib/mock/store";
 import type { DemoState } from "@/types";
-import { goesToBackend } from "./config";
+import { useSentOrdersStore } from "@/lib/sentOrders";
+import { needsPlanOverlay, overlayPlanFields } from "./hybridOverlay";
+import { isLiveRoute } from "./liveRoutes";
 import { ApiError, envelope, type Envelope } from "./envelope";
 
 // Single entry point for every API call. Components never call this directly: they use hooks (hooks.ts).
-// Mock mode answers from lib/mock handlers; http mode calls the backend. Both are validated with the same schema.
+// Each call is routed by liveRoutes.ts: mock handlers (lib/mock) or the backend. Both are validated with the same schema.
 
 export { ApiError };
 
@@ -19,10 +21,19 @@ export async function request<T extends z.ZodType>(
   schema: T,
   opts: RequestOptions = {},
 ): Promise<Envelope<z.infer<T>>> {
-  if (goesToBackend(path)) {
-    const { httpRequest } = await import("./http");
-    return httpRequest(path, schema, opts);
-  }
+  const method = opts.method ?? "GET";
+  if (!isLiveRoute(method, path)) return mockRequest(path, schema, opts);
+  const { httpRequest } = await import("./http");
+  if (!needsPlanOverlay(method, path)) return httpRequest(path, schema, opts);
+
+  // Both calls start together, so the mock adds no waiting time. If the mock fails, the backend answer is used as is.
+  const [live, mock] = await Promise.all([httpRequest(path, schema, opts), mockRequest(path, schema, opts).catch(() => null)]);
+  if (!mock) return live;
+  const merged = envelope(schema).safeParse({ ...live, data: overlayPlanFields(path, live.data, mock.data) });
+  return merged.success ? (merged.data as Envelope<z.infer<T>>) : live;
+}
+
+async function mockRequest<T extends z.ZodType>(path: string, schema: T, opts: RequestOptions): Promise<Envelope<z.infer<T>>> {
   const { mockDispatch, MockHttpError } = await import("@/lib/mock/router");
   const query = Object.fromEntries(
     Object.entries(opts.query ?? {})
@@ -52,7 +63,8 @@ export function setDemoState(demo: DemoState) {
     s.demo = demo;
   });
 }
-/** Drops every mock mutation (policies, orders, strategy statuses) and the demo state. Mock mode only. */
+/** Drops every mock mutation (policies, orders, strategy statuses), the orders sent from this browser and the demo state. */
 export function resetDemoData() {
   resetState();
+  useSentOrdersStore.getState().clear();
 }

@@ -1,5 +1,6 @@
 import { copy } from "@/lib/copy";
 import { formatMoney, formatPct } from "@/lib/format";
+import { Badge } from "@/components/ui/Badge";
 import type { Strategy } from "@/types";
 
 const C = copy.strategy.constraints;
@@ -18,14 +19,14 @@ export function ConstraintsList({ constraints, rejected = false }: { constraints
       {limits.length > 0 ? (
         <ul className="flex flex-wrap gap-2">
           {limits.map((l) => (
-            <li key={l} className="rounded-full bg-[#EEF1F0] px-2.5 py-1 text-xs font-semibold text-foreground">{l}</li>
+            <li key={l}><Badge tone="gray">{l}</Badge></li>
           ))}
         </ul>
       ) : (
         <p className="text-xs text-muted">{C.none}</p>
       )}
       {violated ? (
-        <div role="alert" className="rounded-[10px] border border-alert/30 bg-alert-tint p-3 text-sm text-alert-dark">
+        <div role="alert" className="rounded-block border border-alert/30 bg-alert-tint p-3 text-sm text-alert-dark">
           <p className="font-bold">{rejected ? C.rejectedTitle : C.violatedTitle}</p>
           {constraints.violations.length > 0 && (
             <ul className="mt-1 list-disc pl-5">

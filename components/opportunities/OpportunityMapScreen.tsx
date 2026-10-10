@@ -1,17 +1,31 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { StatusMessage } from "@/components/ui/StatusMessage";
+import { copy } from "@/lib/copy";
 import { useOpportunityMapData } from "@/lib/api/opportunityMap";
 import { ALL_PRODUCTS_ID } from "@/lib/api/storeDemand";
 import { OpportunityMapContent } from "./OpportunityMapContent";
 import { OpportunityMapFrame } from "./OpportunityMapFrame";
 import { OpportunityMapSkeleton } from "./OpportunityMapSkeleton";
 
-export function OpportunityMapScreen({ embedded = false }: { embedded?: boolean }) {
+type OpportunityMapScreenProps = {
+  embedded?: boolean;
+  /** Controlled branch (e.g. the dashboard store filter). Falls back to local state when undefined. */
+  branchId?: string;
+  onBranchChange?: (branchId: string) => void;
+};
+
+export function OpportunityMapScreen({ embedded = false, branchId, onBranchChange }: OpportunityMapScreenProps) {
   const [selectedProductId, setSelectedProductId] = useState(ALL_PRODUCTS_ID);
-  const [selectedBranchId, setSelectedBranchId] = useState("S001");
+  const [localBranchId, setLocalBranchId] = useState("S001");
+  const selectedBranchId = branchId ?? localBranchId;
+  const setSelectedBranchId = (next: string) => {
+    setLocalBranchId(next);
+    onBranchChange?.(next);
+  };
   const [category, setCategory] = useState("all");
   const [tag, setTag] = useState("all");
   const state = useOpportunityMapData({
@@ -24,21 +38,16 @@ export function OpportunityMapScreen({ embedded = false }: { embedded?: boolean 
 
   if (state.status === "error") {
     return (
-      <OpportunityMapFrame embedded={embedded}>
+      <OpportunityMapFrame>
         <Card>
           <StatusMessage
             tone="error"
-            title="We couldn't load the opportunity map"
-            description="Event or prediction data didn't arrive. Check your connection and try again."
+            title={copy.opportunities.error.title}
+            description={copy.opportunities.error.description}
             action={
-              <button
-                type="button"
-                onClick={state.retry}
-                disabled={state.isRetrying}
-                className="mt-2 rounded-lg bg-ink px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-ink/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-wait disabled:opacity-60"
-              >
-                {state.isRetrying ? "Trying again…" : "Try again"}
-              </button>
+              <Button variant="primary" loading={state.isRetrying} onClick={state.retry} className="mt-2">
+                {copy.opportunities.error.retry}
+              </Button>
             }
           />
         </Card>

@@ -50,16 +50,22 @@ Repo already has: Next.js (App Router) + React + TypeScript + Tailwind CSS v4 + 
 
 The mockups in `proyect_context/ui/*/` are **reference, not production code**: replicate their values in your own components. Open each `*.dc.html` for exact spacing and layout (serve the folder, e.g. `python3 -m http.server`).
 
+**Normative standard:** `docs/design-guidelines.md` is the single source of truth for the visual standard (tokens, type scale, components, screen patterns). This table is a summary; on any conflict, the guidelines document wins.
+
 | Token | Value |
 |---|---|
 | Font | Manrope (400–800), tabular numerals for numbers |
-| App background / card | `#F3F5F4` / `#FFFFFF`, border `#E3E8E6`, radius 16px (cards), 10px (controls) |
+| App background / card | `#F3F5F4` / `#FFFFFF`, border `#E3E8E6`, radius 16px (cards), 12px (inner blocks), 10px (controls) |
 | Sidebar | `#0F1F1A`, text `#CFE3DA`, active item `#1C4A3B`, width 232px |
 | Primary (actions, history line) | `#0B6E4F`, hover `#08523B`, light tint `#E3F3EC` |
 | Forecast / promotion accent | `#E8590C`, tint `#FFF1E6`, dark text `#B34700` |
 | Alert (run-out) | `#C92A2A`, tint `#FDECEC`, text `#A31616` |
 | Info (overstock, demand up) | `#1D4E89`, tint `#E7F0FB` |
 | Text / muted | `#101828` / `#5B6776` |
+| Muted 2 (subtle) / axis | `#87928F` / `#BDC8C4` |
+| Warning (no demand) | `#B7791F`, tint `#FFF4D6`, text `#8A5A00` |
+| Scenario series (normal / event) | `#86B6EF` / `#1C5CAB` |
+| KPI value | 24px bold, 36px icon chip, context footnote (see guidelines) |
 | Heat gradient (low → high) | `#FFF3BF` → `#FFD43B` → `#FF922B` → `#E8590C` → `#A61E1E` |
 | Touch targets | ≥ 44px (small buttons 40px) |
 
@@ -88,13 +94,13 @@ Layout shell: fixed left sidebar (logo, nav, user, sign out) + fluid content wit
 
 ## 7. Screens and routes
 
-Auth: login against the mock (demo account `demo@stockcopilot.com` / `demo1234`) or `POST /auth/signin` when login goes to the real backend. Every route except `/login` redirects to `/login` without a session. Filters (store, data mode, range) live in `lib/filters.ts` and are kept while navigating by the menu (a full page reload resets them). "Hoy" is always `data_as_of` from the backend (`useAsOf`), never the browser clock.
+Auth: login against the mock (demo account `demo@stockcopilot.com` / `demo1234`) or `POST /auth/signin` (and `POST /auth/logout` on sign out) whenever those routes go to the real backend (`hybrid` or `http` mode, or `/auth` forced with `NEXT_PUBLIC_API_HTTP_PATHS`). Every route except `/login` redirects to `/login` without a session. Filters (store, data mode, range) live in `lib/filters.ts` and are kept while navigating by the menu (a full page reload resets them). "Hoy" is always `data_as_of` from the backend (`useAsOf`), never the browser clock.
 
-- **`/` Dashboard.** Scope "Todas las sucursales" = chain view: aggregated KPIs (`useChainSummary`), heatmap of 25 stores with zone filter and product search (star on the top store), store ranking. No plan or orders in this view; the **AI assistant** section sits right below the map and asks for a store (no `/chat` call without one). With a store selected: store KPIs, behaviors (Observado / Estimado badge), products | promotions side panel, the **AI assistant** right below the map (conversation + "Interfaces generadas", where every non-text chat block is drawn) and then the **PlanPanel** (up to 5 strategies, portfolio impact from the backend, reason when fewer than 5, "Regenerar plan").
-- **`/product/[id]?store=&strategy=`** Trend chart (history, forecast with real P50/P80/P90 bands, treated series), the strategy detail with the engine's proposed discount (**no slider**), "Si no aceptas / Si aceptas" and the lifecycle actions.
-- **`/calendar`** Requires a store. Month grid with deliveries, strategies and alerts (out of stock, expiring, delayed order), optional context layer (holidays, events, payday, weather). Sidebar: restock suggestions + suppliers. "Orden Restock" modal with explicit confirmation; the real recipient is decided by the backend (demo mailbox).
+- **`/` Dashboard.** Scope "Todas las sucursales" = chain view: aggregated KPIs (`useChainSummary`), heatmap of 25 stores with zone filter and product search (star on the top store), store ranking. No plan or orders in this view; the **AI assistant** sits right below the map and asks for a store (no `/chat` call without one). With a store selected: store KPIs, two separate sections — **"Promociones para reducir pérdidas y aumentar utilidades"** (the 3 best promotions by net gain, simple cards: one line, three figures "Ganarías / Evitas de merma / Riesgo de quedarte sin stock", technical detail folded in "¿Cómo se calculó?"; "Ver las otras N" for the rest of the plan, portfolio impact from the backend, reason when fewer than 5, "Regenerar plan") and **"Comportamientos de compra detectados"** (demand peaks, waste risk, products bought together; each card ends in one action: merma → "Ver promoción", demanda → "Ver pedido sugerido") — then the map/products panel and the **AI assistant** right below the map (conversation + "Interfaces generadas", where every non-text chat block is drawn).
+- **`/product/[id]?store=&strategy=`** Trend chart (history, forecast with real P50/P80/P90 bands, treated series), the strategy detail like the original design: 4 metrics, chart, "Promoción sugerida (IA)" card with a **discount slider** (0 to max discount; every figure comes from the backend's `discount_curve` in `GET /drafts/{id}`, nothing is calculated in the client; accepting sends the chosen `discount_pct`), "Si no aceptas / Si aceptas", comparison table and Aceptar / Descartar / Ver en calendario.
+- **`/calendar`** Requires a store. Month grid with deliveries, strategies and alerts (out of stock, expiring, delayed order), optional context layer (holidays, events, payday, weather). Sidebar: restock suggestions + suppliers. "Orden Restock" modal with explicit confirmation; the e-mail is sent with `POST /emails` to the address set in the UI (`lib/mailSettings.ts`, default in that file, saved in the browser), never to the supplier's own address.
 - **`/stock`** Server-paginated table with filters and server-side status counts; min/max = reorder point and max stock per store.
-- **`/suppliers`** Read-only suppliers with their offers per product and a "correo de prueba" (confirmation required).
+- **`/suppliers`** Read-only suppliers with their offers per product, the editable "Correo de destino" field and a "correo de prueba" (confirmation required).
 - **`/products`** Requires a store. Min/max per store x product, editable, with AI suggestions applied only on confirmation.
 - Navigation: fixed sidebar (Dashboard, Calendario de restock, Stock general, Proveedores, Productos), user, "Cerrar sesión".
 
@@ -108,11 +114,11 @@ The contract between frontend and backend is **`docs/backend-contract.md`** (pro
 - **No financial calculations in the client**: impact, margin, waste, portfolio, stock status, delivery dates and totals come from the backend. The client only formats (and may subtract two values that the backend already sent to show a difference).
 - Proportions are fractions (`0.10` = 10 %); money is MXN with 2 decimals.
 - The LLM output is never rendered as HTML; chat blocks are a closed union validated with zod and unknown blocks are dropped.
-- Anything the backend does not provide yet is a `// TODO(backend)` and is listed in the contract document (open questions D1 to D19).
+- Anything the backend does not provide yet is a `// TODO(backend)` and is listed in the contract document (open questions D1 to D29).
 
 ## 9. Data modes and mock layer
 
-- `NEXT_PUBLIC_API_MODE` = `mock` (default) or `http`; `NEXT_PUBLIC_API_URL` is the API base URL for `http`. In mock mode the "Datos de ejemplo" badge is shown. Optional `NEXT_PUBLIC_API_HTTP_PATHS` (mock mode only, comma-separated path prefixes such as `/auth,/chat`) sends just those calls to the real backend while the rest stays on sample data; see `.env.example`.
+- `NEXT_PUBLIC_API_MODE` = `mock` (default), `hybrid` or `http`; `NEXT_PUBLIC_API_URL` is the API base URL for `hybrid`/`http`. `hybrid` sends the endpoints listed in `lib/api/liveRoutes.ts` (the ones the deployed backend already serves, see section 0 of the contract) to the real API and keeps the rest on the mock. Optional `NEXT_PUBLIC_API_HTTP_PATHS` (comma-separated path prefixes such as `/chat`, honored in `mock` and `hybrid`) forces just those calls to the real backend on top of the mode; listing any path also sends the login (`/auth`) there. The "Datos de ejemplo" badge is shown in `mock` and `hybrid`. Local config goes in `.env.local` (git-ignored); see `.env.example`.
 - The mock plays the backend: `lib/mock/router.ts` + `lib/mock/handlers/*` answer the same paths as the contract, with the same schemas. Data comes from `lib/mock/data/*.json`, extracted from the real dataset generator (`scripts/extract-sample-data.py`, see `lib/mock/data/README.md`); CSV files are never versioned.
 - Mock rules (simulated engine, optimizer, agent) live only under `lib/mock/**` and are deterministic. They are a stand-in for the model and must not leak into components.
 - Mock latency 300-600 ms; the sidebar offers the demo states "Normal / Vacío / Error" and "Reiniciar datos de ejemplo".

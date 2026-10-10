@@ -74,7 +74,7 @@ export function ChatPanel({ storeId, hasStore, autoFocusInput = false, onAutoFoc
       <Card className="flex flex-col gap-4">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
-            <h2 id="assistant-title" className="text-lg font-extrabold">{C.title}</h2>
+            <h2 id="assistant-title" className="text-lg font-bold">{C.title}</h2>
             <p className="text-sm text-muted">{C.subtitle}</p>
           </div>
           <div className="flex flex-wrap items-end gap-2">
@@ -91,7 +91,7 @@ export function ChatPanel({ storeId, hasStore, autoFocusInput = false, onAutoFoc
               aria-live="polite"
               aria-relevant="additions"
               aria-label={C.logLabel}
-              className="flex max-h-[520px] min-h-[260px] flex-col gap-4 overflow-y-auto rounded-xl bg-background p-4"
+              className="flex max-h-[520px] min-h-[260px] flex-col gap-4 overflow-y-auto rounded-block bg-background p-4"
             >
               {chat.messages.map((m) => (
                 <ChatMessageView

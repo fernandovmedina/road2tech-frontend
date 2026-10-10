@@ -33,13 +33,20 @@ export function Modal({
       onClose={onClose}
       onClick={(e) => { if (e.target === ref.current) onClose(); }}
       aria-label={title}
-      className={`m-auto w-[calc(100%-32px)] ${width} rounded-2xl border border-line bg-white p-0 text-foreground shadow-2xl`}
+      className={`m-auto w-[calc(100%-32px)] ${width} rounded-card border border-line bg-card p-0 text-foreground shadow-2xl`}
     >
       {open && (
         <div className="flex max-h-[85vh] flex-col">
           <div className="flex items-center justify-between border-b border-line px-6 py-4">
-            <h2 className="text-lg font-extrabold">{title}</h2>
-            <button type="button" aria-label={copy.common.close} onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-lg text-xl text-muted hover:bg-background">×</button>
+            <h2 className="text-lg font-bold">{title}</h2>
+            <button
+              type="button"
+              aria-label={copy.common.close}
+              onClick={onClose}
+              className="flex h-11 w-11 items-center justify-center rounded-lg text-xl text-muted transition-colors hover:bg-background focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              ×
+            </button>
           </div>
           <div className="overflow-y-auto px-6 py-5">{children}</div>
           {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-line px-6 py-4">{footer}</div>}

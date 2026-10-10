@@ -1,3 +1,4 @@
+import { copy } from "@/lib/copy";
 const currency = new Intl.NumberFormat("es-MX", {
   style: "currency",
   currency: "MXN",
@@ -22,7 +23,8 @@ export const formatNumber = (v: number) => number.format(Math.round(v));
 export const formatDecimal = (v: number) => decimal.format(v);
 export const formatPct = (v: number, digits = 0) => `${(v * 100).toFixed(digits)}%`;
 export const formatSignedPct = (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`;
-export const formatSignedMoney = (v: number) => `${v >= 0 ? "+" : "−"}${formatMoney(Math.abs(v))}`;
+export const formatSignedMoney = (v: number) =>
+  Math.round(v) === 0 ? formatMoney(0) : `${v > 0 ? "+" : "−"}${formatMoney(Math.abs(v))}`;
 
 export const parseIso = (iso: string) => new Date(`${iso}T12:00:00`);
 export const toIso = (d: Date) =>
@@ -45,23 +47,23 @@ export const formatMonth = (year: number, month: number) => {
   return s.charAt(0).toUpperCase() + s.slice(1);
 };
 
-const integerEn = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
-const compactEn = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
-const mxnCompactEn = new Intl.NumberFormat("en-US", {
+const integerMx = new Intl.NumberFormat("es-MX", { maximumFractionDigits: 0 });
+const compactMx = new Intl.NumberFormat("es-MX", { notation: "compact", maximumFractionDigits: 1 });
+const mxnCompactMx = new Intl.NumberFormat("es-MX", {
   style: "currency",
   currency: "MXN",
   currencyDisplay: "narrowSymbol",
   notation: "compact",
   maximumFractionDigits: 1,
 });
-const shareEn = new Intl.NumberFormat("en-US", { style: "percent", maximumFractionDigits: 0 });
-const eventDateEn = new Intl.DateTimeFormat("en-US", {
+const shareMx = new Intl.NumberFormat("es-MX", { style: "percent", maximumFractionDigits: 0 });
+const eventDateEs = new Intl.DateTimeFormat("es-MX", {
   timeZone: "America/Monterrey",
   weekday: "short",
   month: "short",
   day: "numeric",
 });
-const eventTimeEn = new Intl.DateTimeFormat("en-US", {
+const eventTimeEs = new Intl.DateTimeFormat("es-MX", {
   timeZone: "America/Monterrey",
   hour: "numeric",
   minute: "2-digit",
@@ -70,13 +72,13 @@ const eventTimeEn = new Intl.DateTimeFormat("en-US", {
 function formatSignedValue(value: number, suffix: string): string {
   const rounded = Math.round(value);
   if (rounded === 0) return `0${suffix}`;
-  return `${rounded > 0 ? "+" : "−"}${integerEn.format(Math.abs(rounded))}${suffix}`;
+  return `${rounded > 0 ? "+" : "−"}${integerMx.format(Math.abs(rounded))}${suffix}`;
 }
 
-export const formatInteger = (value: number) => integerEn.format(value);
-export const formatCompact = (value: number) => compactEn.format(value);
-export const formatMxnCompact = (value: number) => `${mxnCompactEn.format(value)} MXN`;
-export const formatShare = (ratio: number) => shareEn.format(ratio);
+export const formatInteger = (value: number) => integerMx.format(value);
+export const formatCompact = (value: number) => compactMx.format(value);
+export const formatMxnCompact = (value: number) => `${mxnCompactMx.format(value)} MXN`;
+export const formatShare = (ratio: number) => shareMx.format(ratio);
 export const formatSignedPercent = (value: number) => formatSignedValue(value, "%");
 export const formatSignedPoints = (value: number) => formatSignedValue(value, " pp");
 
@@ -87,6 +89,6 @@ export function formatDistance(meters: number): string {
 
 export function formatEventSchedule(iso: string, isAllDay: boolean): string {
   const date = new Date(iso);
-  const time = isAllDay ? "All day" : eventTimeEn.format(date);
-  return `${eventDateEn.format(date)} · ${time}`;
+  const time = isAllDay ? copy.common.allDay : eventTimeEs.format(date);
+  return `${eventDateEs.format(date)} · ${time}`;
 }
