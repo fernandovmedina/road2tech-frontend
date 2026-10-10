@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Stock general</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Manrope',system-ui,sans-serif;color:#101828;background:#F3F5F4;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:#0B6E4F;text-decoration:none}a:hover{color:#08523B}
+button,input,select{font-family:inherit;font-size:14px;color:#101828}
+.nl{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:10px;color:#B9D0C6;font-weight:600;font-size:14px}
+.nl:hover{background:#17302A;color:#fff}
+.nl.on{background:#1C4A3B;color:#fff}
+.card{background:#fff;border:1px solid #E3E8E6;border-radius:16px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;border-radius:10px;border:1px solid #D0D7D4;background:#fff;font-weight:700;font-size:14px;color:#101828;cursor:pointer}
+.btn:hover{background:#F3F5F4;color:#101828}
+.btn.sm{min-height:40px;padding:0 12px;font-size:13px}
+.chip{display:inline-flex;align-items:center;min-height:40px;padding:0 14px;border-radius:999px;border:1px solid #D0D7D4;background:#fff;font-weight:600;font-size:13px;cursor:pointer;color:#344054}
+.chip:hover{background:#F3F5F4}
+.chip.on{background:#0F1F1A;border-color:#0F1F1A;color:#fff}
+.lbl{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#5B6776}
+input,select{min-height:44px;border:1px solid #D0D7D4;border-radius:10px;padding:0 12px;background:#fff}
+:focus-visible{outline:2px solid #0B6E4F;outline-offset:2px}
+.tr{display:grid;grid-template-columns:minmax(0,2.2fr) minmax(0,1.1fr) minmax(0,.8fr) minmax(0,2fr) minmax(0,.9fr) minmax(0,1.1fr) minmax(0,1fr) minmax(0,1.2fr);gap:12px;align-items:center;padding:14px 18px;border-top:1px solid #E3E8E6;font-size:14px}
+.tr:hover{background:#FAFBFA}
+.th{background:#F3F5F4;border-top:0}
+</style>
+</helmet>
+<div style="display:flex;flex-wrap:wrap;min-height:1100px;align-items:stretch">
+
+<aside style="flex:0 0 232px;background:#0F1F1A;color:#CFE3DA;padding:24px 16px;display:flex;flex-direction:column;gap:28px">
+<div style="display:flex;align-items:center;gap:10px;padding:0 8px">
+<svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#1F9D74"></rect><path d="M8 21l5-6 4 3 7-9" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span style="font-weight:800;font-size:17px;color:#fff;letter-spacing:-.01em">StockCopilot</span>
+</div>
+<nav aria-label="Principal" style="display:flex;flex-direction:column;gap:4px">
+<a class="nl" href="Main.dc.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z"></path></svg>Dashboard</a>
+<a class="nl" href="Calendario.dc.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3v4 M17 3v4 M4 9h16 M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"></path></svg>Calendario de restock</a>
+<a class="nl on" href="Stock.dc.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8l-9-5-9 5v8l9 5 9-5z M3 8l9 5 9-5 M12 13v8"></path></svg>Stock general</a>
+<a class="nl" href="Proveedores.dc.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h11v10H3z M14 10h4l3 3v3h-7z M7.5 19.5h.01 M17.5 19.5h.01"></path></svg>Proveedores</a>
+<a class="nl" href="Productos.dc.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12V4h8l10 10-8 8z M7.5 8.5h.01"></path></svg>Productos</a>
+</nav>
+<div style="margin-top:auto;display:flex;flex-direction:column;gap:12px;padding:0 8px">
+<div style="display:flex;align-items:center;gap:10px">
+<div style="width:36px;height:36px;border-radius:50%;background:#2B5B4B;color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center">MR</div>
+<div style="display:flex;flex-direction:column"><span style="color:#fff;font-weight:700;font-size:14px">Marta Ruiz</span><span style="font-size:12px;color:#9BB8AC">Gerente regional</span></div>
+</div>
+<a class="nl" href="Login.dc.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9"></path></svg>Cerrar sesión</a>
+</div>
+</aside>
+
+<main style="flex:999 1 640px;min-width:0;padding:28px 32px;display:flex;flex-direction:column;gap:24px">
+
+<header style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between">
+<div style="display:flex;flex-direction:column;gap:4px">
+<h1 style="margin:0;font-size:28px;font-weight:800;letter-spacing:-.02em">Stock general</h1>
+<span style="color:#5B6776;font-size:14px">Existencia actual contra los límites mínimo y máximo de cada producto</span>
+</div>
+<div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+<div style="display:flex;flex-direction:column;gap:6px"><label class="lbl" for="st">Sucursal</label>
+<select id="st" value="{{s.store}}" onChange="{{setStore}}"><option value="all">Todas las sucursales</option><option>Centro</option><option>Valle Real</option><option>Zona Industrial</option><option>Ramos Arizpe</option><option>Los Pinos</option><option>Plaza Norte</option></select></div>
+<div style="display:flex;flex-direction:column;gap:6px"><label class="lbl" for="ct">Categoría</label>
+<select id="ct" value="{{s.cat}}" onChange="{{setCat}}"><option value="all">Todas</option><option>Bebidas</option><option>Lácteos</option><option>Panadería</option><option>Botanas</option><option>Abarrotes</option></select></div>
+<span style="display:inline-flex;align-items:center;min-height:44px;padding:0 12px;border-radius:10px;background:#FFF1E6;color:#B34700;font-weight:700;font-size:12px">Datos de ejemplo</span>
+</div>
+</header>
+
+<section aria-label="Resumen" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px">
+<div class="card" style="padding:18px;display:flex;flex-direction:column;gap:6px"><span class="lbl" style="color:#A31616">Sin stock</span><span style="font-size:32px;font-weight:800">{{n.out}}</span></div>
+<div class="card" style="padding:18px;display:flex;flex-direction:column;gap:6px"><span class="lbl" style="color:#B34700">Bajo mínimo</span><span style="font-size:32px;font-weight:800">{{n.low}}</span></div>
+<div class="card" style="padding:18px;display:flex;flex-direction:column;gap:6px"><span class="lbl" style="color:#08523B">En rango</span><span style="font-size:32px;font-weight:800">{{n.ok}}</span></div>
+<div class="card" style="padding:18px;display:flex;flex-direction:column;gap:6px"><span class="lbl" style="color:#1D4E89">Sobrestock</span><span style="font-size:32px;font-weight:800">{{n.over}}</span></div>
+</section>
+
+<section class="card" style="display:flex;flex-direction:column;overflow:hidden">
+<div style="padding:16px 18px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between">
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<sc-for list="{{chips}}" as="c" hint-placeholder-count="5"><button class="chip {{c.cls}}" onClick="{{c.pick}}">{{c.name}}</button></sc-for>
+</div>
+<div style="flex:1 1 240px;max-width:320px"><label for="q" style="position:absolute;left:-9999px">Buscar producto</label><input id="q" type="search" placeholder="Buscar producto" value="{{s.q}}" onChange="{{setQ}}" style="width:100%"></div>
+</div>
+<div style="overflow-x:auto">
+<div style="min-width:980px">
+<div class="tr th lbl"><div>Producto</div><div>Sucursal</div><div>Existencia</div><div>Nivel (mín · máx)</div><div>Cobertura</div><div>Estado</div><div>Próx. restock</div><div></div></div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="8">
+<div class="tr">
+<div><div style="font-weight:800">{{r.name}}</div><div style="font-size:12px;color:#5B6776">{{r.cat}}</div></div>
+<div>{{r.store}}</div>
+<div style="font-weight:800">{{r.qty}}</div>
+<div style="display:flex;flex-direction:column;gap:5px">
+<div style="position:relative;height:10px;border-radius:5px;background:#E8EDEA">
+<div style="position:absolute;left:0;top:0;bottom:0;width:{{r.fill}}%;border-radius:5px;background:{{r.color}}"></div>
+<div style="position:absolute;left:{{r.minPos}}%;top:-3px;bottom:-3px;width:2px;background:#101828"></div>
+<div style="position:absolute;left:{{r.maxPos}}%;top:-3px;bottom:-3px;width:2px;background:#101828"></div>
+</div>
+<span style="font-size:12px;color:#5B6776">{{r.min}} · {{r.max}}</span>
+</div>
+<div>{{r.cover}}</div>
+<div><span style="padding:4px 10px;border-radius:999px;background:{{r.bg}};color:{{r.fg}};font-weight:700;font-size:12px;white-space:nowrap">{{r.status}}</span></div>
+<div>{{r.next}}</div>
+<div style="text-align:right"><a class="btn sm" href="Calendario.dc.html">Ver en calendario</a></div>
+</div>
+</sc-for>
+</div>
+</div>
+</section>
+
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+  get s() {
+    return Object.assign({ store: 'all', cat: 'all', est: 'all', q: '' }, this.state || {});
+  }
+  renderVals() {
+    const s = this.s;
+    const data = [
+      ['Cerveza lager 6 pack', 'Bebidas', 'Centro', 210, 150, 600, '3.1 días', 'Jue 15 oct'],
+      ['Refresco cola 2 L', 'Bebidas', 'Centro', 0, 120, 480, '0 días', 'Jue 15 oct'],
+      ['Yogurt natural 900 g', 'Lácteos', 'Centro', 1450, 300, 900, '21 días', 'Sin pedido'],
+      ['Leche entera 1 L', 'Lácteos', 'Centro', 190, 250, 900, '2.2 días', 'Mar 13 oct'],
+      ['Pan blanco grande', 'Panadería', 'Valle Real', 60, 80, 300, '0.8 días', 'Sáb 10 oct'],
+      ['Huevo 18 pzas', 'Abarrotes', 'Plaza Norte', 0, 60, 240, '0 días', 'Vie 16 oct'],
+      ['Botana papas 180 g', 'Botanas', 'Los Pinos', 980, 150, 500, '41 días', 'Sin pedido'],
+      ['Tortillas de maíz 1 kg', 'Panadería', 'Centro', 310, 200, 700, '4.5 días', 'Sáb 10 oct'],
+      ['Cerveza lager 6 pack', 'Bebidas', 'Valle Real', 420, 150, 600, '5.2 días', 'Jue 15 oct'],
+      ['Leche entera 1 L', 'Lácteos', 'Zona Industrial', 640, 250, 900, '6.8 días', 'Mar 13 oct'],
+      ['Refresco cola 2 L', 'Bebidas', 'Ramos Arizpe', 150, 120, 480, '4.1 días', 'Jue 15 oct'],
+      ['Yogurt natural 900 g', 'Lácteos', 'Plaza Norte', 520, 300, 900, '8.4 días', 'Mar 13 oct']
+    ].map((a) => {
+      const qty = a[3], min = a[4], max = a[5];
+      const st = qty === 0 ? ['out', 'Sin stock', '#FDECEC', '#A31616', '#C92A2A'] : qty < min ? ['low', 'Bajo mínimo', '#FFF1E6', '#B34700', '#E8590C'] : qty > max ? ['over', 'Sobrestock', '#E7F0FB', '#1D4E89', '#3B6FB6'] : ['ok', 'En rango', '#E3F3EC', '#08523B', '#1F9D74'];
+      const top = max * 1.6;
+      return {
+        name: a[0], cat: a[1], store: a[2], qty: qty.toLocaleString('es-MX'), min: String(min), max: String(max), cover: a[6], next: a[7],
+        key: st[0], status: st[1], bg: st[2], fg: st[3], color: st[4],
+        fill: Math.min(100, (qty / top) * 100).toFixed(1), minPos: ((min / top) * 100).toFixed(1), maxPos: ((max / top) * 100).toFixed(1)
+      };
+    });
+    const base = data.filter((r) => (s.store === 'all' || r.store === s.store) && (s.cat === 'all' || r.cat === s.cat) && (!s.q || r.name.toLowerCase().indexOf(s.q.toLowerCase()) > -1));
+    const count = (k) => base.filter((r) => r.key === k).length;
+    const rows = base.filter((r) => s.est === 'all' || r.key === s.est);
+    const chips = [['all', 'Todos'], ['out', 'Sin stock'], ['low', 'Bajo mínimo'], ['ok', 'En rango'], ['over', 'Sobrestock']].map((c) => ({ name: c[1], cls: s.est === c[0] ? 'on' : '', pick: () => this.setState({ est: c[0] }) }));
+    return {
+      s, rows, chips,
+      n: { out: count('out'), low: count('low'), ok: count('ok'), over: count('over') },
+      setStore: (e) => this.setState({ store: e.target.value }),
+      setCat: (e) => this.setState({ cat: e.target.value }),
+      setQ: (e) => this.setState({ q: e.target.value })
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -84,7 +84,7 @@ export function ScenarioChart({ baseline, strategy, metric, validFrom, validTo }
           </LineChart>
         </ResponsiveContainer>
       </div>
-      <figcaption className="mt-2 flex flex-wrap gap-4 text-xs text-ink-secondary">
+      <figcaption className="mt-2 flex flex-wrap gap-4 text-xs text-sc-ink-secondary">
         <span className="flex items-center gap-1.5">
           <span aria-hidden className="inline-block w-4 border-t-2 border-[var(--sc-series-1)]" /> With strategy
         </span>
@@ -92,7 +92,7 @@ export function ScenarioChart({ baseline, strategy, metric, validFrom, validTo }
           <span aria-hidden className="inline-block w-4 border-t-2 border-dashed border-[var(--sc-series-baseline)]" /> No action (baseline)
         </span>
         <span className="flex items-center gap-1.5">
-          <span aria-hidden className="inline-block h-2.5 w-4 rounded-sm bg-accent-soft ring-1 ring-line" /> Promotion period
+          <span aria-hidden className="inline-block h-2.5 w-4 rounded-sm bg-sc-accent-soft ring-1 ring-sc-line" /> Promotion period
         </span>
       </figcaption>
     </figure>

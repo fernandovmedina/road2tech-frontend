@@ -11,7 +11,7 @@ const ALERT_ICON: Record<Alert["kind"], string> = {
   demand_spike: "Demand spike",
   no_demand: "No demand",
 };
-const SEVERITY_DOT: Record<RiskLevel, string> = { high: "bg-critical", medium: "bg-warning", low: "bg-good" };
+const SEVERITY_DOT: Record<RiskLevel, string> = { high: "bg-sc-critical", medium: "bg-sc-warning", low: "bg-sc-good" };
 
 export function StoreOverviewCard({ data }: { data: StoreOverview }) {
   const k = data.kpis;
@@ -44,10 +44,10 @@ export function StoreOverviewCard({ data }: { data: StoreOverview }) {
           <ul className="mt-1 space-y-1 text-sm">
             {[...data.top_movers_up.slice(0, 3), ...data.top_movers_down.slice(0, 2)].map((m) => (
               <li key={m.product.product_id} className="flex justify-between gap-3">
-                <span className="truncate text-ink-secondary">
+                <span className="truncate text-sc-ink-secondary">
                   {m.change_pct >= 0 ? "↗" : "↘"} {m.product.product_name}
                 </span>
-                <span className={`tabular font-medium ${m.change_pct >= 0 ? "text-good-ink" : "text-critical-ink"}`}>
+                <span className={`tabular font-medium ${m.change_pct >= 0 ? "text-sc-good-ink" : "text-sc-critical-ink"}`}>
                   {formatPct(m.change_pct)}
                 </span>
               </li>
@@ -57,14 +57,14 @@ export function StoreOverviewCard({ data }: { data: StoreOverview }) {
         <div>
           <h4 className="text-sm font-medium">Alerts</h4>
           {data.alerts.length === 0 ? (
-            <p className="mt-1 text-sm text-ink-muted">No alerts right now.</p>
+            <p className="mt-1 text-sm text-sc-ink-muted">No alerts right now.</p>
           ) : (
             <ul className="mt-1 max-h-48 space-y-1.5 overflow-auto text-sm">
               {data.alerts.map((a) => (
                 <li key={`${a.kind}-${a.product_id}`} className="flex gap-2">
                   <span aria-hidden className={`mt-1.5 size-2 shrink-0 rounded-full ${SEVERITY_DOT[a.severity]}`} />
-                  <span className="text-ink-secondary">
-                    <span className="font-medium text-ink">
+                  <span className="text-sc-ink-secondary">
+                    <span className="font-medium text-sc-ink">
                       {ALERT_ICON[a.kind]} ({a.severity}){a.date ? ` · ${formatShortDate(a.date)}` : ""}:
                     </span>{" "}
                     {a.message}

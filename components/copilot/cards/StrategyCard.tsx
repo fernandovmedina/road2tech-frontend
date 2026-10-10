@@ -45,10 +45,10 @@ export function StrategyCard({ data, compact = false }: StrategyCardProps) {
       aside={
         hasStrategy ? (
           <>
-            <span className="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent">
+            <span className="rounded-full bg-sc-accent-soft px-2.5 py-1 text-xs font-medium text-sc-accent">
               {data.strategy_type ? TYPE_LABEL[data.strategy_type] : ""}
             </span>
-            <span className="rounded-full border border-line px-2.5 py-1 text-xs text-ink-secondary">
+            <span className="rounded-full border border-sc-line px-2.5 py-1 text-xs text-sc-ink-secondary">
               {data.uplift_source === "campaigns" ? "Uplift measured from past campaigns" : "Uplift assumed"}
             </span>
             <RiskBadge label="Run-out risk" level={data.stockout_risk} />
@@ -93,15 +93,15 @@ export function StrategyCard({ data, compact = false }: StrategyCardProps) {
             <div>
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <h4 className="text-sm font-medium">Baseline vs. strategy</h4>
-                <div role="group" aria-label="Chart metric" className="inline-flex rounded-lg border border-line p-0.5 text-xs">
+                <div role="group" aria-label="Chart metric" className="inline-flex rounded-lg border border-sc-line p-0.5 text-xs">
                   {(["units", "revenue"] as const).map((option) => (
                     <button
                       key={option}
                       type="button"
                       aria-pressed={metric === option}
                       onClick={() => setMetric(option)}
-                      className={`rounded-md px-2.5 py-1 focus-visible:outline-2 focus-visible:outline-accent ${
-                        metric === option ? "bg-accent text-white" : "text-ink-secondary hover:bg-surface-muted"
+                      className={`rounded-md px-2.5 py-1 focus-visible:outline-2 focus-visible:outline-sc-accent ${
+                        metric === option ? "bg-sc-accent text-white" : "text-sc-ink-secondary hover:bg-sc-surface-muted"
                       }`}
                     >
                       {option === "units" ? "Units sold" : "Sales (MXN)"}
@@ -120,21 +120,21 @@ export function StrategyCard({ data, compact = false }: StrategyCardProps) {
           ) : null}
 
           {data.cross_sell_product && data.cross_sell_basis ? (
-            <p className="rounded-xl bg-surface-muted px-4 py-3 text-sm text-ink-secondary">
-              <span className="font-medium text-ink">Combo with {data.cross_sell_product.product_name}.</span>{" "}
+            <p className="rounded-xl bg-sc-surface-muted px-4 py-3 text-sm text-sc-ink-secondary">
+              <span className="font-medium text-sc-ink">Combo with {data.cross_sell_product.product_name}.</span>{" "}
               {data.cross_sell_basis}
             </p>
           ) : null}
 
           {data.draft_id ? (
-            <p className="text-sm text-ink-secondary">
-              Saved as <span className="font-mono text-ink">{data.draft_id}</span> ·{" "}
+            <p className="text-sm text-sc-ink-secondary">
+              Saved as <span className="font-mono text-sc-ink">{data.draft_id}</span> ·{" "}
               {data.draft_status ? STATUS_LABEL[data.draft_status] : "Draft"}. The agent never activates a promotion by itself.
             </p>
           ) : null}
         </>
       ) : (
-        <p className="text-sm text-ink-secondary">
+        <p className="text-sm text-sc-ink-secondary">
           Every simulated option broke a business rule (margin, run-out risk or an overlapping promotion), so doing nothing
           is the better choice. The rejected options and reasons are below.
         </p>
@@ -144,10 +144,10 @@ export function StrategyCard({ data, compact = false }: StrategyCardProps) {
         <>
           <CandidatesTable candidates={data.candidates} />
           <details className="text-sm">
-            <summary className="cursor-pointer font-medium focus-visible:outline-2 focus-visible:outline-accent">
+            <summary className="cursor-pointer font-medium focus-visible:outline-2 focus-visible:outline-sc-accent">
               Assumptions and constraints
             </summary>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-ink-secondary">
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sc-ink-secondary">
               <li>
                 Max discount {data.constraints.max_discount_pct}% · min unit margin {data.constraints.min_unit_margin_pct}% ·
                 max run-out risk {data.constraints.max_stockout_risk}

@@ -25,22 +25,22 @@ export function StorePicker({ value, onChange }: StorePickerProps) {
   }, []);
 
   if (state.status === "loading") {
-    return <div aria-busy="true" className="h-9 w-64 animate-pulse rounded-lg bg-surface-muted" />;
+    return <div aria-busy="true" className="h-9 w-64 animate-pulse rounded-lg bg-sc-surface-muted" />;
   }
   if (state.status === "error") {
     return (
-      <p role="alert" className="text-sm text-critical-ink">
+      <p role="alert" className="text-sm text-sc-critical-ink">
         ▲ {state.message} Start the Copilot API (BackendRoad2Tech/services/copilot-api).
       </p>
     );
   }
   return (
     <label className="flex items-center gap-2 text-sm">
-      <span className="text-ink-secondary">Branch</span>
+      <span className="text-sc-ink-secondary">Branch</span>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="h-9 max-w-72 rounded-lg border border-line bg-surface px-2 text-sm focus-visible:outline-2 focus-visible:outline-accent"
+        className="h-9 max-w-72 rounded-lg border border-sc-line bg-sc-surface px-2 text-sm focus-visible:outline-2 focus-visible:outline-sc-accent"
       >
         {state.stores.map((store) => (
           <option key={store.store_id} value={store.store_id}>

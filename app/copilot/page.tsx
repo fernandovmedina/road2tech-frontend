@@ -13,8 +13,8 @@ export const metadata: Metadata = {
 function WorkspaceSkeleton() {
   return (
     <div aria-busy="true" className="flex h-dvh flex-col">
-      <div className="h-16 border-b border-line bg-surface" />
-      <div className="mx-auto mt-8 h-64 w-full max-w-5xl animate-pulse rounded-2xl bg-surface-muted" />
+      <div className="h-16 border-b border-sc-line bg-sc-surface" />
+      <div className="mx-auto mt-8 h-64 w-full max-w-5xl animate-pulse rounded-2xl bg-sc-surface-muted" />
     </div>
   );
 }

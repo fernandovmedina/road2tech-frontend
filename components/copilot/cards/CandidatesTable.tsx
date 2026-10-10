@@ -9,12 +9,12 @@ export function CandidatesTable({ candidates }: CandidatesTableProps) {
   const viable = candidates.filter((c) => c.viable).length;
   return (
     <details className="text-sm" open={viable === 0}>
-      <summary className="cursor-pointer font-medium focus-visible:outline-2 focus-visible:outline-accent">
+      <summary className="cursor-pointer font-medium focus-visible:outline-2 focus-visible:outline-sc-accent">
         Simulated options ({viable} viable, {candidates.length - viable} rejected)
       </summary>
-      <div className="mt-2 max-h-72 overflow-auto rounded-xl border border-line">
+      <div className="mt-2 max-h-72 overflow-auto rounded-xl border border-sc-line">
         <table className="w-full text-left text-xs">
-          <thead className="sticky top-0 bg-surface-muted text-ink-secondary">
+          <thead className="sticky top-0 bg-sc-surface-muted text-sc-ink-secondary">
             <tr>
               <th scope="col" className="px-3 py-2 font-medium">Option</th>
               <th scope="col" className="px-3 py-2 text-right font-medium">Net impact</th>
@@ -24,15 +24,15 @@ export function CandidatesTable({ candidates }: CandidatesTableProps) {
           </thead>
           <tbody>
             {candidates.map((c) => (
-              <tr key={c.candidate_id} className="border-t border-line align-top">
+              <tr key={c.candidate_id} className="border-t border-sc-line align-top">
                 <td className="px-3 py-2">{c.title}</td>
                 <td className="tabular px-3 py-2 text-right">{formatSignedMoney(c.expected_net_impact)}</td>
                 <td className="tabular px-3 py-2 text-right">{formatUnits(c.expected_waste_reduction)}</td>
                 <td className="px-3 py-2">
                   {c.viable ? (
-                    <span className="text-good-ink">✓ Viable</span>
+                    <span className="text-sc-good-ink">✓ Viable</span>
                   ) : (
-                    <span className="text-critical-ink">✕ {c.violations[0]}</span>
+                    <span className="text-sc-critical-ink">✕ {c.violations[0]}</span>
                   )}
                 </td>
               </tr>

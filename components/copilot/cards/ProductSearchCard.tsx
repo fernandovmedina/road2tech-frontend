@@ -7,16 +7,16 @@ export function ProductSearchCard({ data }: { data: ProductSearch }) {
   return (
     <CardShell eyebrow="Catalog search" title={`Products matching “${data.query}”`}>
       {data.products.length === 0 ? (
-        <p className="text-sm text-ink-secondary">No product matches. Try a brand or a category name.</p>
+        <p className="text-sm text-sc-ink-secondary">No product matches. Try a brand or a category name.</p>
       ) : (
         <ul className="divide-y divide-[var(--sc-border)] text-sm">
           {data.products.map((p) => (
             <li key={p.product_id} className="flex justify-between gap-3 py-1.5">
               <span>
-                <span className="font-mono text-xs text-ink-muted">{p.product_id}</span> {p.product_name}
-                <span className="text-ink-muted"> · {p.category_name}</span>
+                <span className="font-mono text-xs text-sc-ink-muted">{p.product_id}</span> {p.product_name}
+                <span className="text-sc-ink-muted"> · {p.category_name}</span>
               </span>
-              <span className="tabular text-ink-secondary">{formatMoney(p.retail_price)}</span>
+              <span className="tabular text-sc-ink-secondary">{formatMoney(p.retail_price)}</span>
             </li>
           ))}
         </ul>

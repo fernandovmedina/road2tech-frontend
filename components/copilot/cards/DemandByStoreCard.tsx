@@ -19,10 +19,10 @@ export function DemandByStoreCard({ data }: { data: DemandByStore }) {
     >
       <BranchDemandChart rows={rows} days={data.days} />
       <details className="text-sm">
-        <summary className="cursor-pointer font-medium focus-visible:outline-2 focus-visible:outline-accent">Table view</summary>
-        <div className="mt-2 max-h-72 overflow-auto rounded-xl border border-line">
+        <summary className="cursor-pointer font-medium focus-visible:outline-2 focus-visible:outline-sc-accent">Table view</summary>
+        <div className="mt-2 max-h-72 overflow-auto rounded-xl border border-sc-line">
           <table className="w-full text-left text-xs">
-            <thead className="sticky top-0 bg-surface-muted text-ink-secondary">
+            <thead className="sticky top-0 bg-sc-surface-muted text-sc-ink-secondary">
               <tr>
                 <th scope="col" className="px-3 py-2 font-medium">Branch</th>
                 <th scope="col" className="px-3 py-2 font-medium">Zone</th>
@@ -33,9 +33,9 @@ export function DemandByStoreCard({ data }: { data: DemandByStore }) {
             </thead>
             <tbody>
               {data.stores.map((s) => (
-                <tr key={s.store.store_id} className="border-t border-line">
+                <tr key={s.store.store_id} className="border-t border-sc-line">
                   <td className="px-3 py-1.5">{s.store.store_name}</td>
-                  <td className="px-3 py-1.5 text-ink-secondary">{s.store.zone_type}</td>
+                  <td className="px-3 py-1.5 text-sc-ink-secondary">{s.store.zone_type}</td>
                   <td className="tabular px-3 py-1.5 text-right">{formatInteger(s.recent_units)}</td>
                   <td className="tabular px-3 py-1.5 text-right">{formatPct(s.change_pct)}</td>
                   <td className="tabular px-3 py-1.5 text-right">{formatUnits(s.forecast_next_7d_units)}</td>

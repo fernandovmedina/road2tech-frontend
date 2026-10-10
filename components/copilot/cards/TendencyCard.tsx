@@ -57,22 +57,22 @@ export function TendencyCard({ data }: { data: ProductTendency }) {
 
       <TendencyChart history={data.historical_series} forecast={data.forecast_series} dataAsOf={data.data_as_of} />
 
-      <div className="rounded-xl bg-accent-soft px-4 py-3 text-sm">
-        <p className="font-medium text-ink">Suggestion</p>
-        <p className="mt-0.5 text-ink-secondary">{data.ai_summary}</p>
+      <div className="rounded-xl bg-sc-accent-soft px-4 py-3 text-sm">
+        <p className="font-medium text-sc-ink">Suggestion</p>
+        <p className="mt-0.5 text-sc-ink-secondary">{data.ai_summary}</p>
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
         <div>
           <h4 className="text-sm font-medium">Main drivers</h4>
           {data.main_drivers.length === 0 ? (
-            <p className="mt-1 text-sm text-ink-muted">No strong weekday, weather or event effect.</p>
+            <p className="mt-1 text-sm text-sc-ink-muted">No strong weekday, weather or event effect.</p>
           ) : (
             <ul className="mt-1 space-y-1.5 text-sm">
               {data.main_drivers.map((driver) => (
                 <li key={`${driver.kind}-${driver.name}`} className="flex gap-2">
                   <span className="tabular w-14 shrink-0 text-right font-medium">{formatPct(driver.impact_pct)}</span>
-                  <span className="text-ink-secondary">{driver.detail}</span>
+                  <span className="text-sc-ink-secondary">{driver.detail}</span>
                 </li>
               ))}
             </ul>
@@ -80,12 +80,12 @@ export function TendencyCard({ data }: { data: ProductTendency }) {
         </div>
         <div className="space-y-2 text-sm">
           <h4 className="font-medium">Risks</h4>
-          <p className="text-ink-secondary">
-            <span className="font-medium text-ink">Run-out:</span> {stock.detail}
+          <p className="text-sc-ink-secondary">
+            <span className="font-medium text-sc-ink">Run-out:</span> {stock.detail}
             {stock.first_stockout_date ? ` Without a new order, the shelf empties around ${formatShortDate(stock.first_stockout_date)}.` : ""}
           </p>
-          <p className="text-ink-secondary">
-            <span className="font-medium text-ink">Waste:</span> {waste.detail}
+          <p className="text-sc-ink-secondary">
+            <span className="font-medium text-sc-ink">Waste:</span> {waste.detail}
           </p>
         </div>
       </div>

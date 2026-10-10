@@ -40,12 +40,12 @@ export function CopilotWorkspace() {
       <Suggestions />
       <SelectedStoreSync storeId={storeId} />
       <div className="flex h-dvh flex-col">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-surface px-4 py-3 md:px-6">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-sc-line bg-sc-surface px-4 py-3 md:px-6">
           <div>
             <h1 className="text-lg font-semibold">
-              Stock<span className="text-accent">Copilot</span>
+              Stock<span className="text-sc-accent">Copilot</span>
             </h1>
-            <p className="text-xs text-ink-secondary">
+            <p className="text-xs text-sc-ink-secondary">
               Ask about trends, restock and promotions. Every number comes from the analytics engine; the AI explains it.
             </p>
           </div>

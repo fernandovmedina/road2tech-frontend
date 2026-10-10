@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Catálogo de proveedores</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Manrope',system-ui,sans-serif;color:#101828;background:#F3F5F4;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:#0B6E4F;text-decoration:none}a:hover{color:#08523B}
+button,input,select{font-family:inherit;font-size:14px;color:#101828}
+.nl{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:10px;color:#B9D0C6;font-weight:600;font-size:14px}
+.nl:hover{background:#17302A;color:#fff}
+.nl.on{background:#1C4A3B;color:#fff}
+.card{background:#fff;border:1px solid #E3E8E6;border-radius:16px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;border-radius:10px;border:1px solid #D0D7D4;background:#fff;font-weight:700;font-size:14px;color:#101828;cursor:pointer}
+.btn:hover{background:#F3F5F4;color:#101828}
+.btn.pri{background:#0B6E4F;border-color:#0B6E4F;color:#fff}
+.btn.pri:hover{background:#08523B;color:#fff}
+.lbl{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#5B6776}
+input,select{min-height:44px;border:1px solid #D0D7D4;border-radius:10px;padding:0 12px;background:#fff;width:100%}
+:focus-visible{outline:2px solid #0B6E4F;outline-offset:2px}
+.tr{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,2.2fr) minmax(0,.9fr) minmax(0,1.1fr) minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:center;padding:6px 18px;min-height:64px;border-top:1px solid #E3E8E6;font-size:14px}
+.th{background:#F3F5F4;border-top:0;min-height:44px}
+</style>
+</helmet>
+<div style="display:flex;flex-wrap:wrap;min-height:1000px;align-items:stretch">
+
+<aside style="flex:0 0 232px;background:#0F1F1A;color:#CFE3DA;padding:24px 16px;display:flex;flex-direction:column;gap:28px">
+<div style="display:flex;align-items:center;gap:10px;padding:0 8px">
+<svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#1F9D74"></rect><path d="M8 21l5-6 4 3 7-9" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span style="font-weight:800;font-size:17px;color:#fff;letter-spacing:-.01em">StockCopilot</span>
+</div>
+<nav aria-label="Principal" style="display:flex;flex-direction:column;gap:4px">
+<a class="nl" href="Main.dc.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z"></path></svg>Dashboard</a>
+<a class="nl" href="Calendario.dc.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3v4 M17 3v4 M4 9h16 M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"></path></svg>Calendario de restock</a>
+<a class="nl" href="Stock.dc.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8l-9-5-9 5v8l9 5 9-5z M3 8l9 5 9-5 M12 13v8"></path></svg>Stock general</a>
+<a class="nl on" href="Proveedores.dc.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h11v10H3z M14 10h4l3 3v3h-7z M7.5 19.5h.01 M17.5 19.5h.01"></path></svg>Proveedores</a>
+<a class="nl" href="Productos.dc.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12V4h8l10 10-8 8z M7.5 8.5h.01"></path></svg>Productos</a>
+</nav>
+<div style="margin-top:auto;display:flex;flex-direction:column;gap:12px;padding:0 8px">
+<div style="display:flex;align-items:center;gap:10px">
+<div style="width:36px;height:36px;border-radius:50%;background:#2B5B4B;color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center">MR</div>
+<div style="display:flex;flex-direction:column"><span style="color:#fff;font-weight:700;font-size:14px">Marta Ruiz</span><span style="font-size:12px;color:#9BB8AC">Gerente regional</span></div>
+</div>
+<a class="nl" href="Login.dc.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9"></path></svg>Cerrar sesión</a>
+</div>
+</aside>
+
+<main style="flex:999 1 640px;min-width:0;padding:28px 32px;display:flex;flex-direction:column;gap:24px">
+
+<header style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between">
+<div style="display:flex;flex-direction:column;gap:4px">
+<h1 style="margin:0;font-size:28px;font-weight:800;letter-spacing:-.02em">Catálogo de proveedores</h1>
+<span style="color:#5B6776;font-size:14px">El correo de cada proveedor es el destino de las órdenes de restock</span>
+</div>
+<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+<span style="display:inline-flex;align-items:center;min-height:44px;padding:0 12px;border-radius:10px;background:#FFF1E6;color:#B34700;font-weight:700;font-size:12px">Datos de ejemplo</span>
+<button class="btn pri"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14 M5 12h14"></path></svg>Nuevo proveedor</button>
+</div>
+</header>
+
+<div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start">
+
+<section class="card" style="flex:2 1 640px;min-width:0;overflow:hidden">
+<div style="overflow-x:auto"><div style="min-width:760px">
+<div class="tr th lbl"><div>Proveedor</div><div>Correo</div><div>Lead time</div><div>Días de entrega</div><div>Pedido mínimo</div><div>Cumplimiento</div></div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="5">
+<div class="tr" style="background:{{r.bg}}">
+<div><button onClick="{{r.pick}}" style="border:0;background:transparent;padding:0;min-height:44px;text-align:left;font-weight:800;font-size:14px">{{r.name}}</button><div style="font-size:12px;color:#5B6776">{{r.products}} productos</div></div>
+<div style="overflow-wrap:anywhere">{{r.email}}</div>
+<div>{{r.lead}}</div>
+<div>{{r.days}}</div>
+<div>{{r.min}}</div>
+<div><span style="padding:4px 10px;border-radius:999px;background:#E3F3EC;color:#08523B;font-weight:700;font-size:12px">{{r.fill}}</span></div>
+</div>
+</sc-for>
+</div></div>
+</section>
+
+<aside style="flex:1 1 340px;min-width:0;display:flex;flex-direction:column;gap:16px">
+<div class="card" style="padding:20px;display:flex;flex-direction:column;gap:14px">
+<h2 style="margin:0;font-size:18px;font-weight:800">Editar proveedor</h2>
+<div style="display:flex;flex-direction:column;gap:6px"><label class="lbl" for="fn">Nombre</label><input id="fn" type="text" value="{{sel.name}}" onChange="{{setName}}"></div>
+<div style="display:flex;flex-direction:column;gap:6px"><label class="lbl" for="fe">Correo para órdenes</label><input id="fe" type="email" value="{{sel.email}}" onChange="{{setEmail}}"></div>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px">
+<div style="display:flex;flex-direction:column;gap:6px"><label class="lbl" for="fl">Lead time</label><input id="fl" type="text" value="{{sel.lead}}" onChange="{{setLead}}"></div>
+<div style="display:flex;flex-direction:column;gap:6px"><label class="lbl" for="fm">Pedido mínimo</label><input id="fm" type="text" value="{{sel.min}}" onChange="{{setMin}}"></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:6px"><span class="lbl">Días de entrega</span><span style="font-weight:700">{{sel.days}}</span></div>
+<button class="btn pri">Guardar cambios</button>
+</div>
+<div class="card" style="padding:20px;display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><h2 style="margin:0;font-size:16px;font-weight:800">Envío de correos</h2><span style="display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:12px;color:#08523B"><span style="width:8px;height:8px;border-radius:50%;background:#1F9D74"></span>Resend conectado</span></div>
+<span style="font-size:13px;color:#475467;line-height:1.5">Las órdenes salen desde el remitente de la cadena y se registran para medir si el proveedor cumplió.</span>
+<button class="btn" onClick="{{test}}">Enviar correo de prueba</button>
+<sc-if value="{{tested}}" hint-placeholder-val="{{ false }}"><span style="font-size:13px;font-weight:700;color:#08523B;background:#E3F3EC;padding:10px 12px;border-radius:10px">Prueba enviada a {{sel.email}}</span></sc-if>
+</div>
+</aside>
+
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  get s() {
+    return Object.assign({ sel: 'sp1', edits: {}, tested: false }, this.state || {});
+  }
+  renderVals() {
+    const s = this.s;
+    const base = [
+      { id: 'sp1', name: 'Distribuidora Sierra', email: 'pedidos@distsierra.mx', lead: '2 días', days: 'Lun y Jue', min: '$4,000', fill: '96%', products: 14 },
+      { id: 'sp2', name: 'Lácteos del Valle', email: 'pedidos@lacteosvalle.mx', lead: '1 día', days: 'Diario', min: '$1,500', fill: '95%', products: 11 },
+      { id: 'sp3', name: 'Panificadora Norte', email: 'ventas@panificadoranorte.mx', lead: '1 día', days: 'Diario', min: '$1,200', fill: '97%', products: 9 },
+      { id: 'sp4', name: 'Granja San Pedro', email: 'pedidos@granjasanpedro.mx', lead: '2 días', days: 'Mar y Vie', min: '$2,000', fill: '92%', products: 6 },
+      { id: 'sp5', name: 'Botanas del Norte', email: 'compras@botanasnorte.mx', lead: '3 días', days: 'Miércoles', min: '$2,500', fill: '90%', products: 8 }
+    ];
+    const merged = base.map((b) => Object.assign({}, b, s.edits[b.id] || {}));
+    const rows = merged.map((r) => Object.assign({}, r, { bg: r.id === s.sel ? '#E3F3EC' : '#fff', pick: () => this.setState({ sel: r.id, tested: false }) }));
+    const sel = merged.find((r) => r.id === s.sel);
+    const edit = (f) => (e) => { const ed = Object.assign({}, s.edits); ed[s.sel] = Object.assign({}, ed[s.sel] || {}, { [f]: e.target.value }); this.setState({ edits: ed }); };
+    return {
+      rows, sel, tested: s.tested,
+      setName: edit('name'), setEmail: edit('email'), setLead: edit('lead'), setMin: edit('min'),
+      test: () => this.setState({ tested: true })
+    };
+  }
+}
+</script>
+</body>
+</html>
