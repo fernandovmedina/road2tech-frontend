@@ -23,6 +23,8 @@ const EXAMPLES = [
 ];
 
 const PROMOTION_ANALYSIS = /(evalua(?:r)? (?:hasta )?(?:cinco|5) promociones|mejor(?:es)? promocion(?:es)?|plan de promociones|que recomiendas|que conviene|oportunidades? (?:comerciales?|de venta)|como (?:mejorar|subir|incrementar) (?:las )?ventas|analiza (?:la )?sucursal)/i;
+const INVENTORY_CATALOG = /(que productos (?:hay|tengo)|productos (?:en|del) (?:el )?(?:inventario|stock)|inventario disponible|lista(?:do)? (?:de|del) (?:inventario|stock))/i;
+const TREND_RANKING = /((?:mayor|menor|mas alta|mas baja|alta|baja) tendencia|tendencia (?:mayor|menor|mas alta|mas baja|alta|baja)|(?:mas|menos) (?:se vende|ventas tiene))/i;
 
 let counter = 0;
 
@@ -247,6 +249,88 @@ async function replyRestock(storeId: string): Promise<Reply> {
     blocks: [
       text(`Estas son las ${block.suggestions.length} sugerencias de reabasto más urgentes de la tienda. Puedes abrir cada una en el calendario para revisar y enviar la orden; nada se envía sin tu confirmación.`),
       block,
+    ],
+  };
+}
+
+function replyInventory(ctx: Ctx, storeId: string): Reply {
+  const store = ctx.storeById.get(storeId)!;
+  const rows = (ctx.stockByStore.get(storeId) ?? [])
+    .filter((row) => row.quantity > 0)
+    .sort((a, b) => b.quantity - a.quantity || a.product_id.localeCompare(b.product_id));
+  const visible = rows.slice(0, 12);
+  const lines = visible.map((row, index) => {
+    const product = ctx.productById.get(row.product_id);
+    return `${index + 1}) ${product?.product_name ?? row.product_id}: ${n1(row.quantity)} u`;
+  });
+  return {
+    tools: [tool("get_store_inventory_catalog", { store_id: storeId, in_stock_only: true, sort: "quantity_desc", limit: 12 })],
+    constraints: null,
+    blocks: [
+      text(
+        `${displayBranchName(store)} tiene ${rows.length} productos con existencia. Estos son los 12 con más unidades disponibles:\n${lines.join("\n")}\n` +
+          "Puedes pedirme buscar un producto concreto, una categoría o los artículos con menor existencia.",
+      ),
+    ],
+  };
+}
+
+type TrendRank = { product: RawProduct; changePct: number; recentAvg: number; previousAvg: number };
+
+function trendRank(ctx: Ctx, storeId: string, direction: "highest" | "lowest"): TrendRank | null {
+  const rows: TrendRank[] = [];
+  for (const product of ctx.products) {
+    if (!ctx.stockByKey.has(`${storeId}|${product.product_id}`)) continue;
+    const series = ctx.sales.series[storeId]?.[product.product_id] ?? [];
+    const recent = series.slice(-7);
+    const previous = series.slice(-14, -7);
+    const recentAvg = recent.length ? recent.reduce((sum, value) => sum + value, 0) / recent.length : 0;
+    const previousAvg = previous.length ? previous.reduce((sum, value) => sum + value, 0) / previous.length : 0;
+    // Exclude products without enough activity: otherwise a single unit after a zero week dominates the ranking.
+    if (recentAvg + previousAvg < 1) continue;
+    const denominator = Math.max(previousAvg, 0.5);
+    rows.push({ product, recentAvg, previousAvg, changePct: ((recentAvg - previousAvg) / denominator) * 100 });
+  }
+  rows.sort((a, b) =>
+    direction === "highest"
+      ? b.changePct - a.changePct || b.recentAvg - a.recentAvg
+      : a.changePct - b.changePct || a.recentAvg - b.recentAvg,
+  );
+  return rows[0] ?? null;
+}
+
+async function replyTrendRanking(ctx: Ctx, storeId: string, direction: "highest" | "lowest"): Promise<Reply> {
+  const store = ctx.storeById.get(storeId)!;
+  const ranked = trendRank(ctx, storeId, direction);
+  if (!ranked) {
+    return {
+      tools: [tool("rank_product_sales_trends", { store_id: storeId, window_days: 7, direction })],
+      constraints: null,
+      blocks: [text(`No hay suficiente historial reciente para comparar tendencias en ${displayBranchName(store)}.`)],
+    };
+  }
+  const tendency = await buildTendency(storeId, ranked.product.product_id, 28, 14);
+  const label = direction === "highest" ? "el mayor crecimiento" : "la mayor caída";
+  const sign = ranked.changePct >= 0 ? "+" : "";
+  return {
+    tools: [
+      tool("rank_product_sales_trends", { store_id: storeId, window_days: 7, direction, min_activity_units_per_day: 1 }),
+      tool("get_product_tendency", { store_id: storeId, product_id: ranked.product.product_id, history_days: 28, forecast_days: 14 }),
+    ],
+    constraints: null,
+    blocks: [
+      text(
+        `${ranked.product.product_name} tiene ${label} en ${displayBranchName(store)}: ${sign}${n1(ranked.changePct)} % ` +
+          `al comparar los últimos 7 días (${n1(ranked.recentAvg)} u/día) contra los 7 anteriores (${n1(ranked.previousAvg)} u/día).`,
+      ),
+      {
+        type: "forecast_chart",
+        store_id: storeId,
+        product_id: ranked.product.product_id,
+        history: tendency.history,
+        forecast: tendency.forecast,
+        ...(tendency.treated ? { treated: tendency.treated } : {}),
+      },
     ],
   };
 }
@@ -533,6 +617,43 @@ export async function handleAnalysis(body: unknown): Promise<ChatResponse> {
       message_id: messageId,
       focus_store_id: requestedStore,
       focus_product_id: null,
+      tools: reply.tools,
+      interpreted_constraints: reply.constraints,
+      blocks: reply.blocks,
+    };
+  }
+
+  if (requestedStore && INVENTORY_CATALOG.test(norm(message))) {
+    const reply = replyInventory(ctx, requestedStore);
+    counter++;
+    const conversationId = requestedConversation ?? `conv_analysis_${hashId(`${requestedStore}|${counter}|${message}`)}`;
+    const messageId = `msg_${hashId(`${conversationId}|${counter}|${message}`)}`;
+    analysisConversations.set(conversationId, { storeId: requestedStore, productId: null });
+    return {
+      conversation_id: conversationId,
+      message_id: messageId,
+      focus_store_id: requestedStore,
+      focus_product_id: null,
+      tools: reply.tools,
+      interpreted_constraints: reply.constraints,
+      blocks: reply.blocks,
+    };
+  }
+
+  if (requestedStore && TREND_RANKING.test(norm(message))) {
+    const direction = /menor|baja|menos/.test(norm(message)) ? "lowest" : "highest";
+    const reply = await replyTrendRanking(ctx, requestedStore, direction);
+    const chart = reply.blocks.find((block) => typeof block === "object" && block !== null && "type" in block && block.type === "forecast_chart");
+    const productId = chart && typeof chart === "object" && "product_id" in chart && typeof chart.product_id === "string" ? chart.product_id : null;
+    counter++;
+    const conversationId = requestedConversation ?? `conv_analysis_${hashId(`${requestedStore}|${counter}|${message}`)}`;
+    const messageId = `msg_${hashId(`${conversationId}|${counter}|${message}`)}`;
+    analysisConversations.set(conversationId, { storeId: requestedStore, productId });
+    return {
+      conversation_id: conversationId,
+      message_id: messageId,
+      focus_store_id: requestedStore,
+      focus_product_id: productId,
       tools: reply.tools,
       interpreted_constraints: reply.constraints,
       blocks: reply.blocks,

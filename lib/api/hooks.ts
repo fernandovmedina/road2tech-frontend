@@ -322,11 +322,14 @@ export const chatDraftsActionable = goesToBackend("/chat") === goesToBackend("/d
 export const isConversationNotFound = (e: unknown) => e instanceof ApiError && e.code === "conversation_not_found";
 
 const INVENTORY_ANALYSIS = /(stock suficiente|inventario suficiente|se agot|agotara|agotará|quedara merma|quedará merma|merma|fin de mes|cobertura)/i;
+const INVENTORY_CATALOG = /(que productos (?:hay|tengo)|productos (?:en|del) (?:el )?(?:inventario|stock)|inventario disponible|lista(?:do)? (?:de|del) (?:inventario|stock))/i;
+const TREND_RANKING = /((?:mayor|menor|mas alta|mas baja|alta|baja) tendencia|tendencia (?:mayor|menor|mas alta|mas baja|alta|baja)|(?:mas|menos) (?:se vende|ventas tiene))/i;
 const PROMOTION_ANALYSIS = /(evalua(?:r)? (?:hasta )?(?:cinco|5) promociones|mejor(?:es)? promocion(?:es)?|plan de promociones|que recomiendas|que conviene|oportunidades? (?:comerciales?|de venta)|como (?:mejorar|subir|incrementar) (?:las )?ventas|analiza (?:la )?sucursal)/i;
 
 export function chatChannel(storeId: string, message: string): ChatResult["channel"] {
   const normalizedMessage = message.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  return !storeId || storeId === "all" || INVENTORY_ANALYSIS.test(normalizedMessage) || PROMOTION_ANALYSIS.test(normalizedMessage)
+  return !storeId || storeId === "all" || INVENTORY_ANALYSIS.test(normalizedMessage) || INVENTORY_CATALOG.test(normalizedMessage) ||
+    TREND_RANKING.test(normalizedMessage) || PROMOTION_ANALYSIS.test(normalizedMessage)
     ? "analysis"
     : "store";
 }
