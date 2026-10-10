@@ -57,7 +57,7 @@ export function LoginView() {
         <span aria-hidden className="absolute -right-24 -top-24 h-96 w-96 rounded-full bg-heat-4/40 blur-3xl" />
         <span aria-hidden className="absolute -bottom-32 left-10 h-96 w-96 rounded-full bg-heat-3/30 blur-3xl" />
         <div className="relative flex items-center gap-3">
-          <span aria-hidden className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-xl font-extrabold">S</span>
+          <span aria-hidden className="flex h-11 w-11 items-center justify-center rounded-block bg-primary text-xl font-extrabold">S</span>
           <span className="text-2xl font-extrabold">{copy.shell.brand}</span>
         </div>
         <div className="relative max-w-lg">
@@ -74,7 +74,7 @@ export function LoginView() {
         <p className="relative text-xs text-sidebar-text/60">{L.footer}</p>
       </section>
 
-      <section className="flex items-center justify-center bg-white p-6">
+      <section className="flex items-center justify-center bg-card p-6">
         <form onSubmit={onSubmit} noValidate className="flex w-full max-w-sm flex-col gap-4">
           <div>
             <h1 className="text-[28px] font-extrabold">{L.title}</h1>
@@ -82,7 +82,7 @@ export function LoginView() {
           </div>
 
           {errors.form && (
-            <p role="alert" className="rounded-[10px] border border-alert/30 bg-alert-tint px-3 py-2.5 text-sm font-semibold text-alert-dark">
+            <p role="alert" className="rounded-control border border-alert/30 bg-alert-tint px-3 py-2.5 text-sm font-semibold text-alert-dark">
               {errors.form}
             </p>
           )}
@@ -102,7 +102,7 @@ export function LoginView() {
                 onClick={() => setShowPassword((v) => !v)}
                 aria-label={showPassword ? L.hidePassword : L.showPassword}
                 aria-pressed={showPassword}
-                className="flex h-10 w-10 items-center justify-center rounded-lg text-muted hover:bg-background hover:text-foreground"
+                className="flex h-11 w-11 items-center justify-center rounded-control text-muted hover:bg-background hover:text-foreground"
               >
                 <svg aria-hidden width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   {showPassword ? (

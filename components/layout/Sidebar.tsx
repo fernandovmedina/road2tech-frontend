@@ -47,8 +47,8 @@ export function Sidebar() {
 
   return (
     <aside className="flex w-full flex-col gap-6 bg-sidebar px-4 py-5 text-sidebar-text lg:fixed lg:inset-y-0 lg:left-0 lg:w-[232px] lg:overflow-y-auto">
-      <Link href="/" className="flex items-center gap-2.5 rounded-lg px-2 text-white">
-        <span aria-hidden className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-primary text-lg font-extrabold">S</span>
+      <Link href="/" className="flex items-center gap-2.5 rounded-control px-2 text-white">
+        <span aria-hidden className="flex h-9 w-9 items-center justify-center rounded-control bg-primary text-lg font-extrabold">S</span>
         <span className="text-lg font-extrabold">{copy.shell.brand}</span>
       </Link>
 
@@ -58,7 +58,7 @@ export function Sidebar() {
             key={it.href}
             href={it.href}
             aria-current={isActive(it.href) ? "page" : undefined}
-            className={`flex min-h-11 shrink-0 items-center gap-3 rounded-[10px] px-3 text-sm font-semibold transition-colors ${
+            className={`flex min-h-11 shrink-0 items-center gap-3 rounded-control px-3 text-sm font-semibold transition-colors ${
               isActive(it.href) ? "bg-sidebar-active text-white" : "hover:bg-sidebar-active/50"
             }`}
           >
@@ -70,7 +70,7 @@ export function Sidebar() {
 
       <div className="mt-auto flex flex-col gap-4">
         {usesMockData && (
-          <fieldset className="rounded-xl border border-white/10 p-3">
+          <fieldset className="rounded-block border border-white/10 p-3">
             <legend className="px-1 text-[11px] font-bold uppercase tracking-wide text-sidebar-text/70">{copy.nav.demoStates}</legend>
             <div className="flex gap-1">
               {demoStates.map((d) => (
@@ -79,7 +79,7 @@ export function Sidebar() {
                   type="button"
                   aria-pressed={demo === d.id}
                   onClick={() => changeDemo(d.id)}
-                  className={`min-h-10 flex-1 rounded-lg px-1 text-xs font-bold ${demo === d.id ? "bg-primary text-white" : "bg-white/5 hover:bg-white/10"}`}
+                  className={`min-h-10 flex-1 rounded-control px-1 text-xs font-bold ${demo === d.id ? "bg-primary text-white" : "bg-white/5 hover:bg-white/10"}`}
                 >
                   {d.label}
                 </button>
@@ -88,7 +88,7 @@ export function Sidebar() {
             <button
               type="button"
               onClick={resetDemo}
-              className="mt-2 min-h-10 w-full rounded-lg px-1 text-xs font-semibold text-sidebar-text/80 underline hover:text-white"
+              className="mt-2 min-h-10 w-full rounded-control px-1 text-xs font-semibold text-sidebar-text/80 underline hover:text-white"
             >
               {copy.nav.demoReset}
             </button>
@@ -96,13 +96,13 @@ export function Sidebar() {
         )}
 
         {session && (
-          <div className="rounded-xl bg-white/5 p-3">
+          <div className="rounded-block bg-white/5 p-3">
             <p className="truncate text-sm font-bold text-white">{session.user.name}</p>
             <p className="truncate text-xs text-sidebar-text/70">{session.user.email}</p>
             <button
               type="button"
               onClick={async () => { await logout(); router.replace("/login"); }}
-              className="mt-3 min-h-10 w-full rounded-lg bg-white/10 text-sm font-semibold text-white hover:bg-white/20"
+              className="mt-3 min-h-10 w-full rounded-control bg-white/10 text-sm font-semibold text-white hover:bg-white/20"
             >
               {copy.nav.logout}
             </button>
