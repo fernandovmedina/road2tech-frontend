@@ -177,17 +177,8 @@ export const copy = {
     tooLong: (max: number) => `El mensaje supera ${max} caracteres. Acórtalo para enviarlo.`,
     send: "Enviar",
     typing: "El asistente está escribiendo…",
-    quickPromptsLabel: "Preguntas rápidas",
-    quickPrompts: [
-      { label: "¿Tengo stock suficiente?", prompt: "¿Tengo stock suficiente de Coca-Cola 600 ml?" },
-      {
-        label: "¿Se agotará o quedará merma?",
-        prompt: "¿Se agotará Coca-Cola 600 ml o quedará merma al final del mes?",
-      },
-      { label: "Tendencia entre sucursales", prompt: "Muéstrame la tendencia de Coca-Cola 600 ml" },
-      { label: "¿Qué debo pedir hoy?", prompt: "¿Qué debo pedir hoy?" },
-      { label: "Mejor promoción de la semana", prompt: "Mejor promoción de la semana" },
-    ],
+    defaultPromotionAnalysisPrompt:
+      "Analiza la sucursal seleccionada con el pronóstico de demanda, el histórico de ventas y el stock actual. Evalúa hasta cinco promociones viables y muestra únicamente las tres mejores después de aplicar las restricciones de margen, inventario y riesgo de quiebre.",
     pickStoreTitle: "Elige una sucursal para empezar",
     pickStoreText: "El asistente trabaja con los datos de una sucursal a la vez. Elígela aquí o en el selector de arriba.",
     pickStoreLabel: "Sucursal para el asistente",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useStore } from "@/lib/api/hooks";
 import { displayBranchName } from "@/lib/branding";
 import { copy } from "@/lib/copy";
@@ -34,16 +34,18 @@ export function ChatPanel({ storeId, hasStore, autoFocusInput = false, onAutoFoc
   const store = useStore(hasStore ? storeId : "all");
   const canvasRef = useRef<HTMLElement>(null);
   const canvasTitleRef = useRef<HTMLParagraphElement>(null);
+  const canAutoShow = useCallback(() => {
+    const focusInReply = !!document.activeElement?.closest("[data-interface-reply]");
+    return !canvasRef.current?.querySelector("dialog[open]") && !focusInReply;
+  }, []);
   // A new reply does not take over the canvas while the user is working in the interface on display: one of its
   // dialogs (e.g. "Aprobar") is open or the focus is on one of its controls (hiding it would drop the focus).
   const chat = useAssistantConversation(
     storeId,
     true,
-    () => {
-      const focusInReply = !!document.activeElement?.closest("[data-interface-reply]");
-      return !canvasRef.current?.querySelector("dialog[open]") && !focusInReply;
-    },
+    canAutoShow,
     onFocusStore,
+    hasStore ? C.defaultPromotionAnalysisPrompt : undefined,
   );
   const logRef = useRef<HTMLDivElement>(null);
 

@@ -14,7 +14,7 @@ type Props = {
   autoFocus?: boolean;
 };
 
-/** Quick prompts and the message box. Over the length limit the message is kept and explained, never cut. */
+/** Message box. Over the length limit the message is kept and explained, never cut. */
 export function ChatComposer({ pending, onSend, autoFocus = false }: Props) {
   const [input, setInput] = useState("");
   const tooLong = input.length > CHAT_MESSAGE_MAX_CHARS;
@@ -31,24 +31,6 @@ export function ChatComposer({ pending, onSend, autoFocus = false }: Props) {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-2">
-        <p id="chat-quick-label" className="sr-only">{C.quickPromptsLabel}</p>
-        <div role="group" aria-labelledby="chat-quick-label" className="flex flex-wrap gap-2">
-          {C.quickPrompts.map((q) => (
-            <button
-              key={q.label}
-              type="button"
-              disabled={pending}
-              onClick={() => submit(q.prompt)}
-              title={q.prompt}
-              className="min-h-11 rounded-full border border-primary/30 bg-primary-tint px-4 text-left text-sm font-semibold text-primary hover:bg-primary/15 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {q.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       <form onSubmit={onSubmit} className="flex flex-col gap-1.5">
         <div className="flex gap-2">
           <label htmlFor="chat-input" className="sr-only">{C.inputLabel}</label>

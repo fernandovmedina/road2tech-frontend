@@ -22,6 +22,8 @@ const EXAMPLES = [
   "Aumenta las energéticas el sábado, máximo 10 % de descuento",
 ];
 
+const PROMOTION_ANALYSIS = /(evalua(?:r)? (?:hasta )?(?:cinco|5) promociones|mejor(?:es)? promocion(?:es)?|plan de promociones|que recomiendas|que conviene|oportunidades? (?:comerciales?|de venta)|como (?:mejorar|subir|incrementar) (?:las )?ventas|analiza (?:la )?sucursal)/i;
+
 let counter = 0;
 
 /* ---------- product / constraint parsing ---------- */
@@ -177,26 +179,55 @@ async function replyApprove(storeId: string): Promise<Reply> {
 }
 
 async function replyPlan(ctx: Ctx, storeId: string, all: Strategy[]): Promise<Reply> {
-  const live = all.filter((s) => isLive(s.status)).sort((a, b) => b.expected_margin_increment - a.expected_margin_increment);
-  const { portfolio, block } = planSummaryBlock(ctx, all, null);
+  const viable = all.filter((s) => isLive(s.status)).sort((a, b) => b.expected_margin_increment - a.expected_margin_increment);
+  const finalists = viable.slice(0, 5);
+  const selected = finalists.slice(0, 3);
+  const portfolio = computePortfolio(ctx, selected);
+  const block = {
+    type: "plan_summary" as const,
+    current_net_expected_margin_increment: portfolio.net_expected_margin_increment,
+    with_draft_net_expected_margin_increment: portfolio.net_expected_margin_increment,
+    delta: 0,
+    overlaps: planOverlaps(portfolio, selected),
+  };
   const store = ctx.storeById.get(storeId)!;
   const tools = [
-    tool("get_current_store_context", { store_id: storeId }),
-    tool("get_historical_insights", { store_id: storeId, window_days: 30 }),
-    tool("optimize_portfolio", { store_id: storeId, horizon_days: 7, max_strategies: 5 }),
+    tool("get_current_store_context", {
+      store_id: storeId,
+      include: ["stock", "inbound_orders", "active_promotions"],
+    }),
+    tool("get_demand_forecast", { store_id: storeId, horizon_days: 14, quantiles: [0.5, 0.8, 0.9] }),
+    tool("get_historical_insights", {
+      store_id: storeId,
+      window_days: 30,
+      include: ["sales", "campaign_uplift", "product_affinity", "waste"],
+    }),
+    tool("get_business_constraints", { store_id: storeId, include: ["margin", "stockout_risk", "offer_conflicts"] }),
+    tool("optimize_portfolio", {
+      store_id: storeId,
+      horizon_days: 7,
+      candidate_limit: 5,
+      max_strategies: 3,
+      objective: "maximize_margin",
+    }),
   ];
-  if (!live.length)
+  if (!selected.length)
     return { tools, constraints: null, blocks: [text(`${displayBranchName(store)} todavía no tiene estrategias en el plan. Usa «Regenerar plan» o pídeme una, por ejemplo: «${EXAMPLES[3]}».`)] };
-  const top = live.slice(0, 3).map((s, i) => `${i + 1}) ${s.title}: ${mxn(s.expected_margin_increment)}`).join("; ");
+  const top = selected.map((s, i) => `${i + 1}) ${s.title}: ${mxn(s.expected_margin_increment)}`).join("; ");
   const ci = portfolio.confidence_interval;
+  const selectionText = finalists.length >= 5
+    ? "El motor preseleccionó cinco promociones viables y conservó las tres con mayor impacto compatible."
+    : `Solo ${finalists.length} ${finalists.length === 1 ? "promoción pasó" : "promociones pasaron"} las restricciones de margen, inventario y riesgo; no inventé opciones para completar cinco.`;
   return {
     tools,
     constraints: null,
     blocks: [
       text(
-        `El plan de ${displayBranchName(store)} tiene ${live.length} ${live.length === 1 ? "estrategia" : "estrategias"} y un impacto neto esperado de ${mxn(portfolio.net_expected_margin_increment)} ` +
-          `(rango 80 %: ${mxn(ci.low)} a ${mxn(ci.high)}), ya descontando traslapes y canibalización. Las más fuertes: ${top}.`,
+        `Consulté demanda prevista, ventas históricas, stock actual y reglas comerciales de ${displayBranchName(store)}. ${selectionText} ` +
+          `Su impacto neto esperado es ${mxn(portfolio.net_expected_margin_increment)} (rango de sensibilidad 80 %: ${mxn(ci.low)} a ${mxn(ci.high)}), ` +
+          `ya descontando traslapes y canibalización. Resultado: ${top}. Son simulaciones sobre datos de la tienda, no ganancias garantizadas.`,
       ),
+      ...selected.map((strategy) => ({ type: "strategy_card" as const, strategy, requires_approval: true })),
       block,
     ],
   };
@@ -373,7 +404,7 @@ function replyFallback(): Reply {
     constraints: null,
     blocks: [
       text(
-        "Puedo ayudarte con la tienda seleccionada: ver la tendencia de un producto, decirte qué pedir, resumir el plan de promociones o preparar un borrador de estrategia con tus restricciones. Prueba con:\n" +
+        "No encontré datos suficientes para responder esa pregunta sin inventar una conclusión. Puedo consultar tendencia, demanda prevista, stock, merma, restock o promociones de la tienda seleccionada. Incluye un producto, un objetivo o una restricción; por ejemplo:\n" +
           EXAMPLES.map((e) => `• ${e}`).join("\n"),
       ),
     ],
@@ -488,6 +519,26 @@ export async function handleAnalysis(body: unknown): Promise<ChatResponse> {
   if (requestedConversation && !previous)
     throw new MockHttpError(404, "conversation_not_found", "La conversación de análisis ya no está disponible.");
 
+  // General commercial-decision questions use the deterministic plan engine. They never go to the LLM-only path,
+  // which may describe a plausible promotion without actually comparing forecast, history, stock and constraints.
+  if (requestedStore && PROMOTION_ANALYSIS.test(norm(message))) {
+    const { all } = await allStrategies(requestedStore);
+    const reply = await replyPlan(ctx, requestedStore, all);
+    counter++;
+    const conversationId = requestedConversation ?? `conv_analysis_${hashId(`${requestedStore}|${counter}|${message}`)}`;
+    const messageId = `msg_${hashId(`${conversationId}|${counter}|${message}`)}`;
+    analysisConversations.set(conversationId, { storeId: requestedStore, productId: null });
+    return {
+      conversation_id: conversationId,
+      message_id: messageId,
+      focus_store_id: requestedStore,
+      focus_product_id: null,
+      tools: reply.tools,
+      interpreted_constraints: reply.constraints,
+      blocks: reply.blocks,
+    };
+  }
+
   const contextProductId =
     typeof b.context_product_id === "string" && ctx.productById.has(b.context_product_id)
       ? b.context_product_id
@@ -598,7 +649,7 @@ export async function handleChat(body: unknown): Promise<ChatResponse> {
   let reply: Reply;
   if (/\b(activ(a|ala|alo|ar|e)|aprueb(a|ala|alo)|aprobar|aprobala|lanz(a|ala)|publica(la)?)\b/.test(msg) && !/propon|crea|genera|prepara|arma/.test(msg)) reply = await replyApprove(storeId);
   else if (/bloque desconocido/.test(msg)) reply = { ...replyFallback(), blocks: [...replyFallback().blocks, { type: "experimental_widget", payload: { note: "bloque de ejemplo no soportado" } }] };
-  else if (/(mejor(es)?\s+(promocion|promociones|estrategia|estrategias|plan)|\bplan\b|portafolio|resumen del plan|que promociones|promociones sugeridas|estrategias del plan)/.test(msg) && !/aumenta|sube|impulsa|propon|crea\b/.test(msg))
+  else if (/(mejor(es)?\s+(promocion|promociones|estrategia|estrategias|plan)|\bplan\b|portafolio|resumen del plan|que promociones|promociones sugeridas|estrategias del plan|que recomiendas|que conviene|oportunidades? (comerciales?|de venta)|como (mejorar|subir|incrementar) (las )?ventas|analiza (la )?tienda)/.test(msg) && !/aumenta|sube|impulsa|propon|crea\b/.test(msg))
     reply = await replyPlan(ctx, storeId, all);
   else if (/(aumenta|sube|impulsa|incrementa|propon|crea|genera|prepara|arma|disena|quiero (una )?(promocion|oferta|descuento)|descuento|oferta de)/.test(msg) && (hasTarget || /\d\s*%/.test(msg)))
     reply = hasTarget ? await replyStrategy(ctx, storeId, all, msg, found) : replyFallback();

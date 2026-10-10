@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { chatChannel, isConversationNotFound, useSendChat } from "@/lib/api/hooks";
 import { copy } from "@/lib/copy";
 import type { ChatEntry } from "./chatTypes";
@@ -20,6 +20,7 @@ export function useAssistantConversation(
   enabled: boolean,
   canAutoShow: () => boolean = () => true,
   onFocusStore?: (storeId: string) => void,
+  automaticPrompt?: string,
 ) {
   const sendChat = useSendChat();
   const [messages, setMessages] = useState<ChatEntry[]>([welcome]);
@@ -28,8 +29,9 @@ export function useAssistantConversation(
   const [focusProductId, setFocusProductId] = useState<string | null>(null);
   const conversationIds = useRef(new Map<string, string>());
   const seq = useRef(0);
+  const automaticRunStarted = useRef(false);
 
-  async function ask(message: string) {
+  const ask = useCallback(async (message: string) => {
     const channel = chatChannel(storeId, message);
     const key = `${channel}|${storeId || "all"}`;
     const conversationId = conversationIds.current.get(key) ?? null;
@@ -42,9 +44,9 @@ export function useAssistantConversation(
       conversationIds.current.delete(key);
       return await sendChat.mutateAsync({ storeId, conversationId: null, contextProductId: focusProductId, message });
     }
-  }
+  }, [focusProductId, sendChat, storeId]);
 
-  async function run(text: string) {
+  const run = useCallback(async (text: string) => {
     setPending(true);
     try {
       const reply = await ask(text);
@@ -66,7 +68,14 @@ export function useAssistantConversation(
     } finally {
       setPending(false);
     }
-  }
+  }, [ask, canAutoShow, onFocusStore, storeId]);
+
+  // Run the store plan once on mount. The ref prevents React Strict Mode from issuing the same request twice.
+  useEffect(() => {
+    if (!enabled || !automaticPrompt || automaticRunStarted.current) return;
+    automaticRunStarted.current = true;
+    void run(automaticPrompt);
+  }, [automaticPrompt, enabled, run]);
 
   /** Returns false when the message was not sent (empty, pending, or disabled). */
   function send(raw: string): boolean {

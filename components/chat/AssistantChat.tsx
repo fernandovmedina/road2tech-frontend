@@ -25,6 +25,7 @@ export function AssistantChat({ storeId }: { storeId: string }) {
 
   return (
     <ChatPanel
+      key={selectedStoreId}
       storeId={selectedStoreId}
       hasStore={hasStore}
       autoFocusInput={focusInput}
