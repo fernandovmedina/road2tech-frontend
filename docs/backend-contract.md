@@ -72,6 +72,7 @@ Resumen:
 | 3.16 | GET | `/products` |
 | 3.17 | POST | `/chat` |
 | 3.18 | POST | `/auth/signin` |
+| 3.19 | POST | `/assistant/product-comparison` |
 
 ### 3.1 `GET /meta`
 
@@ -572,6 +573,8 @@ Chat del asistente (GenUI). Respuesta completa, sin streaming. El frontend permi
 
 Al cargar el dashboard con una sucursal seleccionada, el frontend inicia una vez el flujo comercial por defecto. El agente debe consultar demanda prevista, histórico de ventas, stock/pedidos vigentes y restricciones; preseleccionar hasta cinco promociones viables; optimizar compatibilidad y mostrar únicamente las tres mejores. Debe conservar las respuestas estructuradas de las herramientas como fuente de verdad, declarar que el resultado es una simulación y no completar el cupo con opciones inventadas cuando menos de cinco pasan las reglas. Este flujo es de consulta: no aprueba ni activa promociones. Mientras el backend `/chat` no garantice esta orquestación, las preguntas generales de decisión comercial pasan por el adaptador determinista `/assistant/analysis`; las solicitudes específicas de una nueva promoción siguen usando `/chat`.
 
+Las preguntas de catálogo de inventario y de ranking ("mayor/menor tendencia") también pasan por el adaptador determinista. El ranking compara los últimos 7 días contra los 7 anteriores para todos los productos activos de la sucursal y no reutiliza `context_product_id` salvo que el usuario pregunte por un producto explícito.
+
 Body:
 
 ```json
@@ -651,6 +654,34 @@ Body: `{ "email": "demo@stockcopilot.com", "password": "demo1234" }`.
 ```
 
 Credenciales incorrectas: `401 invalid_credentials`. Token vencido en cualquier otra ruta: `401 token_expired`.
+
+### 3.19 `POST /assistant/product-comparison`
+
+Lambda de comparación externa. Recibe `{ "store_id": "S003", "product_id": "P001", "query": "Coca-Cola 600 ml productos similares México" }`. La Lambda obtiene el producto interno, añade país/idioma y consulta `GET https://api.search.brave.com/res/v1/web/search` con `country=MX`, `search_lang=es`, `count<=8` y el encabezado `X-Subscription-Token`. La variable `BRAVE_SEARCH_API_KEY` vive únicamente en Secrets Manager o en el entorno cifrado de Lambda; nunca usa prefijo `NEXT_PUBLIC_`, nunca se devuelve al cliente y nunca se registra.
+
+La respuesta usa el envelope normal y el bloque GenUI ya soportado por el frontend:
+
+```json
+{
+  "data": {
+    "type": "market_comparison",
+    "provider": "brave",
+    "query": "Coca-Cola 600 ml productos similares México",
+    "searched_at": "2026-10-10T18:00:00Z",
+    "items": [
+      {
+        "title": "Producto comparable",
+        "url": "https://example.com/producto",
+        "source": "example.com",
+        "description": "Resumen breve derivado del resultado de búsqueda.",
+        "price_text": "$22 MXN"
+      }
+    ]
+  }
+}
+```
+
+La Lambda debe validar URLs `https`, limitar el texto, deduplicar por dominio/URL, conservar la fuente y aplicar timeout. Brave es evidencia externa para comparar oferta y posicionamiento; no sustituye ventas, stock ni el modelo interno y no puede aprobar promociones.
 
 ---
 

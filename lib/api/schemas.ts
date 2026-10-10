@@ -458,6 +458,21 @@ export const chatBlockSchema = z.discriminatedUnion("type", [
     overlaps: z.array(planOverlapSchema),
   }),
   z.object({ type: z.literal("restock_table"), suggestions: z.array(restockSuggestionSchema) }),
+  z.object({
+    type: z.literal("market_comparison"),
+    provider: z.literal("brave"),
+    query: z.string(),
+    searched_at: z.string(),
+    items: z.array(
+      z.object({
+        title: z.string(),
+        url: z.string().url(),
+        source: z.string(),
+        description: z.string(),
+        price_text: z.string().nullable().optional(),
+      }),
+    ).max(8),
+  }),
 ]);
 
 export const chatResponseSchema = z.object({

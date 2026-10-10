@@ -224,6 +224,7 @@ export const copy = {
       shown: "En pantalla",
       strategy: (title: string) => `Propuesta: ${title}`,
       restock: (n: number) => (n === 1 ? "1 sugerencia de restock" : `${n} sugerencias de restock`),
+      marketComparison: "Comparación de mercado",
       more: (n: number) => `+${n}`,
     },
     restock: {
@@ -232,6 +233,13 @@ export const copy = {
       urgent: "Urgente",
       empty: "No hay productos por pedir en este momento.",
       note: "El chat no envía pedidos. Revisa y confirma la orden desde el calendario de restock.",
+    },
+    market: {
+      title: "Comparación con productos del mercado",
+      query: (query: string) => `Búsqueda: ${query}`,
+      openSource: "Abrir fuente",
+      empty: "Brave no devolvió resultados verificables para esta búsqueda.",
+      disclaimer: "Información externa obtenida por el backend mediante Brave Search. Verifica precio, disponibilidad y fecha directamente en la fuente.",
     },
   },
   product: {

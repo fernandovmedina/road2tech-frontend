@@ -5,6 +5,7 @@ import { chatDraftsActionable } from "@/lib/api/hooks";
 import { copy } from "@/lib/copy";
 import type { ChatBlock } from "@/types";
 import { ForecastChartBlock } from "./ForecastChartBlock";
+import { MarketComparisonBlock } from "./MarketComparisonBlock";
 import { PlanSummaryBlock } from "./PlanSummaryBlock";
 import { RestockTable } from "./RestockTable";
 
@@ -29,5 +30,7 @@ export function ChatBlockView({ block }: { block: ChatBlock }) {
       return <PlanSummaryBlock block={block} />;
     case "restock_table":
       return <RestockTable suggestions={block.suggestions} />;
+    case "market_comparison":
+      return <MarketComparisonBlock block={block} />;
   }
 }

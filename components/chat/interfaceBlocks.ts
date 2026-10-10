@@ -1,4 +1,4 @@
-import { BadgePercent, ChartLine, Layers, PackageCheck, type LucideIcon } from "lucide-react";
+import { BadgePercent, ChartLine, Globe2, Layers, PackageCheck, type LucideIcon } from "lucide-react";
 import { copy } from "@/lib/copy";
 import type { ChatBlock } from "@/types";
 
@@ -14,6 +14,7 @@ export const interfaceIcons: Record<InterfaceBlock["type"], LucideIcon> = {
   strategy_card: BadgePercent,
   plan_summary: Layers,
   restock_table: PackageCheck,
+  market_comparison: Globe2,
 };
 
 /** Short name of an interface for the chips and the history, e.g. "Tendencia de Coca-Cola 600 ml". */
@@ -27,5 +28,7 @@ export function interfaceLabel(block: InterfaceBlock, nameOf: (productId: string
       return C.plan.title;
     case "restock_table":
       return C.canvas.restock(block.suggestions.length);
+    case "market_comparison":
+      return C.canvas.marketComparison;
   }
 }
