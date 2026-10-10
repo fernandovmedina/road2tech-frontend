@@ -8,7 +8,7 @@ import { categoryChip, type DescribedEvent } from "./eventPresentation";
 const C = copy.calendar;
 const MAX_CHIPS = 3;
 
-const tagTone = { info: "bg-info-tint text-info", muted: "bg-[#EEF1F0] text-muted" } as const;
+const tagTone = { info: "bg-info-tint text-info", muted: "bg-line text-muted" } as const;
 
 export function DayCell({
   day,
@@ -34,7 +34,7 @@ export function DayCell({
 
   return (
     <div
-      className={`flex min-h-[112px] flex-col gap-1 p-1.5 ${day.inMonth ? "bg-white" : "bg-background/70"} ${selected ? "ring-2 ring-inset ring-primary" : ""}`}
+      className={`flex min-h-[112px] flex-col gap-1 p-1.5 ${day.inMonth ? "bg-card" : "bg-background/70"} ${selected ? "ring-2 ring-inset ring-primary" : ""}`}
     >
       <button
         type="button"

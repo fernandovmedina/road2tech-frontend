@@ -155,7 +155,7 @@ function OrderForm({ suggestion, onClose }: { suggestion: RestockSuggestion | nu
       {sent ? (
         <div className="flex flex-col items-center gap-3 py-6 text-center">
           <span aria-hidden className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-tint text-2xl text-primary">✓</span>
-          <p className="text-lg font-extrabold">{M.sentTitle}</p>
+          <p className="text-lg font-bold">{M.sentTitle}</p>
           <p className="max-w-sm text-sm text-muted">{M.sentText(sent.email.to)}</p>
           <p className="text-sm font-bold">{M.arrival(formatDate(choice.expectedDelivery))}</p>
           <p className="text-xs text-muted">
@@ -165,17 +165,17 @@ function OrderForm({ suggestion, onClose }: { suggestion: RestockSuggestion | nu
       ) : confirming ? (
         <div className="flex flex-col gap-4">
           <div>
-            <h3 className="text-base font-extrabold">{M.confirmTitle}</h3>
+            <h3 className="text-base font-bold">{M.confirmTitle}</h3>
             <p className="mt-1 text-sm text-muted">{M.confirmText(qtyLabel, choice.name, recipient)}</p>
           </div>
-          <dl className="grid gap-x-4 gap-y-2 rounded-xl bg-background p-4 text-sm sm:grid-cols-2">
+          <dl className="grid gap-x-4 gap-y-2 rounded-block bg-background p-4 text-sm sm:grid-cols-2">
             <div><dt className="text-xs text-muted">{M.to}</dt><dd className="break-all font-semibold">{recipient}</dd></div>
             <div><dt className="text-xs text-muted">{M.supplier}</dt><dd className="font-semibold">{choice.name}</dd></div>
             <div><dt className="text-xs text-muted">{M.qty}</dt><dd className="font-semibold">{qtyLabel}</dd></div>
             <div><dt className="text-xs text-muted">{M.cost}</dt><dd className="font-semibold">{formatMoney(cost)}</dd></div>
           </dl>
           {send.isError && (
-            <div role="alert" className="rounded-xl border border-alert/30 bg-alert-tint p-3">
+            <div role="alert" className="rounded-block border border-alert/30 bg-alert-tint p-3">
               <p className="text-sm font-bold text-alert-dark">{M.errorTitle}</p>
               <p className="text-sm text-alert-dark/80">{M.errorText}</p>
             </div>
@@ -186,13 +186,13 @@ function OrderForm({ suggestion, onClose }: { suggestion: RestockSuggestion | nu
           <p className="text-sm text-muted">{M.approval}</p>
 
           <div
-            className={`rounded-xl border p-4 ${suggestion.is_urgent ? "border-alert/40 bg-alert-tint" : "border-line bg-background"}`}
+            className={`rounded-block border p-4 ${suggestion.is_urgent ? "border-alert/40 bg-alert-tint" : "border-line bg-background"}`}
           >
             <div className="flex flex-wrap items-center gap-2">
               {suggestion.is_urgent && <Badge tone="red">{t("restockReason", "urgent")}</Badge>}
               {suggestion.reasons.map((r) => <Badge key={r} tone="gray">{t("restockReason", r)}</Badge>)}
             </div>
-            <p className={`mt-2 text-base font-extrabold ${suggestion.is_urgent ? "text-alert-dark" : ""}`}>
+            <p className={`mt-2 text-base font-bold ${suggestion.is_urgent ? "text-alert-dark" : ""}`}>
               {M.orderMessage(qtyLabel, choice.name, productName, when, formatDate(choice.expectedDelivery))}
             </p>
           </div>
@@ -246,21 +246,21 @@ function OrderForm({ suggestion, onClose }: { suggestion: RestockSuggestion | nu
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-xs font-semibold text-muted">{M.cost}</span>
-              <p className="flex min-h-11 items-center text-lg font-extrabold">{formatMoney(cost)}</p>
+              <p className="flex min-h-11 items-center text-lg font-bold">{formatMoney(cost)}</p>
               <span className="text-xs text-muted">{edited && !qtyError ? M.costEdited : M.costBackend}</span>
             </div>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-xl border border-alert/30 bg-alert-tint p-4">
+            <div className="rounded-block border border-alert/30 bg-alert-tint p-4">
               <p className="text-sm font-bold text-alert-dark">{M.skip}</p>
               <p className="mt-2 text-xs text-alert-dark/80">{M.lostSales}</p>
-              <p className="text-xl font-extrabold text-alert-dark">−{formatMoney(suggestion.expected_lost_sales_if_skipped)}</p>
+              <p className="text-xl font-bold text-alert-dark">−{formatMoney(suggestion.expected_lost_sales_if_skipped)}</p>
             </div>
-            <div className="rounded-xl border border-primary/30 bg-primary-tint p-4">
+            <div className="rounded-block border border-primary/30 bg-primary-tint p-4">
               <p className="text-sm font-bold text-primary">{M.order}</p>
               <p className="mt-2 text-xs text-primary/80">{M.expectedGain}</p>
-              <p className="text-xl font-extrabold text-primary">+{formatMoney(suggestion.expected_gain_if_ordered)}</p>
+              <p className="text-xl font-bold text-primary">+{formatMoney(suggestion.expected_gain_if_ordered)}</p>
               <p className="mt-1 text-xs text-primary/80">{M.waste}: {formatMoney(suggestion.expected_waste_if_ordered)}</p>
             </div>
           </div>

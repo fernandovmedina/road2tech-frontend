@@ -6,6 +6,7 @@ import { copy } from "@/lib/copy";
 import { addDays, formatDate, formatMoney, parseIso } from "@/lib/format";
 import { t } from "@/lib/labels";
 import { calendarHref, productHref } from "@/lib/links";
+import { Button } from "@/components/ui/Button";
 import type { Strategy, StrategyStatus } from "@/types";
 
 const G = copy.calendar.gantt;
@@ -13,21 +14,21 @@ const DAYS = 21; // visible window
 const BEFORE = 5; // days shown before "today" when the window is not shifted
 const SHIFT = 7; // days moved by the arrows
 
-const navBtn = "flex h-11 w-11 items-center justify-center rounded-[10px] border border-line bg-white text-lg hover:bg-background";
+const navBtn = "flex h-11 w-11 items-center justify-center rounded-control border border-line bg-card text-lg hover:bg-background";
 
 /** Whole days between two ISO dates (b - a). */
 const diffDays = (a: string, b: string) => Math.round((parseIso(b).getTime() - parseIso(a).getTime()) / 86_400_000);
 
 /** Bar look by lifecycle: not approved yet = dashed outline, approved/scheduled = orange, running = green, measured = grey. */
 const barStyle: Record<StrategyStatus, string> = {
-  draft: "border-2 border-dashed border-accent bg-white text-accent-dark",
+  draft: "border-2 border-dashed border-accent bg-card text-accent-dark",
   selected: "border-2 border-dashed border-accent bg-accent-tint text-accent-dark",
   approved: "border border-accent bg-accent text-white",
   scheduled: "border border-accent bg-accent text-white",
   active: "border border-primary bg-primary text-white",
-  measured: "border border-line bg-[#E3E8E6] text-foreground",
-  expired: "border border-line bg-[#E3E8E6] text-muted",
-  rejected: "border border-line bg-white text-muted line-through",
+  measured: "border border-line bg-line text-foreground",
+  expired: "border border-line bg-line text-muted",
+  rejected: "border border-line bg-card text-muted line-through",
 };
 const LEGEND: { status: StrategyStatus; label: string }[] = [
   { status: "selected", label: G.legend.selected },
@@ -93,13 +94,13 @@ export function PromoGantt({
     <div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-extrabold" aria-live="polite">{G.title}</h2>
+          <h2 className="text-lg font-bold" aria-live="polite">{G.title}</h2>
           <p className="text-sm text-muted">{G.range(formatDate(first), formatDate(last))}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" onClick={() => setShift(0)} className="min-h-11 rounded-[10px] border border-line bg-white px-3 text-sm font-semibold hover:bg-background">
+          <Button variant="secondary" onClick={() => setShift(0)}>
             {copy.calendar.goToday}
-          </button>
+          </Button>
           <button type="button" aria-label={G.prev} onClick={() => setShift((s) => s - SHIFT)} className={navBtn}>‹</button>
           <button type="button" aria-label={G.next} onClick={() => setShift((s) => s + SHIFT)} className={navBtn}>›</button>
         </div>
@@ -115,9 +116,9 @@ export function PromoGantt({
       </ul>
 
       {rows.length === 0 ? (
-        <p className="rounded-[10px] bg-background px-3 py-4 text-sm text-muted">{G.empty}</p>
+        <p className="rounded-control bg-background px-3 py-4 text-sm text-muted">{G.empty}</p>
       ) : (
-        <div className="relative overflow-x-auto rounded-xl border border-line">
+        <div className="relative overflow-x-auto rounded-block border border-line">
           <div className="min-w-[700px]" role="table" aria-label={G.title}>
             {/* header: months, then day numbers */}
             <div role="row" className="grid grid-cols-[200px_1fr] border-b border-line bg-background/60">
@@ -137,7 +138,7 @@ export function PromoGantt({
                     return (
                       <div
                         key={iso}
-                        className={`flex flex-col items-center py-1 text-[11px] leading-tight ${i === todayCol ? "bg-primary font-extrabold text-white" : weekend ? "bg-[#EEF1F0] text-muted" : "text-muted"}`}
+                        className={`flex flex-col items-center py-1 text-[11px] leading-tight ${i === todayCol ? "bg-primary font-bold text-white" : weekend ? "bg-line text-muted" : "text-muted"}`}
                       >
                         <span className="font-bold">{d.getDate()}</span>
                         <span className="text-[9px] uppercase">{i === todayCol ? G.today : copy.calendar.weekdays[(d.getDay() + 6) % 7].slice(0, 1)}</span>
@@ -172,7 +173,7 @@ export function PromoGantt({
                           key={iso}
                           aria-hidden
                           style={{ gridColumn: i + 1, gridRow: 1 }}
-                          className={`h-full border-l border-line/60 ${i === todayCol ? "bg-primary-tint" : dow === 0 || dow === 6 ? "bg-[#F6F8F7]" : ""}`}
+                          className={`h-full border-l border-line/60 ${i === todayCol ? "bg-primary-tint" : dow === 0 || dow === 6 ? "bg-background" : ""}`}
                         />
                       );
                     })}
@@ -184,7 +185,7 @@ export function PromoGantt({
                         aria-label={`${s.title}, ${t("strategyStatus", s.status)}, ${formatDate(s.period.start_date)} – ${formatDate(s.period.end_date)}`}
                         title={s.title}
                         style={{ gridColumn: `${from} / ${to}`, gridRow: 1 }}
-                        className={`z-10 mx-0.5 flex h-9 min-w-0 items-center gap-1.5 truncate rounded-lg px-2 text-left text-xs font-bold shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${barStyle[s.status]} ${isSel ? "ring-2 ring-foreground" : ""}`}
+                        className={`z-10 mx-0.5 flex h-9 min-w-0 items-center gap-1.5 truncate rounded-control px-2 text-left text-xs font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${barStyle[s.status]} ${isSel ? "ring-2 ring-foreground" : ""}`}
                       >
                         <span className="shrink-0">−{Math.round(s.proposed_discount_pct * 100)}%</span>
                         {to - from >= 5 && <span className="truncate font-semibold opacity-90">+{formatMoney(s.expected_margin_increment)}</span>}
@@ -201,11 +202,11 @@ export function PromoGantt({
       )}
 
       {selected && (
-        <section aria-label={selected.title} className="mt-4 rounded-xl border border-accent/30 bg-accent-tint/40 p-4">
+        <section aria-label={selected.title} className="mt-4 rounded-block bg-accent-tint/40 p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-xs font-bold uppercase tracking-wide text-accent-dark">{t("strategyType", selected.strategy_type)} · {t("strategyStatus", selected.status)}</p>
-              <h3 className="text-base font-extrabold leading-snug">{selected.title}</h3>
+              <h3 className="text-base font-bold leading-snug">{selected.title}</h3>
               <p className="text-sm text-muted">
                 {nameOf(selected.promoted_product_id)} · −{Math.round(selected.proposed_discount_pct * 100)}% · {formatDate(selected.period.start_date)} – {formatDate(selected.period.end_date)}
               </p>
@@ -213,12 +214,12 @@ export function PromoGantt({
             <dl className="flex gap-6 text-sm">
               <div>
                 <dt className="text-xs font-semibold text-muted">{G.detail.gain}</dt>
-                <dd className="text-lg font-extrabold text-primary">+{formatMoney(selected.expected_margin_increment)}</dd>
+                <dd className="text-lg font-bold text-primary">+{formatMoney(selected.expected_margin_increment)}</dd>
               </div>
               {selected.expected_waste_reduction > 0 && (
                 <div>
                   <dt className="text-xs font-semibold text-muted">{G.detail.waste}</dt>
-                  <dd className="text-lg font-extrabold">{formatMoney(selected.expected_waste_reduction)}</dd>
+                  <dd className="text-lg font-bold">{formatMoney(selected.expected_waste_reduction)}</dd>
                 </div>
               )}
             </dl>
@@ -226,13 +227,13 @@ export function PromoGantt({
           <div className="mt-3 flex flex-wrap gap-2">
             <Link
               href={productHref(selected.promoted_product_id, { storeId, strategyId: selected.draft_id })}
-              className="inline-flex min-h-11 items-center rounded-[10px] bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-hover"
+              className="inline-flex min-h-11 items-center rounded-control bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-hover"
             >
               {G.detail.viewAnalysis}
             </Link>
             <Link
               href={calendarHref({ storeId, productId: selected.promoted_product_id, date: selected.period.start_date })}
-              className="inline-flex min-h-11 items-center rounded-[10px] border border-line bg-white px-4 text-sm font-semibold hover:bg-background"
+              className="inline-flex min-h-11 items-center rounded-control border border-line bg-card px-4 text-sm font-semibold hover:bg-background"
             >
               {G.detail.viewOrders}
             </Link>

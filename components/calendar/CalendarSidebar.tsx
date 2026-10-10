@@ -5,6 +5,7 @@ import { useCatalog, useRestockSuggestions } from "@/lib/api/hooks";
 import { copy } from "@/lib/copy";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { PanelSection } from "@/components/ui/PanelSection";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tabs } from "@/components/ui/Tabs";
 import { EmptyState, ErrorState } from "@/components/ui/States";
@@ -65,8 +66,7 @@ export function CalendarSidebar({
       ) : suggestions.isPending ? (
         <div className="flex flex-col gap-2" aria-busy="true">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-28" />)}</div>
       ) : (
-        <div className="flex flex-col gap-3">
-          <h3 className="mt-1 text-sm font-extrabold">{C.suggestions.title}</h3>
+        <PanelSection title={C.suggestions.title}>
           {items.length === 0 ? (
             <EmptyState text={C.suggestions.nothingToRestock} />
           ) : (
@@ -91,7 +91,7 @@ export function CalendarSidebar({
               </div>
             </>
           )}
-        </div>
+        </PanelSection>
       )}
       </div>
     </Card>
