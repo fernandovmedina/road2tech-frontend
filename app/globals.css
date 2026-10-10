@@ -32,29 +32,38 @@
   --color-info: #1d4e89;
   --color-info-tint: #e7f0fb;
 
+  --color-subtle: #87928f;
+  --color-axis: #bdc8c4;
+  --color-warning: #b7791f;
+  --color-warning-tint: #fff4d6;
+  --color-warning-dark: #8a5a00;
+  --color-series-baseline: #86b6ef;
+  --color-series-scenario: #1c5cab;
+
   --color-heat-1: #fff3bf;
   --color-heat-2: #ffd43b;
   --color-heat-3: #ff922b;
   --color-heat-4: #e8590c;
   --color-heat-5: #a61e1e;
 
-  /* Demand map palette. Kept separate so data colors remain stable across the app. */
-  --color-ink: #101828;
-  --color-ink-secondary: #5b6776;
-  --color-ink-muted: #87928f;
-  --color-surface: #ffffff;
-  --color-plane: #f3f5f4;
-  --color-hairline: #e3e8e6;
-  --color-axis: #bdc8c4;
-  --color-brand: #0b6e4f;
-  --color-brand-soft: #e3f3ec;
-  --color-critical: #c92a2a;
-  --color-normal-day: #86b6ef;
-  --color-with-event: #1c5cab;
+  /* DEPRECATED map aliases — point at the canonical tokens; remove in T09. */
+  --color-ink: var(--color-foreground);
+  --color-ink-secondary: var(--color-muted);
+  --color-ink-muted: var(--color-subtle);
+  --color-surface: var(--color-card);
+  --color-plane: var(--color-background);
+  --color-hairline: var(--color-line);
+  --color-brand: var(--color-primary);
+  --color-brand-soft: var(--color-primary-tint);
+  --color-critical: var(--color-alert);
+  --color-normal-day: var(--color-series-baseline);
+  --color-with-event: var(--color-series-scenario);
 
   --font-sans: var(--font-manrope), system-ui, sans-serif;
   --radius-card: 16px;
   --radius-control: 10px;
+  --radius-block: 12px;
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04);
 }
 
 body {
@@ -75,8 +84,13 @@ dialog::backdrop {
 
 .leaflet-container {
   font-family: inherit;
-  border-radius: 12px;
+  border-radius: var(--radius-card);
   z-index: 0;
+}
+
+/* Neutral base map: strip tile color so the data colors carry the meaning. Shared by both maps. */
+.basemap-neutral .leaflet-tile-pane {
+  filter: grayscale(1) brightness(1.04) contrast(0.9);
 }
 
 @keyframes pulse-skeleton {
