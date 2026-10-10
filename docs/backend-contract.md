@@ -20,7 +20,7 @@ Ejemplos: valores tomados del dataset real (`S001` = "OXXO República Oriente", 
 | Proporciones | Fracciones `0..1` (`discount_pct` del dataset es fracción: `0.10` = 10 %). **Aviso:** `proposed_discount_pct` se pide también como fracción, para coincidir con `promotion_campaigns.discount_pct`. |
 | IDs | Cadenas opacas: `S001..S025`, `P001..P120`, `SUP01..SUP19`, `C01..C20`; campañas `campaign_id`; borradores `draft_id`. El frontend no los interpreta ni los hardcodea. |
 | Códigos | Enumeraciones en inglés tal como el dataset (`residential`, `hot`, `Tue|Fri`, `C01` + `category_name` en inglés). **El frontend traduce a español**; el backend no localiza. |
-| Auth | `Authorization: Bearer <token>` en todo salvo `POST /auth/login`. 401 → el frontend cierra sesión. Sin roles ni permisos por tienda en esta fase (todo usuario ve todas las tiendas). |
+| Auth | `Authorization: Bearer <token>` en todo salvo `POST /auth/signin`. 401 → el frontend cierra sesión. Sin roles ni permisos por tienda en esta fase (todo usuario ve todas las tiendas). |
 | Paginación | Query `page` (desde 1) y `page_size` (máx. 100). Respuesta: `data.items[]` y `data.page`, `data.page_size`, `data.total`. |
 | Idempotencia | Acciones de estado (`approve`, `reject`, `add-to-plan`) y `POST /restock-orders` aceptan cabecera `Idempotency-Key`. |
 | Tienda en rutas | Los endpoints por tienda usan `/stores/{store_id}/...`. |
@@ -71,7 +71,7 @@ Resumen:
 | 3.15 | POST | `/suppliers/{supplier_id}/test-email` |
 | 3.16 | GET | `/products` |
 | 3.17 | POST | `/chat` |
-| 3.18 | POST | `/auth/login` |
+| 3.18 | POST | `/auth/signin` |
 
 ### 3.1 `GET /meta`
 
@@ -568,7 +568,7 @@ Catálogo (120 productos). Parámetros: `category_id`, `q`, `page`, `page_size`.
 
 ### 3.17 `POST /chat`
 
-Chat del asistente (GenUI). Respuesta completa, sin streaming. Requiere tienda.
+Chat del asistente (GenUI). Respuesta completa, sin streaming. El frontend permite iniciar en alcance cadena para preguntas de tendencia, suficiencia de stock y merma. Con `NEXT_PUBLIC_CHAT_ANALYSIS_SOURCE=compat`, esas consultas pasan por el adaptador tipado `POST /assistant/analysis`; al desplegar la Lambda que acepta tienda opcional, `backend` las manda a `POST /chat`. Ambas respuestas pueden devolver `focus_store_id` y `focus_product_id` para continuar en la sucursal y producto detectados (ver D20).
 
 Body:
 
@@ -580,7 +580,12 @@ Body:
 }
 ```
 
-`conversation_id` nulo la primera vez; el backend lo devuelve y el frontend lo reenvía (checkpoint de LangGraph). Si la tienda falta: `422 store_required`.
+`conversation_id` nulo la primera vez; el backend lo devuelve y el frontend lo reenvía. Errores (formato §1):
+
+- `422 store_required`: falta `store_id`.
+- `400 invalid_request`: `message` vacío o de más de 2000 bytes UTF-8. El input del frontend limita a 600 caracteres, que siempre caben.
+- `404 conversation_not_found`: la conversación no existe o es de otra tienda o usuario. El frontend reenvía el mismo mensaje una vez con `conversation_id: null` (la respuesta no depende del historial).
+- `404 store_not_found`: tienda desconocida.
 
 Respuesta:
 
@@ -592,9 +597,12 @@ Respuesta:
     "conversation_id": "conv_01J8",
     "message_id": "msg_02",
     "tools": [
+      { "name": "get_current_store_context", "args": { "store_id": "S001" } },
       { "name": "get_demand_forecast", "args": { "store_id": "S001", "horizon": 14 } },
-      { "name": "simulate_strategy", "args": { "strategy_type": "contextual_offer", "category": "Energy drinks", "max_discount_pct": 0.10 } },
-      { "name": "create_promotion_draft", "args": { "store_id": "S001" } }
+      { "name": "get_business_constraints", "args": { "store_id": "S001" } },
+      { "name": "simulate_strategy", "args": { "strategy_type": "contextual_offer", "category_id": "C01", "max_discount_pct": 0.10 } },
+      { "name": "create_promotion_draft", "args": { "store_id": "S001", "draft_id": "dr_01J8ABC" } },
+      { "name": "optimize_portfolio", "args": { "store_id": "S001" } }
     ],
     "interpreted_constraints": {
       "product_ids": [], "category_id": "C01", "weekday": "Saturday", "max_discount_pct": 0.10
@@ -602,7 +610,15 @@ Respuesta:
     "blocks": [
       { "type": "text", "text": "Preparé un borrador con descuento de 8 % en el sábado." },
       { "type": "strategy_card", "strategy": { "...": "ver Strategy en §4" }, "requires_approval": true },
-      { "type": "plan_summary", "current_net_expected_margin_increment": 9420.00, "with_draft_net_expected_margin_increment": 10310.00, "delta": 890.00, "overlaps": [] }
+      {
+        "type": "plan_summary",
+        "current_net_expected_margin_increment": 9420.00,
+        "with_draft_net_expected_margin_increment": 9420.00,
+        "delta": 0.00,
+        "overlaps": [
+          { "draft_id": "dr_01J8XYZ", "product_id": "P014", "start_date": "2026-10-03", "end_date": "2026-10-03", "type": "overlapping_product" }
+        ]
+      }
     ]
   }
 }
@@ -613,16 +629,18 @@ Respuesta:
 | `type` | Campos |
 |---|---|
 | `text` | `text` |
-| `forecast_chart` | `store_id`, `product_id`, `history[]` y `forecast[]` de puntos `{ date, value }`; `forecast[]` con `p50`, `p80`, `p90`; opcional `treated[]` |
+| `forecast_chart` | `store_id`, `product_id`, `history[]` y `forecast[]` de puntos `{ date, value }`; `forecast[]` con `p50`, `p80`, `p90`; opcional `treated[]` (Go hoy no lo envía; manda 28 días de historia y 14 de pronóstico) |
 | `strategy_card` | `strategy` (forma Strategy, §4.1), `requires_approval: true` |
-| `plan_summary` | `current_net_expected_margin_increment`, `with_draft_net_expected_margin_increment`, `delta`, `overlaps[]` |
-| `restock_table` | `suggestions[]` con la forma de §3.11 (puede ser un subconjunto) |
+| `plan_summary` | `current_net_expected_margin_increment`, `with_draft_net_expected_margin_increment`, `delta`, `overlaps[]` de objetos `{ draft_id, product_id, start_date, end_date, type }` (`type` = `overlapping_product`) |
+| `restock_table` | `suggestions[]` con la forma de §3.11 (máximo 5) |
 
-El frontend filtra bloques desconocidos o inválidos. `tools[]` son los realmente ejecutados, en orden (`get_current_store_context`, `get_demand_forecast`, `get_historical_insights`, `get_business_constraints`, `simulate_strategy`, `optimize_portfolio`, `create_promotion_draft`, `get_product_tendency`, `get_product_sell_strategy`).
+El frontend filtra bloques desconocidos o inválidos. En el dashboard, `text` se muestra en la conversación y el resto de bloques se dibujan en "Interfaces generadas", junto a la conversación y debajo del mapa. `tools[]` son los realmente ejecutados, en orden (`get_current_store_context`, `get_demand_forecast`, `get_historical_insights`, `get_business_constraints`, `simulate_strategy`, `optimize_portfolio`, `create_promotion_draft`, `get_product_tendency`, `get_product_sell_strategy`).
 
 Reglas: el chat **nunca aprueba ni activa**; si el usuario pide "actívala", responde con texto indicando que la aprobación se hace desde el plan. Un borrador creado por el chat vive como `draft` y se agrega con `POST /drafts/{draft_id}/add-to-plan`. Error de agente: HTTP 5xx con el formato de §1 (el frontend ofrece "Reintentar" con el mismo `message`).
 
-### 3.18 `POST /auth/login`
+### 3.18 `POST /auth/signin`
+
+Antes `POST /auth/login`. El backend real expone `/auth/signin` (más `POST /auth/logout`) y el frontend ya lo usa.
 
 Body: `{ "email": "demo@stockcopilot.com", "password": "demo1234" }`.
 
@@ -759,11 +777,11 @@ Pedido al backend: regenerar con `python3 scripts/dataset/run_all.py` (o el gate
 2. **Traducción:** categorías, zonas, días de entrega (`Tue|Fri` → "Mar/Vie"), clima, estados, motivos, feriados y eventos (~40, por clave exacta) los traduce el frontend con diccionarios. Un código sin traducción se muestra tal cual; **avisen si agregan eventos nuevos**. Nombres de producto y marca se muestran como llegan (en inglés).
 3. **Sin slider:** el detalle muestra `proposed_discount_pct` y dos escenarios (`baseline` = "Si no aceptas", `treated` = "Si aceptas"). No hay curva de descuento ni recalcular en el cliente.
 4. **Sin cálculos financieros en cliente:** ni suma de portafolio, ni margen, ni estado de stock, ni fechas de entrega, ni mínimo de pedido (la UI solo valida `qty >= min_order_qty` con el valor que manda el backend).
-5. **Vista "Todas":** solo usa `GET /chain/summary`, `GET /stores`, `GET /heat` y `GET /stock/summary`/`GET /stock` con filtros. No muestra plan, chat ni pedidos; hay que elegir una tienda.
+5. **Vista "Todas":** solo usa `GET /chain/summary`, `GET /stores`, `GET /heat` y `GET /stock/summary`/`GET /stock` con filtros. No muestra plan ni pedidos. El asistente aparece debajo del mapa pidiendo elegir una tienda y no llama a `/chat` sin `store_id`. El mapa de demanda actual todavía no consume `/heat` (ver D21).
 6. **Aprobación humana:** nada se aprueba ni se envía sin un diálogo de confirmación; el chat no aprueba.
 7. **Filtros de la UI:** sucursal, "Datos" (`actual | forecast`) y rango relativo a `data_as_of` (últimos 7/30, próximos 14/30 días) se traducen a `from`, `to`, `mode`.
 8. **Validación:** el frontend valida cada respuesta con esquemas zod; una respuesta con forma distinta se muestra como error con `request_id`. Cambios de contrato → avisar para actualizar el esquema.
-9. **Modo mock:** `NEXT_PUBLIC_API_MODE=mock|http`, `NEXT_PUBLIC_API_URL`. Con mock aparece la insignia "Datos de ejemplo".
+9. **Modo mock:** `NEXT_PUBLIC_API_MODE=mock|http`, `NEXT_PUBLIC_API_URL`. Con mock aparece la insignia "Datos de ejemplo". `NEXT_PUBLIC_API_HTTP_PATHS` (solo en mock, p. ej. `/auth,/chat`) manda únicamente esas rutas al backend real.
 10. **Escala:** 25 tiendas, 120 productos, 20 categorías, 19 proveedores; listas paginadas en servidor.
 
 ---
@@ -782,7 +800,7 @@ Pedido al backend: regenerar con `python3 scripts/dataset/run_all.py` (o el gate
 - [ ] `GET /stores/{id}/calendar` con entregas, estrategias, alertas (sin stock, por caducar, pedido retrasado) y capa de contexto.
 - [ ] `GET /suppliers`, `GET /suppliers/{id}/offers`, `POST /suppliers/{id}/test-email`, `GET /products`.
 - [ ] `POST /chat` con bloques de la unión discriminada, `tools[]` reales, `conversation_id`, y `requires_approval: true` en borradores; el chat no puede aprobar.
-- [ ] `POST /auth/login` con token Bearer y 401 en token vencido.
+- [ ] `POST /auth/signin` con token Bearer y 401 en token vencido.
 - [ ] Transiciones inválidas de estado rechazadas con error claro; `approve`/`reject` idempotentes.
 - [ ] CORS habilitado para el origen del frontend.
 - [ ] Respuestas a nuestros dudas abiertas (§9).
@@ -800,7 +818,7 @@ Pedido al backend: regenerar con `python3 scripts/dataset/run_all.py` (o el gate
 - **D7.** `reason` de `stock-policy:suggest` y `explanation` de estrategias: ¿texto en español o códigos?
 - **D8.** Motivos de restock: ¿se agregan `expiry`/`season` al enum?
 - **D9.** Forma exacta del pedido retrasado (`delay_days` vs. fechas).
-- **D10.** ¿El chat flotará en todas las pantallas? Hoy solo en el dashboard con tienda elegida.
+- **D10.** ¿El chat flotará en todas las pantallas? Hoy solo en el dashboard, debajo del mapa; sin tienda pide elegir una.
 
 ### Peticiones adicionales surgidas al migrar las pantallas
 
@@ -813,3 +831,10 @@ Pedido al backend: regenerar con `python3 scripts/dataset/run_all.py` (o el gate
 - **D17. Código de transición inválida.** Confirmar el `code` de error para transiciones no permitidas (el frontend asume HTTP 409 `invalid_transition`) y la lista estable de códigos de `reason_if_fewer` y de `conflicts[].type|resolution` para traducirlos.
 - **D18. Edición de proveedores.** El frontend los muestra de solo lectura. Si se necesita alta o edición, agregar `POST /suppliers` y `PUT /suppliers/{id}`.
 - **D19. Demanda prevista de productos de temporada.** En `purchase_orders.predicted_daily_demand` / `stock` el producto de temporada fuera de su ventana (ej. "Three Kings' Cake", se vende solo del 26-dic al 10-ene) trae demanda prevista positiva (≈ 5.9 u/día en septiembre) aunque sus ventas reales son 0. El forecast/optimizador debe respetar la ventana de venta; el mock del frontend lo ignora con una regla local.
+
+### Revisión contra `BackendRoad2Tech` `origin/main` @ `47b522b`
+
+- **D20. Dos chats incompatibles.** La Lambda Go `POST /chat` cumple §3.17 (JSON con `blocks[].type`). El servicio Python `services/copilot-api` expone `POST /copilot` (AG-UI sobre SSE, CopilotKit). Ahí los resultados de herramientas llegan con discriminador `kind` (`product_tendency`, `product_sell_strategy`, `restock_plan`, `store_overview`, `demand_by_store`, `portfolio`, `product_search`) y la aprobación es un `interrupt` (`promotion_approval`), que contradice la regla de que el chat no aprueba. El frontend consume solo `POST /chat`. Confirmar cuál queda en producción; si es `/copilot`, hace falta un adaptador de `kind` a `blocks[]`. Además, Go en `47b522b` no tiene funciones `/drafts/*` ni `/stores/{id}/plan`. Esas rutas solo existen en Python, sobre otro almacén (`DR-…` en memoria o Postgres, frente a `dr_…` en DynamoDB) y con otras formas: `add-to-plan|approve|reject` devuelven `PromotionDraft`, no `{ strategy, portfolio }` (§4), y `plan` devuelve `PlanOut`. Por eso "Agregar al plan" desde una tarjeta del chat falla en modo http hasta que exista una sola implementación con las formas de §4.
+- **D21. Datos del mapa.** El mapa del dashboard (`components/opportunities/*`) lee `lib/mock` directo, sin `request()`, zod ni envelope, y sus TODO apuntan a `/api/predictions/...` y `/api/branches`, que no existen en ningún backend. Lo disponible es Python `GET /stores` (con `latitude`/`longitude`, `data` como arreglo, sin auth) y `GET /products/{product_id}/demand-by-store?days=` (`recent_units`, `previous_units`, `change_pct` en %, `forecast_next_7d_units`). `GET /heat` y `GET /chain/summary` no están implementados. Además, el mapa ignora la sucursal elegida en el dashboard (`BranchAnalysis` descarta `scope`) y arranca siempre en `S001`. En modo http mostraría datos de ejemplo sin la insignia "Datos de ejemplo". Hace falta acordar un endpoint por tienda × producto (demanda prevista, inventario, días de cobertura, riesgo) antes de conectar el mapa.
+- **D22. `violations: null`.** En Go, si el descuento máximo pedido es menor a 1 %, `optimize` no simula ningún paso y puede devolver `status: "rejected"`, `satisfied: false` y `violations: null` sin motivo (`api/functions/chat/strategy.go`). El frontend acepta `null` como lista vacía, pero el backend debería mandar `[]` y un motivo.
+- **D23. Mismas preguntas, distinta intención.** El parser de Go manda cualquier mensaje con "promo" al intent de promoción. La pregunta rápida "Mejor promoción de la semana" crea un borrador nuevo en cada clic y responde `strategy_card` + `plan_summary`; el mock solo resume el plan. Los bloques son del mismo tipo, pero la demo cambia entre modo mock y http.

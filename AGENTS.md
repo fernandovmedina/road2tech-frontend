@@ -88,9 +88,9 @@ Layout shell: fixed left sidebar (logo, nav, user, sign out) + fluid content wit
 
 ## 7. Screens and routes
 
-Auth: login against the mock (demo account `demo@stockcopilot.com` / `demo1234`) or `POST /auth/login` when the API mode is `http`. Every route except `/login` redirects to `/login` without a session. Filters (store, data mode, range) live in `lib/filters.ts` and are kept while navigating by the menu (a full page reload resets them). "Hoy" is always `data_as_of` from the backend (`useAsOf`), never the browser clock.
+Auth: login against the mock (demo account `demo@stockcopilot.com` / `demo1234`) or `POST /auth/signin` when login goes to the real backend. Every route except `/login` redirects to `/login` without a session. Filters (store, data mode, range) live in `lib/filters.ts` and are kept while navigating by the menu (a full page reload resets them). "Hoy" is always `data_as_of` from the backend (`useAsOf`), never the browser clock.
 
-- **`/` Dashboard.** Scope "Todas las sucursales" = chain view: aggregated KPIs (`useChainSummary`), heatmap of 25 stores with zone filter and product search (star on the top store), store ranking. No plan, chat or orders in this view. With a store selected: store KPIs, behaviors (Observado / Estimado badge), products | promotions side panel, **PlanPanel** (up to 5 strategies, portfolio impact from the backend, reason when fewer than 5, "Regenerar plan") and the **AI assistant**.
+- **`/` Dashboard.** Scope "Todas las sucursales" = chain view: aggregated KPIs (`useChainSummary`), heatmap of 25 stores with zone filter and product search (star on the top store), store ranking. No plan or orders in this view; the **AI assistant** section sits right below the map and asks for a store (no `/chat` call without one). With a store selected: store KPIs, behaviors (Observado / Estimado badge), products | promotions side panel, the **AI assistant** right below the map (conversation + "Interfaces generadas", where every non-text chat block is drawn) and then the **PlanPanel** (up to 5 strategies, portfolio impact from the backend, reason when fewer than 5, "Regenerar plan").
 - **`/product/[id]?store=&strategy=`** Trend chart (history, forecast with real P50/P80/P90 bands, treated series), the strategy detail with the engine's proposed discount (**no slider**), "Si no aceptas / Si aceptas" and the lifecycle actions.
 - **`/calendar`** Requires a store. Month grid with deliveries, strategies and alerts (out of stock, expiring, delayed order), optional context layer (holidays, events, payday, weather). Sidebar: restock suggestions + suppliers. "Orden Restock" modal with explicit confirmation; the real recipient is decided by the backend (demo mailbox).
 - **`/stock`** Server-paginated table with filters and server-side status counts; min/max = reorder point and max stock per store.
@@ -112,7 +112,7 @@ The contract between frontend and backend is **`docs/backend-contract.md`** (pro
 
 ## 9. Data modes and mock layer
 
-- `NEXT_PUBLIC_API_MODE` = `mock` (default) or `http`; `NEXT_PUBLIC_API_URL` is the API base URL for `http`. In mock mode the "Datos de ejemplo" badge is shown.
+- `NEXT_PUBLIC_API_MODE` = `mock` (default) or `http`; `NEXT_PUBLIC_API_URL` is the API base URL for `http`. In mock mode the "Datos de ejemplo" badge is shown. Optional `NEXT_PUBLIC_API_HTTP_PATHS` (mock mode only, comma-separated path prefixes such as `/auth,/chat`) sends just those calls to the real backend while the rest stays on sample data; see `.env.example`.
 - The mock plays the backend: `lib/mock/router.ts` + `lib/mock/handlers/*` answer the same paths as the contract, with the same schemas. Data comes from `lib/mock/data/*.json`, extracted from the real dataset generator (`scripts/extract-sample-data.py`, see `lib/mock/data/README.md`); CSV files are never versioned.
 - Mock rules (simulated engine, optimizer, agent) live only under `lib/mock/**` and are deterministic. They are a stand-in for the model and must not leak into components.
 - Mock latency 300-600 ms; the sidebar offers the demo states "Normal / Vacío / Error" and "Reiniciar datos de ejemplo".
@@ -188,3 +188,13 @@ Keep a qualifying candidate through the reporting pass even if you resolve or wo
 Before the final response, run one reporting pass. If candidates remain, from this file's directory run `node node_modules/next/dist/bin/next internal agent-feedback-instructions` once without piping or truncating its output. Follow its output or error guidance. If a network sandbox blocks it, retry with network access; if it still returns no output, continue normally.
 
 <!-- END:nextjs-agent-feedback -->
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+## This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
