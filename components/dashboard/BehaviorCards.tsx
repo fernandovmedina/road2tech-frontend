@@ -8,6 +8,7 @@ import { formatMoney } from "@/lib/format";
 import { calendarHref, productHref } from "@/lib/links";
 import { Badge, type Tone } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/States";
 import type { Behavior } from "@/types";
@@ -25,10 +26,11 @@ const kindIcon: Record<Behavior["kind"], string> = {
   crosssell: "M12 5v14M5 12h14",
 };
 
+// Navigation links styled like the standard buttons (Button renders a <button>, not an <a>).
 const linkBase =
-  "inline-flex min-h-11 items-center justify-center rounded-[10px] px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-control px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
 const linkPrimary = `${linkBase} bg-primary text-white hover:bg-primary-hover`;
-const linkSecondary = `${linkBase} border border-line bg-white hover:bg-background`;
+const linkSecondary = `${linkBase} border border-line bg-card text-foreground hover:bg-background`;
 
 function KindIcon({ kind }: { kind: Behavior["kind"] }) {
   return (
@@ -56,20 +58,22 @@ function actionOf(b: Behavior, storeId: string): { label: string; href: string; 
 function BehaviorCard({ behavior: b, storeId }: { behavior: Behavior; storeId: string }) {
   const action = actionOf(b, storeId);
   return (
-    <li className="flex flex-col gap-2 rounded-2xl border border-line bg-white p-5">
-      <div className="flex flex-wrap items-center gap-1.5">
-        <Badge tone={kindTone[b.kind]}>
-          <KindIcon kind={b.kind} />
-          {B.tags[b.kind]}
-        </Badge>
-        <Badge tone={sourceTone[b.source]}>{B.sources[b.source]}</Badge>
-      </div>
-      <p className="text-2xl font-extrabold tabular-nums text-primary" title={B.possibleHint}>{B.possible(formatMoney(b.estimated_gain_mxn))}</p>
-      <h3 className="line-clamp-2 text-base font-extrabold leading-snug">{b.title}</h3>
-      <p className="line-clamp-2 flex-1 text-sm leading-relaxed text-muted">{b.text}</p>
-      <div className="pt-2">
-        <Link href={action.href} className={action.primary ? linkPrimary : linkSecondary}>{action.label}</Link>
-      </div>
+    <li>
+      <Card className="flex h-full flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Badge tone={kindTone[b.kind]}>
+            <KindIcon kind={b.kind} />
+            {B.tags[b.kind]}
+          </Badge>
+          <Badge tone={sourceTone[b.source]}>{B.sources[b.source]}</Badge>
+        </div>
+        <p className="text-2xl font-bold tabular-nums text-primary" title={B.possibleHint}>{B.possible(formatMoney(b.estimated_gain_mxn))}</p>
+        <h3 className="line-clamp-2 text-base font-bold leading-snug">{b.title}</h3>
+        <p className="line-clamp-2 flex-1 text-sm leading-relaxed text-muted">{b.text}</p>
+        <div className="pt-2">
+          <Link href={action.href} className={action.primary ? linkPrimary : linkSecondary}>{action.label}</Link>
+        </div>
+      </Card>
     </li>
   );
 }
@@ -86,13 +90,13 @@ export function BehaviorCards({ scope, storeId }: { scope: Scope; storeId: strin
   return (
     <section aria-labelledby="behaviors-title" className="flex flex-col gap-4">
       <div>
-        <h2 id="behaviors-title" className="text-lg font-extrabold">{B.title}</h2>
+        <h2 id="behaviors-title" className="text-lg font-bold">{B.title}</h2>
         <p className="mt-1 text-sm text-muted">{B.subtitle}</p>
       </div>
       {isError ? (
         <ErrorState onRetry={() => refetch()} />
       ) : isPending ? (
-        <div className={grid} aria-busy>{[0, 1, 2].map((i) => <Skeleton key={i} className="h-52 rounded-2xl" />)}</div>
+        <div className={grid} aria-busy>{[0, 1, 2].map((i) => <Skeleton key={i} className="h-52 rounded-card" />)}</div>
       ) : data.length === 0 ? (
         <EmptyState />
       ) : (
