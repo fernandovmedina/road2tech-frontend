@@ -31,7 +31,16 @@ function Metric({ label, value, hint, emphasis = false }: { label: string; value
  * One strategy of the commercial plan: what is proposed, what it is expected to do (always as an estimate with its
  * range), why, which limits were considered, where it is in its lifecycle and what the user can do next.
  */
-export function StrategyCard({ strategy, showDetailLink = true }: { strategy: Strategy; showDetailLink?: boolean }) {
+export function StrategyCard({
+  strategy,
+  showDetailLink = true,
+  readOnlyNote,
+}: {
+  strategy: Strategy;
+  showDetailLink?: boolean;
+  /** Replaces the actions with this note (the strategy cannot be acted on from here). */
+  readOnlyNote?: string;
+}) {
   const [current, update] = useLiveStrategy(strategy);
   const s = current ?? strategy;
   const headingId = useId();
@@ -96,7 +105,11 @@ export function StrategyCard({ strategy, showDetailLink = true }: { strategy: St
       <div className="flex flex-col gap-3 border-t border-line pt-4">
         <StatusTimeline status={s.status} />
         {s.status === "measured" && <MeasurementResult strategy={s} />}
-        <StrategyActions strategy={s} onChanged={update} showDetailLink={showDetailLink} />
+        {readOnlyNote ? (
+          <p className="text-xs text-muted">{readOnlyNote}</p>
+        ) : (
+          <StrategyActions strategy={s} onChanged={update} showDetailLink={showDetailLink} />
+        )}
       </div>
     </article>
   );

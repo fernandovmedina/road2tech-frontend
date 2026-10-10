@@ -1,7 +1,7 @@
 import type { Plan } from "@/types";
 import { MockHttpError } from "../errors";
 import type { MockRoute } from "../router";
-import { handleChat } from "../strategy/chat";
+import { handleAnalysis, handleChat } from "../strategy/chat";
 import { loadCtx } from "../strategy/context";
 import { applyAction, emptyPlan, getStorePlan as planOf, regeneratePlan } from "../strategy/plan";
 import { buildTendency } from "../strategy/tendency";
@@ -54,4 +54,5 @@ export const routes: MockRoute[] = [
     },
   },
   { method: "POST", path: "/chat", handler: ({ body }) => handleChat(body) },
+  { method: "POST", path: "/assistant/analysis", handler: ({ body }) => handleAnalysis(body) },
 ];

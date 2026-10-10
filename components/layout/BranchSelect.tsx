@@ -11,7 +11,18 @@ import { Select } from "@/components/ui/Select";
  * Store selector shared by every screen. Reads/writes the global `branchId` filter.
  * With `includeAll={false}` (screens that need one store) a placeholder is shown while the filter is still "all".
  */
-export function BranchSelect({ id = "branch-select", includeAll = true }: { id?: string; includeAll?: boolean }) {
+export function BranchSelect({
+  id = "branch-select",
+  includeAll = true,
+  label = copy.common.branch,
+  onPicked,
+}: {
+  id?: string;
+  includeAll?: boolean;
+  /** Distinct label when a second selector shares the screen with the main one. */
+  label?: string;
+  onPicked?: (storeId: string) => void;
+}) {
   const { data: stores } = useStores();
   const { branchId, setBranch } = useFilters();
 
@@ -28,10 +39,12 @@ export function BranchSelect({ id = "branch-select", includeAll = true }: { id?:
   return (
     <Select
       id={id}
-      label={copy.common.branch}
+      label={label}
       value={needsChoice ? "" : branchId}
       onChange={(e) => {
-        if (e.target.value) setBranch(e.target.value);
+        if (!e.target.value) return;
+        setBranch(e.target.value);
+        onPicked?.(e.target.value);
       }}
       className="min-w-56"
     >

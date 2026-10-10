@@ -134,6 +134,11 @@ const strategyStatuses: Record<string, string> = {
 
 const stockStatuses: Record<string, string> = { out: "Sin stock", low: "Bajo mínimo", ok: "En rango", over: "Sobrestock" };
 
+const overlapTypes: Record<string, string> = {
+  overlapping_product: "Mismo producto",
+  category_cannibalization: "Misma categoría",
+};
+
 export const labels = {
   category: categories,
   zone: zones,
@@ -149,6 +154,7 @@ export const labels = {
   strategyObjective: strategyObjectives,
   strategyStatus: strategyStatuses,
   stockStatus: stockStatuses,
+  overlapType: overlapTypes,
 } as const;
 
 export type LabelKind = keyof typeof labels;

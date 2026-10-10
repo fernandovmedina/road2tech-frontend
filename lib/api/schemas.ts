@@ -378,9 +378,11 @@ export const strategySchema = z.object({
     max_discount_pct: z.number().nullable(),
     budget_mxn: money.nullable(),
     satisfied: z.boolean(),
-    violations: z.array(
-      z.object({ code: z.string(), message: z.string(), limit: z.number().optional(), actual: z.number().optional() }),
-    ),
+    // The Go backend serializes an empty violation list as null in one edge case; it means "none".
+    violations: z
+      .array(z.object({ code: z.string(), message: z.string(), limit: z.number().optional(), actual: z.number().optional() }))
+      .nullable()
+      .transform((v) => v ?? []),
   }),
   assumptions: z.array(z.string()),
   baseline: scenario,
@@ -428,6 +430,15 @@ export const strategyActionSchema = z.object({ strategy: strategySchema, portfol
 
 export const chatToolSchema = z.object({ name: z.string(), args: z.record(z.string(), z.unknown()) });
 
+/** A strategy already in the plan that overlaps the proposal (plan_summary.overlaps of POST /chat). */
+export const planOverlapSchema = z.object({
+  draft_id: z.string(),
+  product_id: z.string(),
+  start_date: isoDate,
+  end_date: isoDate,
+  type: z.string(), // "overlapping_product" today; translated with t("overlapType", …)
+});
+
 export const chatBlockSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("text"), text: z.string() }),
   z.object({
@@ -444,7 +455,7 @@ export const chatBlockSchema = z.discriminatedUnion("type", [
     current_net_expected_margin_increment: money,
     with_draft_net_expected_margin_increment: money,
     delta: money,
-    overlaps: z.array(z.string()),
+    overlaps: z.array(planOverlapSchema),
   }),
   z.object({ type: z.literal("restock_table"), suggestions: z.array(restockSuggestionSchema) }),
 ]);
@@ -452,6 +463,9 @@ export const chatBlockSchema = z.discriminatedUnion("type", [
 export const chatResponseSchema = z.object({
   conversation_id: z.string(),
   message_id: z.string(),
+  /** Optional scope selected by a chain-level analysis so the UI can continue with that store and product. */
+  focus_store_id: z.string().nullable().optional(),
+  focus_product_id: z.string().nullable().optional(),
   tools: z.array(chatToolSchema),
   interpreted_constraints: z
     .object({

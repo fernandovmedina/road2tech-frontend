@@ -45,6 +45,7 @@ export type Plan = z.infer<typeof S.planSchema>;
 export type StrategyAction = z.infer<typeof S.strategyActionSchema>;
 
 export type ChatTool = z.infer<typeof S.chatToolSchema>;
+export type PlanOverlap = z.infer<typeof S.planOverlapSchema>;
 export type ChatBlock = z.infer<typeof S.chatBlockSchema>;
 export type ChatResponse = z.infer<typeof S.chatResponseSchema>;
 /** One entry of the conversation kept in the UI. */

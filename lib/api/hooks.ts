@@ -2,7 +2,8 @@
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { addDays } from "@/lib/format";
-import { request } from "./client";
+import { ApiError, request } from "./client";
+import { chatAnalysisSource, goesToBackend } from "./config";
 import * as S from "./schemas";
 import type { ChatBlock, ChatMessage, DataMode, Product, RangeKey, Store } from "@/types";
 
@@ -278,7 +279,14 @@ export const useSendTestEmail = () =>
 
 /* ---------- chat ---------- */
 
-export type ChatResult = { conversationId: string; messageId: string; dropped: number } & Pick<ChatMessage, "tools" | "constraints" | "blocks">;
+export type ChatResult = {
+  conversationId: string;
+  messageId: string;
+  dropped: number;
+  channel: "store" | "analysis";
+  focusStoreId: string | null;
+  focusProductId: string | null;
+} & Pick<ChatMessage, "tools" | "constraints" | "blocks">;
 
 /** Parses blocks one by one: an unknown or invalid block is dropped (and counted), the rest is shown. */
 export function parseChatBlocks(raw: unknown[]): { blocks: ChatBlock[]; dropped: number } {
@@ -292,17 +300,65 @@ export function parseChatBlocks(raw: unknown[]): { blocks: ChatBlock[]; dropped:
   return { blocks, dropped };
 }
 
+/**
+ * The backend rejects messages over 2000 UTF-8 bytes (400). A UTF-16 unit is at most 3 UTF-8 bytes,
+ * so 600 characters always fit.
+ */
+export const CHAT_MESSAGE_MAX_CHARS = 600;
+
 export const useSendChat = () => {
   const qc = useQueryClient();
   // A chat reply may create a draft; only the plan-related data can change.
   return useMutation({ mutationFn: sendChat, onSuccess: () => qc.invalidateQueries({ queryKey: ["api", "plan"] }) });
 };
 
-const sendChat = (async ({ storeId, conversationId, message }: { storeId: string; conversationId: string | null; message: string }): Promise<ChatResult> => {
-    const res = (await request("/chat", S.chatResponseSchema, {
-      method: "POST",
-      body: { store_id: storeId, conversation_id: conversationId, message },
-    })).data;
-    const { blocks, dropped } = parseChatBlocks(res.blocks);
-    return { conversationId: res.conversation_id, messageId: res.message_id, tools: res.tools, constraints: res.interpreted_constraints, blocks, dropped };
-  });
+/**
+ * A draft created by the chat can only be acted on where it lives: false when the chat answers from the real backend
+ * but the draft actions (/drafts/*) still answer from sample data. TODO(backend): Go has no /drafts yet (contract D20).
+ */
+export const chatDraftsActionable = goesToBackend("/chat") === goesToBackend("/drafts");
+
+/** 404 conversation_not_found: the backend no longer knows the conversation (or it belongs to another store or session). */
+export const isConversationNotFound = (e: unknown) => e instanceof ApiError && e.code === "conversation_not_found";
+
+const INVENTORY_ANALYSIS = /(stock suficiente|inventario suficiente|se agot|agotara|agotará|quedara merma|quedará merma|merma|fin de mes|cobertura)/i;
+
+export function chatChannel(storeId: string, message: string): ChatResult["channel"] {
+  return !storeId || storeId === "all" || INVENTORY_ANALYSIS.test(message) ? "analysis" : "store";
+}
+
+const sendChat = async ({
+  storeId,
+  conversationId,
+  contextProductId,
+  message,
+}: {
+  storeId: string;
+  conversationId: string | null;
+  contextProductId: string | null;
+  message: string;
+}): Promise<ChatResult> => {
+  const channel = chatChannel(storeId, message);
+  const path = channel === "analysis" && chatAnalysisSource === "compat" ? "/assistant/analysis" : "/chat";
+  const res = (await request(path, S.chatResponseSchema, {
+    method: "POST",
+    body: {
+      store_id: storeId && storeId !== "all" ? storeId : null,
+      conversation_id: conversationId,
+      context_product_id: contextProductId,
+      message,
+    },
+  })).data;
+  const { blocks, dropped } = parseChatBlocks(res.blocks);
+  return {
+    conversationId: res.conversation_id,
+    messageId: res.message_id,
+    channel,
+    focusStoreId: res.focus_store_id ?? null,
+    focusProductId: res.focus_product_id ?? null,
+    tools: res.tools,
+    constraints: res.interpreted_constraints,
+    blocks,
+    dropped,
+  };
+};

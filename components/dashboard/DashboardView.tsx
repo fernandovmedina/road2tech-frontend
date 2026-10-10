@@ -24,12 +24,9 @@ export function DashboardView() {
       <KpiCards scope={scope} />
       {storeId ? <BehaviorCards scope={scope} storeId={storeId} /> : <ChainNotice />}
       <BranchAnalysis scope={scope} />
-      {storeId && (
-        <>
-          <PlanPanel storeId={storeId} />
-          <AssistantChat storeId={storeId} />
-        </>
-      )}
+      {/* Right below the map in every view; chain analysis can focus a store as the conversation progresses. */}
+      <AssistantChat storeId={storeId ?? ""} />
+      {storeId && <PlanPanel storeId={storeId} />}
     </div>
   );
 }

@@ -6,7 +6,7 @@ import type { RawProduct } from "../db";
 import { loadCtx, type Ctx } from "./context";
 import { evaluateSpec, type Spec } from "./engine";
 import { allStrategies, saveChatDraft } from "./plan";
-import { computePortfolio, isLive, overlapsOf } from "./portfolio";
+import { computePortfolio, isLive, overlapsOf, planOverlaps } from "./portfolio";
 import { buildTendency, liveStrategyFor } from "./tendency";
 import { addDays, datesBetween, dayLabel, dm, hashId, mxn, n1, norm, pct0, r2, weekdayEn, weekdayEs } from "./util";
 
@@ -52,9 +52,9 @@ function nameTokens(p: RawProduct): string[] {
   return norm(p.product_name).split(/[^a-z0-9]+/).filter((tk) => tk.length >= 3 && !/^\d/.test(tk) && !STOP.has(tk));
 }
 
-function findProducts(ctx: Ctx, storeId: string, text: string): Found {
+function findProducts(ctx: Ctx, storeId: string | null, text: string): Found {
   const msg = norm(text);
-  const inStore = (p: RawProduct) => ctx.stockByKey.has(`${storeId}|${p.product_id}`);
+  const inStore = (p: RawProduct) => storeId === null || ctx.stockByKey.has(`${storeId}|${p.product_id}`);
   for (const g of GROUPS) {
     if (!g.re.test(msg)) continue;
     const products = ctx.products.filter((p) => p.category_id === g.cat && (!g.name || g.name.test(p.product_name)) && inStore(p));
@@ -140,7 +140,7 @@ function planSummaryBlock(ctx: Ctx, all: Strategy[], draft: Strategy | null) {
         current_net_expected_margin_increment: current.net_expected_margin_increment,
         with_draft_net_expected_margin_increment: current.net_expected_margin_increment,
         delta: 0,
-        overlaps: current.conflicts.map((c) => c.description),
+        overlaps: planOverlaps(current, all),
       },
     };
   }
@@ -152,7 +152,7 @@ function planSummaryBlock(ctx: Ctx, all: Strategy[], draft: Strategy | null) {
       current_net_expected_margin_increment: current.net_expected_margin_increment,
       with_draft_net_expected_margin_increment: withDraft.net_expected_margin_increment,
       delta: r2(withDraft.net_expected_margin_increment - current.net_expected_margin_increment),
-      overlaps: overlapsOf(withDraft, draft.draft_id),
+      overlaps: overlapsOf(withDraft, all, draft),
     },
   };
 }
@@ -222,13 +222,19 @@ async function replyRestock(storeId: string): Promise<Reply> {
 
 async function replyTrend(ctx: Ctx, storeId: string, all: Strategy[], found: Found): Promise<Reply> {
   const store = ctx.storeById.get(storeId)!;
-  if (!found.products.length)
+  // Like the backend: without a product in the message, the store's product with the highest expected demand.
+  const named = found.products.length > 0;
+  const pool = named ? found.products : ctx.products.filter((p) => ctx.stockByKey.has(`${storeId}|${p.product_id}`));
+  if (!pool.length)
     return {
       tools: [tool("get_current_store_context", { store_id: storeId })],
       constraints: null,
       blocks: [text(`¿De qué producto quieres ver la tendencia en ${displayBranchName(store)}? Por ejemplo: «${EXAMPLES[0]}».`)],
     };
-  const p = [...found.products].sort((a, b) => b.base_daily_demand - a.base_daily_demand)[0];
+  // Unnamed: the store's forecast demand, as the backend ranks it; named: the catalog's best seller of the group.
+  const demandOf = (x: RawProduct) =>
+    named ? x.base_daily_demand : (ctx.stockByKey.get(`${storeId}|${x.product_id}`)?.predicted_daily_demand ?? 0);
+  const p = [...pool].sort((a, b) => demandOf(b) - demandOf(a))[0];
   const t = await buildTendency(storeId, p.product_id, 21, 14);
   const promo = liveStrategyFor(all, p.product_id);
   const tools = [
@@ -237,7 +243,11 @@ async function replyTrend(ctx: Ctx, storeId: string, all: Strategy[], found: Fou
     tool("get_demand_forecast", { store_id: storeId, product_ids: [p.product_id], horizon: 14 }),
   ];
   if (promo) tools.push(tool("get_product_sell_strategy", { store_id: storeId, product_id: p.product_id }));
-  const pick = found.products.length > 1 && found.viaGroup ? ` (el de mayor rotación de ${found.label ?? "la categoría"})` : "";
+  const pick = !named
+    ? " (el de mayor demanda de la sucursal)"
+    : found.products.length > 1 && found.viaGroup
+      ? ` (el de mayor rotación de ${found.label ?? "la categoría"})`
+      : "";
   return {
     tools,
     constraints: null,
@@ -372,18 +382,214 @@ function replyFallback(): Reply {
 
 /* ---------- entry point ---------- */
 
+/** conversation_id → store_id, like the backend's conversation records (a page reload forgets them, as a backend would). */
+const conversations = new Map<string, string>();
+
+type AnalysisConversation = { storeId: string | null; productId: string | null };
+const analysisConversations = new Map<string, AnalysisConversation>();
+
+type InventoryOutlook = {
+  storeId: string;
+  product: RawProduct;
+  tendency: Awaited<ReturnType<typeof buildTendency>>;
+  available: number;
+  forecastDemand: number;
+  remaining: number;
+  stockoutDate: string | null;
+  expiryDate: string | null;
+  expiryWaste: number;
+};
+
+async function inventoryOutlook(ctx: Ctx, storeId: string, product: RawProduct): Promise<InventoryOutlook | null> {
+  const stock = ctx.stockByKey.get(`${storeId}|${product.product_id}`);
+  if (!stock) return null;
+  const tendency = await buildTendency(storeId, product.product_id, 21, 30);
+  const horizonEnd = tendency.forecast[tendency.forecast.length - 1]?.date ?? addDays(ctx.asOf, 30);
+  const inbound = stock.next_eta && stock.next_eta <= horizonEnd ? stock.on_order_qty : 0;
+  const available = stock.quantity + inbound;
+  let cumulative = 0;
+  let stockoutDate: string | null = null;
+  for (const point of tendency.forecast) {
+    cumulative += point.p50;
+    if (!stockoutDate && cumulative > available) stockoutDate = point.date;
+  }
+  const forecastDemand = tendency.forecast.reduce((sum, point) => sum + point.p50, 0);
+  const expiryDate = stock.earliest_expiry && stock.earliest_expiry <= horizonEnd ? stock.earliest_expiry : null;
+  const demandBeforeExpiry = expiryDate
+    ? tendency.forecast.filter((point) => point.date <= expiryDate).reduce((sum, point) => sum + point.p50, 0)
+    : 0;
+  return {
+    storeId,
+    product,
+    tendency,
+    available,
+    forecastDemand,
+    remaining: available - forecastDemand,
+    stockoutDate,
+    expiryDate,
+    expiryWaste: expiryDate ? Math.max(0, stock.quantity - demandBeforeExpiry) : 0,
+  };
+}
+
+function strongestSignal(a: InventoryOutlook, b: InventoryOutlook): number {
+  if (!!a.stockoutDate !== !!b.stockoutDate) return a.stockoutDate ? -1 : 1;
+  if (a.stockoutDate && b.stockoutDate && a.stockoutDate !== b.stockoutDate) return a.stockoutDate.localeCompare(b.stockoutDate);
+  if ((a.expiryWaste > 0) !== (b.expiryWaste > 0)) return a.expiryWaste > 0 ? -1 : 1;
+  if (a.expiryWaste !== b.expiryWaste) return b.expiryWaste - a.expiryWaste;
+  return a.remaining - b.remaining;
+}
+
+function outlookAnswer(ctx: Ctx, outlook: InventoryOutlook, fromChain: boolean): string {
+  const store = ctx.storeById.get(outlook.storeId)!;
+  const scope = fromChain
+    ? `Analicé las sucursales y fijé ${displayBranchName(store)} porque presenta la señal más relevante para ${outlook.product.product_name}. `
+    : `${displayBranchName(store)} · ${outlook.product.product_name}. `;
+  const numbers = `Disponibles durante el horizonte: ${n1(outlook.available)} u; demanda central prevista a 30 días: ${n1(outlook.forecastDemand)} u. `;
+  let conclusion: string;
+  const wasteComesFirst =
+    outlook.expiryDate !== null &&
+    outlook.expiryWaste > 0 &&
+    (outlook.stockoutDate === null || outlook.expiryDate <= outlook.stockoutDate);
+  if (wasteComesFirst) {
+    const laterStockout = outlook.stockoutDate
+      ? ` Después de esa primera caducidad, la demanda también rebasa el inventario alrededor del ${dm(outlook.stockoutDate)}.`
+      : "";
+    conclusion = `Existe riesgo de merma primero: cerca de ${n1(outlook.expiryWaste)} u podrían seguir en inventario cuando llegue la primera caducidad del ${dm(outlook.expiryDate!)}.${laterStockout}`;
+  } else if (outlook.stockoutDate) {
+    conclusion = `No hay stock suficiente: con la tendencia P50 se agotaría alrededor del ${dm(outlook.stockoutDate)} y faltarían aproximadamente ${n1(Math.abs(outlook.remaining))} u al cierre del horizonte.`;
+  } else {
+    conclusion = `Sí hay stock suficiente: después de cubrir la demanda central quedarían aproximadamente ${n1(Math.max(0, outlook.remaining))} u y no aparece riesgo de merma dentro de los próximos 30 días.`;
+  }
+  return `${scope}${conclusion} ${numbers}${outlook.tendency.ai_summary ?? ""}`.trim();
+}
+
+/**
+ * Chain/store inventory analysis used while Lambda still requires store_id and has no stock-vs-demand answer.
+ * It returns the same closed GenUI block union, so components do not know whether the answer came from this
+ * compatibility endpoint or POST /chat.
+ */
+export async function handleAnalysis(body: unknown): Promise<ChatResponse> {
+  const b = (body && typeof body === "object" ? body : {}) as {
+    store_id?: unknown;
+    conversation_id?: unknown;
+    context_product_id?: unknown;
+    message?: unknown;
+  };
+  const message = typeof b.message === "string" ? b.message.trim() : "";
+  if (!message || new TextEncoder().encode(message).length > 2000)
+    throw new MockHttpError(400, "invalid_request", "message es obligatorio (máximo 2000 caracteres).");
+
+  const ctx = await loadCtx();
+  const requestedStore = typeof b.store_id === "string" && b.store_id ? b.store_id : null;
+  if (requestedStore && !ctx.storeById.has(requestedStore))
+    throw new MockHttpError(404, "store_not_found", `Tienda desconocida: ${requestedStore}`);
+  const requestedConversation = typeof b.conversation_id === "string" && b.conversation_id ? b.conversation_id : null;
+  const previous = requestedConversation ? analysisConversations.get(requestedConversation) : undefined;
+  if (requestedConversation && !previous)
+    throw new MockHttpError(404, "conversation_not_found", "La conversación de análisis ya no está disponible.");
+
+  const contextProductId =
+    typeof b.context_product_id === "string" && ctx.productById.has(b.context_product_id)
+      ? b.context_product_id
+      : previous?.productId ?? null;
+  const found = findProducts(ctx, requestedStore, message);
+  const product =
+    [...found.products].sort((a, b) => b.base_daily_demand - a.base_daily_demand)[0] ??
+    (contextProductId ? ctx.productById.get(contextProductId) : undefined) ??
+    (/tendencia|pronostico|pronóstico|demanda|ventas/i.test(message)
+      ? [...ctx.products].sort((a, b) => b.base_daily_demand - a.base_daily_demand)[0]
+      : undefined);
+
+  counter++;
+  const conversationId = requestedConversation ?? `conv_analysis_${hashId(`${requestedStore ?? "all"}|${counter}|${message}`)}`;
+  const messageId = `msg_${hashId(`${conversationId}|${counter}|${message}`)}`;
+  if (!product) {
+    analysisConversations.set(conversationId, { storeId: requestedStore, productId: null });
+    return {
+      conversation_id: conversationId,
+      message_id: messageId,
+      focus_store_id: requestedStore,
+      focus_product_id: null,
+      tools: [tool("search_products", { query: message })],
+      interpreted_constraints: null,
+      blocks: [
+        text("Dime qué producto quieres analizar. Por ejemplo: «¿Tengo stock suficiente de Coca-Cola 600 ml?» o «¿Se agotará Tecate Light al final del mes?»."),
+      ],
+    };
+  }
+
+  const storeIds = requestedStore
+    ? [requestedStore]
+    : ctx.stores.filter((store) => ctx.stockByKey.has(`${store.store_id}|${product.product_id}`)).map((store) => store.store_id);
+  const candidates = (
+    await Promise.all(storeIds.map((storeId) => inventoryOutlook(ctx, storeId, product)))
+  ).filter((item): item is InventoryOutlook => item !== null);
+  const outlook = candidates.sort(strongestSignal)[0];
+  if (!outlook) {
+    analysisConversations.set(conversationId, { storeId: requestedStore, productId: product.product_id });
+    return {
+      conversation_id: conversationId,
+      message_id: messageId,
+      focus_store_id: requestedStore,
+      focus_product_id: product.product_id,
+      tools: [tool("get_chain_inventory_outlook", { product_id: product.product_id })],
+      interpreted_constraints: null,
+      blocks: [text(`No encontré inventario disponible de ${product.product_name} para construir el análisis.`)],
+    };
+  }
+
+  analysisConversations.set(conversationId, { storeId: outlook.storeId, productId: product.product_id });
+  return {
+    conversation_id: conversationId,
+    message_id: messageId,
+    focus_store_id: outlook.storeId,
+    focus_product_id: product.product_id,
+    tools: [
+      tool(requestedStore ? "get_store_inventory_outlook" : "get_chain_inventory_outlook", {
+        ...(requestedStore ? { store_id: requestedStore } : {}),
+        product_id: product.product_id,
+        horizon_days: 30,
+      }),
+      tool("get_product_tendency", {
+        store_id: outlook.storeId,
+        product_id: product.product_id,
+        history_days: 21,
+        forecast_days: 30,
+      }),
+    ],
+    interpreted_constraints: null,
+    blocks: [
+      text(outlookAnswer(ctx, outlook, requestedStore === null)),
+      {
+        type: "forecast_chart",
+        store_id: outlook.storeId,
+        product_id: product.product_id,
+        history: outlook.tendency.history,
+        forecast: outlook.tendency.forecast,
+        ...(outlook.tendency.treated ? { treated: outlook.tendency.treated } : {}),
+      },
+    ],
+  };
+}
+
+// Same validations and error codes as the backend's POST /chat (api/functions/chat/main.go).
 export async function handleChat(body: unknown): Promise<ChatResponse> {
   const b = (body && typeof body === "object" ? body : {}) as { store_id?: unknown; conversation_id?: unknown; message?: unknown };
   const storeId = typeof b.store_id === "string" ? b.store_id.trim() : "";
-  if (!storeId) throw new MockHttpError(422, "store_required", "Elige una tienda antes de hablar con el asistente.");
+  if (!storeId) throw new MockHttpError(422, "store_required", "Selecciona una tienda para usar el asistente.");
   const message = typeof b.message === "string" ? b.message.trim() : "";
-  if (!message) throw new MockHttpError(422, "message_required", "Escribe un mensaje para el asistente.");
+  if (!message || new TextEncoder().encode(message).length > 2000)
+    throw new MockHttpError(400, "invalid_request", "message es obligatorio (máximo 2000 caracteres).");
+  const requested = typeof b.conversation_id === "string" && b.conversation_id ? b.conversation_id : null;
+  if (requested && conversations.get(requested) !== storeId)
+    throw new MockHttpError(404, "conversation_not_found", "La conversación no existe para esta tienda.");
   const ctx = await loadCtx();
   if (!ctx.storeById.has(storeId)) throw new MockHttpError(404, "store_not_found", `Tienda desconocida: ${storeId}`);
   const { all } = await allStrategies(storeId);
 
   counter++;
-  const conversationId = typeof b.conversation_id === "string" && b.conversation_id ? b.conversation_id : `conv_${hashId(`${storeId}|${counter}|${message}`)}`;
+  const conversationId = requested ?? `conv_${hashId(`${storeId}|${counter}|${message}`)}`;
+  conversations.set(conversationId, storeId);
   const messageId = `msg_${hashId(`${conversationId}|${counter}|${message}`)}`;
 
   const msg = norm(message);

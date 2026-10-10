@@ -102,7 +102,7 @@ export const copy = {
     scope: {
       chainTitle: "Vista de toda la cadena",
       chainText:
-        "Elige una sucursal en el selector, en el mapa o en el ranking para ver sus comportamientos de compra, su plan de promociones y el asistente de IA.",
+        "Elige una sucursal en el selector de arriba o en el asistente de IA, debajo del mapa, para ver sus comportamientos de compra, su plan de promociones y las interfaces que arma el asistente.",
     },
     behaviors: {
       title: "Comportamientos de compra detectados",
@@ -166,27 +166,33 @@ export const copy = {
   },
   chat: {
     title: "Asistente de IA",
-    subtitle: "Pregunta sobre demanda, promociones y restock. El asistente propone; tú apruebas desde el plan.",
+    subtitle: "Pregunta por demanda, stock o merma en toda la cadena. El asistente puede detectar la sucursal relevante y continuar el análisis ahí.",
     storeLabel: "Sucursal",
-    welcome: "Hola, soy tu asistente. Propongo, tú apruebas. ¿Qué quieres revisar?",
+    chainLabel: "Analizando todas las sucursales",
+    welcome:
+      "Hola, soy tu asistente. Puedo comparar sucursales, mostrar tendencias y explicar si un producto alcanzará, se agotará o tendrá riesgo de merma. No necesitas elegir una sucursal para empezar.",
     logLabel: "Conversación con el asistente",
     inputLabel: "Mensaje para el asistente",
     placeholder: "Escribe tu pregunta…",
-    placeholderNoStore: "Elige una sucursal para conversar",
+    tooLong: (max: number) => `El mensaje supera ${max} caracteres. Acórtalo para enviarlo.`,
     send: "Enviar",
     typing: "El asistente está escribiendo…",
     quickPromptsLabel: "Preguntas rápidas",
     quickPrompts: [
+      { label: "¿Tengo stock suficiente?", prompt: "¿Tengo stock suficiente de Coca-Cola 600 ml?" },
+      {
+        label: "¿Se agotará o quedará merma?",
+        prompt: "¿Se agotará Coca-Cola 600 ml o quedará merma al final del mes?",
+      },
+      { label: "Tendencia entre sucursales", prompt: "Muéstrame la tendencia de Coca-Cola 600 ml" },
       { label: "¿Qué debo pedir hoy?", prompt: "¿Qué debo pedir hoy?" },
       { label: "Mejor promoción de la semana", prompt: "Mejor promoción de la semana" },
-      { label: "Tendencia de un producto", prompt: "Tendencia de un producto" },
-      {
-        label: "Energéticas el sábado, máx. 10%",
-        prompt: "Aumenta las bebidas energéticas este sábado con máximo 10% de descuento",
-      },
     ],
     pickStoreTitle: "Elige una sucursal para empezar",
-    pickStoreText: "El asistente trabaja sobre una sucursal a la vez. Selecciónala en el filtro del dashboard o haz clic en el mapa.",
+    pickStoreText: "El asistente trabaja con los datos de una sucursal a la vez. Elígela aquí o en el selector de arriba.",
+    pickStoreLabel: "Sucursal para el asistente",
+    draftReadOnly:
+      "Propuesta del backend real, solo de consulta: agregarla al plan se habilita cuando el backend publique las acciones de borradores.",
     toolsTitle: "Herramientas consultadas",
     constraintsTitle: "Restricciones interpretadas",
     maxDiscount: (pct: string) => `Descuento máx. ${pct}`,
@@ -213,6 +219,21 @@ export const copy = {
       delta: "Diferencia",
       overlaps: "Solapes con el plan",
       noOverlaps: "Sin solapes con el plan actual.",
+      overlapItem: (product: string, dates: string, kind: string) => `${product} · ${dates} · ${kind}`,
+    },
+    canvas: {
+      title: "Interfaces generadas",
+      subtitle: "Gráficas, tablas y propuestas construidas con el alcance actual del análisis.",
+      emptyTitle: "Aquí aparecerán las interfaces del asistente",
+      emptyText:
+        "Pregunta por la tendencia de un producto, qué pedir o una promoción: verás la gráfica, la tabla o la propuesta lista para revisar.",
+      pending: "Comparando demanda e inventario…",
+      historyLabel: "Interfaces de esta conversación",
+      show: "Ver interfaz",
+      shown: "En pantalla",
+      strategy: (title: string) => `Propuesta: ${title}`,
+      restock: (n: number) => (n === 1 ? "1 sugerencia de restock" : `${n} sugerencias de restock`),
+      more: (n: number) => `+${n}`,
     },
     restock: {
       title: "Sugerencias de restock",

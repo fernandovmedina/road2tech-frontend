@@ -1,6 +1,8 @@
 "use client";
 
 import { StrategyCard } from "@/components/strategy/StrategyCard";
+import { chatDraftsActionable } from "@/lib/api/hooks";
+import { copy } from "@/lib/copy";
 import type { ChatBlock } from "@/types";
 import { ForecastChartBlock } from "./ForecastChartBlock";
 import { PlanSummaryBlock } from "./PlanSummaryBlock";
@@ -20,7 +22,7 @@ export function ChatBlockView({ block }: { block: ChatBlock }) {
     case "strategy_card":
       return (
         <div className="w-full max-w-3xl">
-          <StrategyCard strategy={block.strategy} />
+          <StrategyCard strategy={block.strategy} readOnlyNote={chatDraftsActionable ? undefined : copy.chat.draftReadOnly} />
         </div>
       );
     case "plan_summary":

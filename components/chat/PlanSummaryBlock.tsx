@@ -1,12 +1,19 @@
+"use client";
+
+import { useCatalog } from "@/lib/api/hooks";
 import { copy } from "@/lib/copy";
-import { formatMoney, formatSignedMoney } from "@/lib/format";
+import { formatDate, formatMoney, formatSignedMoney } from "@/lib/format";
+import { t } from "@/lib/labels";
 import { Badge } from "@/components/ui/Badge";
 import type { BlockOf } from "./chatTypes";
 
 const C = copy.chat.plan;
 
+const dates = (from: string, to: string) => (from === to ? formatDate(from) : `${formatDate(from)} – ${formatDate(to)}`);
+
 /** Current plan vs. plan with the draft. Every figure comes from the backend; nothing is computed here. */
 export function PlanSummaryBlock({ block }: { block: BlockOf<"plan_summary"> }) {
+  const { nameOf } = useCatalog();
   return (
     <section aria-label={C.title} className="w-full max-w-3xl rounded-2xl border border-line bg-white p-4">
       <h3 className="text-sm font-bold">{C.title}</h3>
@@ -35,8 +42,10 @@ export function PlanSummaryBlock({ block }: { block: BlockOf<"plan_summary"> }) 
             <p className="mb-1 text-xs font-semibold text-muted">{C.overlaps}</p>
             <ul className="flex flex-wrap gap-1.5">
               {block.overlaps.map((o, i) => (
-                <li key={`${o}-${i}`}>
-                  <Badge tone="amber" className="whitespace-normal break-words">{o}</Badge>
+                <li key={`${o.draft_id}-${i}`}>
+                  <Badge tone="amber" className="whitespace-normal break-words">
+                    {C.overlapItem(nameOf(o.product_id), dates(o.start_date, o.end_date), t("overlapType", o.type))}
+                  </Badge>
                 </li>
               ))}
             </ul>
