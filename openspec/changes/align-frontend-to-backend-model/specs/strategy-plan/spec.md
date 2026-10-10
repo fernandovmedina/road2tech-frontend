@@ -30,16 +30,24 @@ Cada estrategia SHALL mostrar tipo (combo de afinidad, combo de rescate o promoc
 - **WHEN** la estrategia trae un intervalo de confianza
 - **THEN** el impacto se muestra como estimación con su rango, nunca como valor garantizado
 
-### Requirement: Comparación con y sin aceptar sin slider
-El detalle SHALL mostrar el descuento propuesto por el motor y dos escenarios, "Si no aceptas" y "Si aceptas", con unidades, ingresos, margen, merma, riesgo de quiebre e impacto neto, y la diferencia. La interfaz MUST NOT ofrecer un control para ajustar el descuento.
+### Requirement: Detalle de promoción con slider alimentado por el backend
+El detalle SHALL mostrar el descuento óptimo del motor, un control (slider) para ajustar el descuento de 0 a 40 % y dos escenarios, "Si no aceptas" y "Si aceptas", con unidades, ingresos, margen, merma, riesgo de quiebre e impacto neto y su diferencia. Todas las cifras de cada descuento SHALL provenir de la curva de descuentos que entrega el backend en una sola respuesta (`GET /drafts/{id}`); el cliente MUST NOT calcular dinero al mover el slider. Aceptar SHALL enviar el descuento elegido.
 
-#### Scenario: Escenarios del backend
-- **WHEN** se abre el detalle de una estrategia
-- **THEN** las series base y tratada y las cifras de ambos escenarios provienen del backend
+#### Scenario: Mover el slider
+- **WHEN** el usuario mueve el slider a 15 %
+- **THEN** los escenarios, la tabla y la gráfica se actualizan al instante con el punto de la curva para 15 % y no se hace ninguna petición nueva
 
-#### Scenario: Sin control de descuento
-- **WHEN** se abre el detalle
-- **THEN** no existe un slider ni campo para modificar el descuento
+#### Scenario: Volver al óptimo
+- **WHEN** el descuento elegido es distinto del óptimo
+- **THEN** se ofrece "Usar el óptimo" que regresa el slider al descuento del motor
+
+#### Scenario: Aceptar con descuento elegido
+- **WHEN** el usuario acepta tras confirmar con un descuento distinto del propuesto
+- **THEN** la aprobación se envía con ese descuento
+
+#### Scenario: Estrategia no editable
+- **WHEN** la estrategia ya está aprobada, rechazada o expirada
+- **THEN** el slider está deshabilitado y se muestran las cifras del descuento aplicado
 
 ### Requirement: Ciclo de vida visible
 Cada estrategia SHALL mostrar su estado y una línea de pasos Borrador → En el plan → Aprobada → Programada → Activa → Medida, además de Rechazada y Expirada. Las acciones disponibles SHALL depender del estado.
@@ -76,3 +84,25 @@ El usuario SHALL poder pedir "Regenerar plan" para la tienda y ver el resultado 
 #### Scenario: Regeneración
 - **WHEN** el usuario pulsa "Regenerar plan"
 - **THEN** se muestra carga y luego el plan nuevo con su fecha de generación
+
+### Requirement: Mejores tres promociones del periodo
+La sección "Promociones para reducir pérdidas y aumentar utilidades" SHALL mostrar las 3 promociones del plan con mayor ganancia neta esperada, ordenadas de mayor a menor, con un enlace para ver las restantes del plan (hasta 5). Cada una SHALL indicar su tipo con una etiqueta simple (Combo, Evitar merma u Oferta por contexto).
+
+#### Scenario: Plan con cinco estrategias
+- **WHEN** el plan trae cinco estrategias
+- **THEN** se muestran las tres de mayor ganancia y un enlace "Ver las otras 2"
+
+#### Scenario: Plan con dos estrategias
+- **WHEN** el plan trae dos estrategias
+- **THEN** se muestran las dos sin enlace adicional y con el motivo que entrega el backend
+
+### Requirement: Tarjeta de promoción entendible
+Cada tarjeta de promoción SHALL mostrar: la promoción en una línea (producto o productos, descuento y fechas), tres cifras con nombre simple en lenguaje cotidiano (lo que ganarías, la merma que evitas y el riesgo de quedarte sin stock en palabras bajo/medio/alto) y una acción. Los términos técnicos (margen incremental, rango, nivel de confianza, supuestos y restricciones) SHALL estar disponibles en un bloque plegado "¿Cómo se calculó?" y MUST NOT ocupar la tarjeta.
+
+#### Scenario: Lectura rápida
+- **WHEN** el usuario ve la tarjeta
+- **THEN** entiende qué se promueve, a qué descuento, en qué fechas y cuánto gana sin abrir el detalle
+
+#### Scenario: Ver cómo se calculó
+- **WHEN** el usuario abre "¿Cómo se calculó?"
+- **THEN** ve la explicación, el rango de la estimación, los supuestos y las restricciones

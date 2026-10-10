@@ -3,7 +3,7 @@ import type { Session } from "@/types";
 import { isMockMode } from "./config";
 import { ApiError } from "./envelope";
 
-// Mock mode keeps the demo account; http mode calls POST /auth/login (see docs/backend-contract.md).
+// Mock mode keeps the demo account; hybrid and http modes call POST /auth/signin (see docs/backend-contract.md).
 const DEMO_EMAIL = "demo@stockcopilot.com";
 const DEMO_PASSWORD = "demo1234";
 export const SESSION_KEY = "stockcopilot.session";
@@ -27,7 +27,7 @@ export async function login(email: string, password: string): Promise<Session> {
   // Imported lazily so the mock build never pulls the HTTP transport.
   const { httpRequest } = await import("./http");
   try {
-    const res = await httpRequest("/auth/login", sessionSchema, { method: "POST", body: { email: email.trim(), password } });
+    const res = await httpRequest("/auth/signin", sessionSchema, { method: "POST", body: { email: email.trim(), password } });
     return res.data;
   } catch (e) {
     // The transport treats 401 as an expired session; on the login form it means wrong credentials.
@@ -36,8 +36,17 @@ export async function login(email: string, password: string): Promise<Session> {
   }
 }
 
+const logoutSchema = z.object({ logged_out: z.boolean() });
+
+/** Revokes the token on the backend. Best effort: the local session is cleared by the caller either way. */
 export async function logout(): Promise<void> {
-  // TODO(backend): revoke token (POST /auth/logout) once the endpoint exists.
+  if (isMockMode) return;
+  try {
+    const { httpRequest } = await import("./http");
+    await httpRequest("/auth/logout", logoutSchema, { method: "POST" });
+  } catch {
+    /* expired or unreachable: nothing left to revoke */
+  }
 }
 
 export function readStoredSession(): Session | null {

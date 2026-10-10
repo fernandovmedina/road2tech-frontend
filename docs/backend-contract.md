@@ -8,6 +8,22 @@ Ejemplos: valores tomados del dataset real (`S001` = "OXXO República Oriente", 
 
 ---
 
+## 0. Estado de implementación del backend (verificado contra la API desplegada el 2026-10-10)
+
+Base URL: `https://avbylri05m.execute-api.us-east-1.amazonaws.com` (Go Lambdas sobre DynamoDB `road2tech-stores`; código en `BackendRoad2Tech/api`). Probado con el usuario demo: las respuestas pasan los esquemas zod del frontend (`lib/api/schemas.ts`), CORS permite cualquier origen y los errores usan `{code, message, request_id}`.
+
+| Estado | Endpoints |
+|---|---|
+| **Desplegado y consumido por el frontend** | `POST /auth/signin`, `POST /auth/logout`, `POST /stores/{id}/stock-policy:suggest`, `GET /stores/{id}/restock-suggestions`, `POST /restock-orders`, `GET /stores/{id}/calendar`, `GET /suppliers`, `GET /suppliers/{id}/offers`, `POST /suppliers/{id}/test-email`, `GET /products` |
+| **No existe aún (404)** | `GET /meta`, `/chain/summary`, `/stores`, `/stores/{id}/kpis`, `/heat`, `/stores/{id}/behaviors`, `/stores/{id}/stock`, `/stock/summary`, `GET/PUT /stores/{id}/stock-policy`, y los 7 M0: `tendency`, `strategies:generate`, `strategies:prompt`, `drafts/{id}` (+ `add-to-plan`, `approve`, `reject`), `plan` |
+
+Los M0 existen en `BackendRoad2Tech/services/copilot-api` (FastAPI, datos en CSV/PostgreSQL), pero **no están desplegados** y su forma difiere de este contrato (por ejemplo `/stores/{id}/overview`, `/stores/{id}/restock`).
+
+Cómo lo usa el frontend: `NEXT_PUBLIC_API_MODE=hybrid` manda al backend real los endpoints de la primera fila (lista en `lib/api/liveRoutes.ts`) y deja el resto en mock. Cuando el backend publique los demás, se agregan a esa lista o se pasa a `http`.
+
+Diferencias ya absorbidas por el frontend: el login es `POST /auth/signin` (no `/auth/login`) y existe `POST /auth/logout`, que revoca el token. `POST /chat` está desplegado pero se va a eliminar (lo reemplaza el agente LangGraph + CopilotKit, change `integrate-copilot-agent-chat`), por eso el frontend lo deja en mock.
+---
+
 ## 1. Convenciones
 
 | Tema | Regla |
@@ -20,7 +36,7 @@ Ejemplos: valores tomados del dataset real (`S001` = "OXXO República Oriente", 
 | Proporciones | Fracciones `0..1` (`discount_pct` del dataset es fracción: `0.10` = 10 %). **Aviso:** `proposed_discount_pct` se pide también como fracción, para coincidir con `promotion_campaigns.discount_pct`. |
 | IDs | Cadenas opacas: `S001..S025`, `P001..P120`, `SUP01..SUP19`, `C01..C20`; campañas `campaign_id`; borradores `draft_id`. El frontend no los interpreta ni los hardcodea. |
 | Códigos | Enumeraciones en inglés tal como el dataset (`residential`, `hot`, `Tue|Fri`, `C01` + `category_name` en inglés). **El frontend traduce a español**; el backend no localiza. |
-| Auth | `Authorization: Bearer <token>` en todo salvo `POST /auth/login`. 401 → el frontend cierra sesión. Sin roles ni permisos por tienda en esta fase (todo usuario ve todas las tiendas). |
+| Auth | `Authorization: Bearer <token>` en todo salvo `POST /auth/signin`. 401 → el frontend cierra sesión. Sin roles ni permisos por tienda en esta fase (todo usuario ve todas las tiendas). |
 | Paginación | Query `page` (desde 1) y `page_size` (máx. 100). Respuesta: `data.items[]` y `data.page`, `data.page_size`, `data.total`. |
 | Idempotencia | Acciones de estado (`approve`, `reject`, `add-to-plan`) y `POST /restock-orders` aceptan cabecera `Idempotency-Key`. |
 | Tienda en rutas | Los endpoints por tienda usan `/stores/{store_id}/...`. |
@@ -71,7 +87,7 @@ Resumen:
 | 3.15 | POST | `/suppliers/{supplier_id}/test-email` |
 | 3.16 | GET | `/products` |
 | 3.17 | POST | `/chat` |
-| 3.18 | POST | `/auth/login` |
+| 3.18 | POST | `/auth/signin`, `/auth/logout` |
 
 ### 3.1 `GET /meta`
 
@@ -622,15 +638,17 @@ El frontend filtra bloques desconocidos o inválidos. `tools[]` son los realment
 
 Reglas: el chat **nunca aprueba ni activa**; si el usuario pide "actívala", responde con texto indicando que la aprobación se hace desde el plan. Un borrador creado por el chat vive como `draft` y se agrega con `POST /drafts/{draft_id}/add-to-plan`. Error de agente: HTTP 5xx con el formato de §1 (el frontend ofrece "Reintentar" con el mismo `message`).
 
-### 3.18 `POST /auth/login`
+### 3.18 `POST /auth/signin` y `POST /auth/logout`
 
-Body: `{ "email": "demo@stockcopilot.com", "password": "demo1234" }`.
+`/auth/signin` reemplaza a `/auth/login` (misma forma). Body: `{ "email": "demo@stockcopilot.com", "password": "demo1234" }`.
 
 ```json
 { "data": { "token": "eyJhbGciOi...", "expires_at": "2026-10-01T00:00:00Z", "user": { "id": "u_01", "name": "Demo", "email": "demo@stockcopilot.com" } } }
 ```
 
-Credenciales incorrectas: `401 invalid_credentials`. Token vencido en cualquier otra ruta: `401 token_expired`.
+Credenciales incorrectas: `401 invalid_credentials`. Token ausente, inválido, vencido o revocado en cualquier otra ruta: `401 unauthorized`.
+
+`POST /auth/logout` (con `Authorization`, body vacío) revoca la sesión del token: `{ "data": { "logged_out": true } }`.
 
 ---
 
@@ -782,7 +800,7 @@ Pedido al backend: regenerar con `python3 scripts/dataset/run_all.py` (o el gate
 - [ ] `GET /stores/{id}/calendar` con entregas, estrategias, alertas (sin stock, por caducar, pedido retrasado) y capa de contexto.
 - [ ] `GET /suppliers`, `GET /suppliers/{id}/offers`, `POST /suppliers/{id}/test-email`, `GET /products`.
 - [ ] `POST /chat` con bloques de la unión discriminada, `tools[]` reales, `conversation_id`, y `requires_approval: true` en borradores; el chat no puede aprobar.
-- [ ] `POST /auth/login` con token Bearer y 401 en token vencido.
+- [x] `POST /auth/signin` con token Bearer, `POST /auth/logout` y 401 en token vencido o revocado.
 - [ ] Transiciones inválidas de estado rechazadas con error claro; `approve`/`reject` idempotentes.
 - [ ] CORS habilitado para el origen del frontend.
 - [ ] Respuestas a nuestros dudas abiertas (§9).
@@ -813,3 +831,19 @@ Pedido al backend: regenerar con `python3 scripts/dataset/run_all.py` (o el gate
 - **D17. Código de transición inválida.** Confirmar el `code` de error para transiciones no permitidas (el frontend asume HTTP 409 `invalid_transition`) y la lista estable de códigos de `reason_if_fewer` y de `conflicts[].type|resolution` para traducirlos.
 - **D18. Edición de proveedores.** El frontend los muestra de solo lectura. Si se necesita alta o edición, agregar `POST /suppliers` y `PUT /suppliers/{id}`.
 - **D19. Demanda prevista de productos de temporada.** En `purchase_orders.predicted_daily_demand` / `stock` el producto de temporada fuera de su ventana (ej. "Three Kings' Cake", se vende solo del 26-dic al 10-ene) trae demanda prevista positiva (≈ 5.9 u/día en septiembre) aunque sus ventas reales son 0. El forecast/optimizador debe respetar la ventana de venta; el mock del frontend lo ignora con una regla local.
+
+
+### Cambios por rediseño de promociones (v2 del contrato)
+
+- **`GET /drafts/{draft_id}`** (resuelve D12): devuelve la estrategia (forma §4.1) más `optimal_discount_pct` y `discount_curve[]`: un punto por descuento de `0` a `max_discount_pct` en pasos de `0.01`, cada uno con `discount_pct`, `treated` (units, net_revenue, margin, waste_units, waste_cost, stockout_risk), `expected_units_increment`, `expected_sales_increment`, `expected_margin_increment`, `expected_waste_reduction` y `confidence_interval`. El `baseline` es el mismo para todos los descuentos. El frontend **no calcula dinero**: el slider solo elige un punto de esta curva.
+- **`POST /drafts/{id}/approve` y `add-to-plan`**: aceptan opcionalmente `{ "discount_pct": 0.12 }`. Si viene, la estrategia queda con ese descuento (`proposed_discount_pct`) y su impacto se recalcula junto con el portafolio. Debe respetar `max_discount_pct`; si no, 422 `discount_out_of_range`.
+- **`GET /stores/{id}/behaviors`**: cada comportamiento puede traer `strategy_id` (el borrador del plan que lo atiende; p. ej. la promoción de rescate para una alerta de merma). `null` si no hay.
+- **Margen de los escenarios**: `baseline.margin` y `treated.margin` deben ser netos de la merma (`margen - waste_cost`) para que `treated.margin - baseline.margin = expected_margin_increment`.
+
+### Cambios por enlace directo al pedido
+
+- **`GET /stores/{id}/behaviors`**: cada comportamiento puede traer `restock_suggestion_id` (string o `null`): el `id` (`rs_...`) de la sugerencia de restock **vigente** (aún sin enviar) que atiende ese comportamiento. Lo usa sobre todo el pico de demanda (`kind = "demand"`) para que "Ver pedido sugerido" lleve directo al detalle del pedido (`/calendar?store=…&product=…&order=<id>`). Debe coincidir exacto con el `id` que devuelve `restock-suggestions` de esa tienda. Si el producto no tiene sugerencia vigente, `null` (la tarjeta solo ofrece "Ver en calendario"). Conviene priorizar alertas de demanda de productos que sí tienen sugerencia, como ya se hace con merma → promoción.
+- **`GET /stores/{id}/restock-suggestions`**: acepta además `product_id` (filtro exacto) junto a `from`, `to`, `urgent_only`, `page` y `page_size` (hasta 100). El frontend lo usa para resolver el pedido de un enlace sin recorrer toda la lista.
+- Una sugerencia puede abrirse **por id**: el calendario recibe `?order=<restock_suggestion_id>`, espera las sugerencias de la tienda y abre el modal "Orden Restock" de esa sugerencia una sola vez. Si el id ya no está vigente (se envió o dejó de sugerirse) muestra un aviso y no abre nada. Pendiente opcional para backend: `GET /restock-suggestions/{id}` (o `id` como filtro) para no depender de la ventana `from`/`to`.
+
+- **Merma esperada por producto (`GET /stores/{id}/stock`)**: cada item puede traer `expected_waste_units` (unidades que caducarán sin venderse; `0` cuando no habrá merma). El detalle del producto lo muestra como "Merma esperada"; si el backend no lo envía y nada caduca dentro del horizonte del pronóstico, la pantalla muestra `0 u` (no un guion).

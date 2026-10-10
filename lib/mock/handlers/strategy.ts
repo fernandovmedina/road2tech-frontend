@@ -3,7 +3,7 @@ import { MockHttpError } from "../errors";
 import type { MockRoute } from "../router";
 import { handleChat } from "../strategy/chat";
 import { loadCtx } from "../strategy/context";
-import { applyAction, emptyPlan, getStorePlan as planOf, regeneratePlan } from "../strategy/plan";
+import { applyAction, emptyPlan, getDraftDetail, getStorePlan as planOf, parseDiscountBody, regeneratePlan } from "../strategy/plan";
 import { buildTendency } from "../strategy/tendency";
 
 // Mock "backend" for strategies, plan, tendency and chat (docs/backend-contract.md §2, §3.17, §4).
@@ -42,8 +42,11 @@ export const routes: MockRoute[] = [
     path: "/stores/:storeId/strategies:generate",
     handler: async ({ params }) => regeneratePlan(params.storeId),
   },
-  { method: "POST", path: "/drafts/:draftId/add-to-plan", handler: ({ params }) => applyAction(params.draftId, "add-to-plan") },
-  { method: "POST", path: "/drafts/:draftId/approve", handler: ({ params }) => applyAction(params.draftId, "approve") },
+  // Strategy + engine optimum + discount curve (one point per 1 %); powers the discount slider of the detail screen.
+  { method: "GET", path: "/drafts/:draftId", handler: ({ params }) => getDraftDetail(params.draftId) },
+  // add-to-plan / approve accept an optional { discount_pct } (fraction): the strategy is re-simulated at that discount.
+  { method: "POST", path: "/drafts/:draftId/add-to-plan", handler: ({ params, body }) => applyAction(params.draftId, "add-to-plan", parseDiscountBody(body)) },
+  { method: "POST", path: "/drafts/:draftId/approve", handler: ({ params, body }) => applyAction(params.draftId, "approve", parseDiscountBody(body)) },
   { method: "POST", path: "/drafts/:draftId/reject", handler: ({ params }) => applyAction(params.draftId, "reject") },
   {
     method: "GET",

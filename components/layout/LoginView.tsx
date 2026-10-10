@@ -4,7 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { AuthError } from "@/lib/api/auth";
-import { isMockMode } from "@/lib/api/config";
+import { usesMockData } from "@/lib/api/config";
 import { ApiError } from "@/lib/api/envelope";
 import { copy } from "@/lib/copy";
 import { Button } from "@/components/ui/Button";
@@ -124,7 +124,7 @@ export function LoginView() {
           <Button type="submit" disabled={loading} className="mt-2">
             {loading ? L.submitting : L.submit}
           </Button>
-          {isMockMode && <p className="text-center text-xs text-muted">{L.demoHint}</p>}
+          {usesMockData && <p className="text-center text-xs text-muted">{L.demoHint}</p>}
         </form>
       </section>
     </div>

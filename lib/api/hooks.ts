@@ -201,14 +201,21 @@ export const useStockPolicy = (storeId: string | undefined, p: PageParams & { ca
 
 /* ---------- restock & calendar ---------- */
 
-export const useRestockSuggestions = (storeId: string | undefined, p: PageParams & { urgentOnly?: boolean } = {}) => {
+export const useRestockSuggestions = (storeId: string | undefined, p: PageParams & { urgentOnly?: boolean; productId?: string } = {}) => {
   const asOf = useAsOf();
   return useQuery({
     queryKey: qk("restock", storeId, p, asOf),
     enabled: !!storeId && storeId !== "all" && !!asOf,
     queryFn: async () =>
       (await request(`/stores/${storeId}/restock-suggestions`, S.pageOf(S.restockSuggestionSchema), {
-        query: { from: asOf, to: addDays(asOf!, 14), urgent_only: p.urgentOnly, page: p.page ?? 1, page_size: p.pageSize ?? 25 },
+        query: {
+          from: asOf,
+          to: addDays(asOf!, 14),
+          urgent_only: p.urgentOnly,
+          product_id: p.productId,
+          page: p.page ?? 1,
+          page_size: p.pageSize ?? 25,
+        },
       })).data,
     placeholderData: keepPreviousData,
   });
@@ -239,14 +246,28 @@ function useInvalidating<TArgs, TRes>(fn: (a: TArgs) => Promise<TRes>) {
   return useMutation({ mutationFn: fn, onSuccess: () => qc.invalidateQueries({ queryKey: ["api"] }) });
 }
 
-const action = (draftId: string, verb: "add-to-plan" | "approve" | "reject") =>
-  request(`/drafts/${draftId}/${verb}`, S.strategyActionSchema, { method: "POST", body: {} }).then((r) => r.data);
+type ActionArg = string | { draftId: string; discountPct?: number };
+const action = (arg: ActionArg, verb: "add-to-plan" | "approve" | "reject") => {
+  const { draftId, discountPct } = typeof arg === "string" ? { draftId: arg, discountPct: undefined } : arg;
+  return request(`/drafts/${draftId}/${verb}`, S.strategyActionSchema, {
+    method: "POST",
+    body: discountPct === undefined ? {} : { discount_pct: discountPct },
+  }).then((r) => r.data);
+};
+
+/** One strategy with its discount curve (powers the detail screen and the slider). */
+export const useStrategy = (draftId: string | undefined) =>
+  useQuery({
+    queryKey: qk("strategy", draftId),
+    enabled: !!draftId,
+    queryFn: async () => (await request(`/drafts/${draftId}`, S.strategyDetailSchema)).data,
+  });
 
 /** draft → selected. The backend returns the recalculated portfolio. */
-export const useAddToPlan = () => useInvalidating((draftId: string) => action(draftId, "add-to-plan"));
-/** selected → approved. Call only after an explicit confirmation dialog. */
-export const useApproveStrategy = () => useInvalidating((draftId: string) => action(draftId, "approve"));
-export const useRejectStrategy = () => useInvalidating((draftId: string) => action(draftId, "reject"));
+export const useAddToPlan = () => useInvalidating((arg: ActionArg) => action(arg, "add-to-plan"));
+/** selected → approved, optionally at the discount chosen on the slider. Call only after an explicit confirmation dialog. */
+export const useApproveStrategy = () => useInvalidating((arg: ActionArg) => action(arg, "approve"));
+export const useRejectStrategy = () => useInvalidating((arg: ActionArg) => action(arg, "reject"));
 export const useRegeneratePlan = () =>
   useInvalidating((storeId: string) => request(`/stores/${storeId}/strategies:generate`, S.planSchema, { method: "POST", body: {} }).then((r) => r.data));
 

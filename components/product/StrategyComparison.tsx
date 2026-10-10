@@ -1,112 +1,138 @@
 import type { ReactNode } from "react";
 import { copy } from "@/lib/copy";
-import { formatDate, formatMoney, formatNumber, formatPct, formatSignedMoney } from "@/lib/format";
-import { discountLabel, intervalText, signedPoints, signedUnits } from "@/components/strategy/strategyFormat";
-import type { Strategy } from "@/types";
+import { formatMoney, formatNumber, formatSignedMoney } from "@/lib/format";
+import { riskLevel, riskTone, signedUnits, type RiskLevel } from "@/components/strategy/strategyFormat";
+import { periodDays } from "./periodText";
+import type { DiscountPoint, Strategy } from "@/types";
 
 const K = copy.product.compare;
+const L = copy.strategy.promo;
 
 type Scenario = Strategy["baseline"];
 type Good = "up" | "down";
-type Row = { key: string; label: string; base: string; treated: string; diff: ReactNode; delta: number; good: Good };
+type Row = { key: string; label: string; base: ReactNode; treated: ReactNode; diff: ReactNode; delta: number; good: Good };
 
 /** Colors the difference: green when it moves in the good direction, red when not, muted when there is no change. */
 function diffClass(delta: number, good: Good): string {
-  if (delta === 0) return "text-muted";
+  if (Math.abs(delta) < 0.5) return "text-muted"; // rounds to zero: neither good nor bad
   return (delta > 0) === (good === "up") ? "text-primary" : "text-alert-dark";
 }
 
-function ScenarioCard({ title, hint, scenario, accent }: { title: string; hint: string; scenario: Scenario; accent: boolean }) {
+const riskRank: Record<RiskLevel, number> = { low: 0, medium: 1, high: 2 };
+
+function Risk({ value }: { value: number }) {
+  const level = riskLevel(value);
+  return <span className={`font-bold ${riskTone[level]}`}>{L.riskLevels[level]}</span>;
+}
+
+/** Waste shown as a cost: "−$10,150", or "$0" when nothing is thrown away. */
+const wasteMoney = (v: number): string => (v > 0 ? `−${formatMoney(v)}` : formatMoney(0));
+
+/** "Si no aceptas": the loss is the headline when there is waste, otherwise the profit the store keeps. */
+function DeclineCard({ b }: { b: Scenario }) {
+  const waste = b.waste_cost > 0;
   return (
-    <section
-      aria-label={title}
-      className={`flex flex-col gap-3 rounded-2xl border p-5 ${accent ? "border-accent/40 bg-accent-tint" : "border-line bg-white"}`}
-    >
-      <header>
-        <h3 className={`text-base font-extrabold ${accent ? "text-accent-dark" : ""}`}>{title}</h3>
-        <p className="text-xs text-muted">{hint}</p>
-      </header>
-      <p className="text-3xl font-extrabold tabular-nums">{formatMoney(scenario.margin)}</p>
-      <p className="-mt-2 text-xs font-semibold text-muted">{K.rows.margin}</p>
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-        <div><dt className="text-xs text-muted">{K.rows.units}</dt><dd className="font-bold tabular-nums">{formatNumber(scenario.units)}</dd></div>
-        <div><dt className="text-xs text-muted">{K.rows.revenue}</dt><dd className="font-bold tabular-nums">{formatMoney(scenario.net_revenue)}</dd></div>
-        <div>
-          <dt className="text-xs text-muted">{K.rows.wasteUnits}</dt>
-          <dd className="font-bold tabular-nums">{formatNumber(scenario.waste_units)} · {formatMoney(scenario.waste_cost)}</dd>
-        </div>
-        <div><dt className="text-xs text-muted">{K.rows.stockoutRisk}</dt><dd className="font-bold tabular-nums">{formatPct(scenario.stockout_risk)}</dd></div>
-      </dl>
+    <section aria-label={K.decline} className="rounded-xl bg-accent-tint p-5">
+      <h3 className="text-[11px] font-extrabold uppercase tracking-wide text-accent-dark">{K.decline}</h3>
+      <p className="mt-2 text-3xl font-extrabold tabular-nums text-accent-dark">
+        {waste ? K.wasteHeadline(formatMoney(b.waste_cost)) : K.profitHeadline(formatMoney(b.margin))}
+      </p>
+      <p className="mt-2 text-sm text-accent-dark">
+        {waste ? K.declineWithWaste(K.wasteUnits(Math.round(b.waste_units)), formatMoney(b.margin)) : K.declineNoWaste(formatMoney(b.margin))}
+      </p>
+    </section>
+  );
+}
+
+/** "Si aceptas": the gain the model expects at the chosen discount, with the profit it leaves. */
+function AcceptCard({ a, b, gain }: { a: Scenario; b: Scenario; gain: number }) {
+  const good = gain >= 0;
+  return (
+    <section aria-label={K.accept} className={`rounded-xl p-5 ${good ? "bg-primary-tint" : "bg-alert-tint"}`}>
+      <h3 className={`text-[11px] font-extrabold uppercase tracking-wide ${good ? "text-primary" : "text-alert-dark"}`}>{K.accept}</h3>
+      <p className={`mt-2 text-3xl font-extrabold tabular-nums ${good ? "text-primary" : "text-alert-dark"}`}>{formatSignedMoney(gain)}</p>
+      <p className={`mt-2 text-sm ${good ? "text-primary" : "text-alert-dark"}`}>
+        {K.acceptText(formatMoney(a.margin), formatMoney(b.margin), K.wasteUnits(Math.round(a.waste_units)))}
+      </p>
     </section>
   );
 }
 
 /**
- * "Si no aceptas" (baseline) vs "Si aceptas" (treated). Every figure is delivered by the backend; the only operation
- * here is subtracting two delivered values to show a difference (the expected_* fields are used when they exist).
- * There is deliberately no control to change the discount: the engine proposes it.
+ * "Qué ganas y qué pierdes": "Si no aceptas" (baseline) vs "Si aceptas" (the chosen point of the discount curve), then a
+ * table with the details and, as `children`, the action buttons. Every figure is delivered by the backend; the only
+ * operations here are subtracting (or, for the gross margin, adding the waste cost back to the net margin the backend
+ * delivers) two delivered values to show a difference.
+ * TODO(backend): send the gross margin of each scenario if "Margen de las ventas" must not be derived here.
  */
-export function StrategyComparison({ strategy }: { strategy: Strategy }) {
-  const { baseline: b, treated: t } = strategy;
+export function StrategyComparison({ strategy, point, children }: { strategy: Strategy; point: DiscountPoint; children?: ReactNode }) {
+  const b = strategy.baseline;
+  const a = point.treated;
+  const gain = point.expected_margin_increment;
+  const wasteGain = b.waste_cost - a.waste_cost;
+  const grossBase = b.margin + b.waste_cost;
+  const grossTreated = a.margin + a.waste_cost;
+  const riskDiff = riskRank[riskLevel(a.stockout_risk)] - riskRank[riskLevel(b.stockout_risk)];
+
   const rows: Row[] = [
-    { key: "units", label: K.rows.units, base: formatNumber(b.units), treated: formatNumber(t.units), diff: signedUnits(strategy.expected_units_increment), delta: strategy.expected_units_increment, good: "up" },
-    { key: "revenue", label: K.rows.revenue, base: formatMoney(b.net_revenue), treated: formatMoney(t.net_revenue), diff: formatSignedMoney(strategy.expected_sales_increment), delta: strategy.expected_sales_increment, good: "up" },
-    { key: "margin", label: K.rows.margin, base: formatMoney(b.margin), treated: formatMoney(t.margin), diff: formatSignedMoney(strategy.expected_margin_increment), delta: strategy.expected_margin_increment, good: "up" },
-    { key: "wasteUnits", label: K.rows.wasteUnits, base: formatNumber(b.waste_units), treated: formatNumber(t.waste_units), diff: signedUnits(t.waste_units - b.waste_units), delta: t.waste_units - b.waste_units, good: "down" },
-    { key: "wasteCost", label: K.rows.wasteCost, base: formatMoney(b.waste_cost), treated: formatMoney(t.waste_cost), diff: formatSignedMoney(t.waste_cost - b.waste_cost), delta: t.waste_cost - b.waste_cost, good: "down" },
-    { key: "stockoutRisk", label: K.rows.stockoutRisk, base: formatPct(b.stockout_risk), treated: formatPct(t.stockout_risk), diff: signedPoints(t.stockout_risk - b.stockout_risk), delta: t.stockout_risk - b.stockout_risk, good: "down" },
+    { key: "units", label: K.rows.units, base: formatNumber(b.units), treated: formatNumber(a.units), diff: signedUnits(point.expected_units_increment), delta: point.expected_units_increment, good: "up" },
+    { key: "revenue", label: K.rows.revenue, base: formatMoney(b.net_revenue), treated: formatMoney(a.net_revenue), diff: formatSignedMoney(point.expected_sales_increment), delta: point.expected_sales_increment, good: "up" },
+    { key: "margin", label: K.rows.margin, base: formatMoney(grossBase), treated: formatMoney(grossTreated), diff: formatSignedMoney(grossTreated - grossBase), delta: grossTreated - grossBase, good: "up" },
+    { key: "wasteCost", label: K.rows.wasteCost, base: wasteMoney(b.waste_cost), treated: wasteMoney(a.waste_cost), diff: formatSignedMoney(wasteGain), delta: wasteGain, good: "up" },
+    {
+      key: "risk",
+      label: K.rows.stockoutRisk,
+      base: <Risk value={b.stockout_risk} />,
+      treated: <Risk value={a.stockout_risk} />,
+      diff: riskDiff > 0 ? K.riskChange.up : riskDiff < 0 ? K.riskChange.down : K.riskChange.same,
+      delta: riskDiff,
+      good: "down",
+    },
   ];
 
   return (
-    <section aria-labelledby="compare-title" className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <section aria-labelledby="compare-title" className="flex flex-col gap-4 rounded-2xl border border-line bg-white p-5">
+      <div>
         <h2 id="compare-title" className="text-lg font-extrabold">{K.title}</h2>
-        <div className="rounded-[10px] bg-accent-tint px-4 py-2 text-right">
-          <p className="text-xs font-semibold text-accent-dark">{K.proposedDiscount}</p>
-          <p className="text-2xl font-extrabold tabular-nums text-accent-dark">{discountLabel(strategy.proposed_discount_pct)}</p>
-          <p className="text-xs text-muted">{formatDate(strategy.period.start_date)} – {formatDate(strategy.period.end_date)}</p>
-        </div>
-      </div>
-      <p className="-mt-2 text-sm text-muted">{K.discountNote}</p>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <ScenarioCard title={K.decline} hint={K.declineHint} scenario={b} accent={false} />
-        <ScenarioCard title={K.accept} hint={K.acceptHint} scenario={t} accent />
+        <p className="text-sm text-muted">{K.subtitle(periodDays(strategy.period.start_date, strategy.period.end_date))}</p>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-line bg-white">
-        <table className="w-full min-w-[560px] text-sm tabular-nums">
+      <div className="grid gap-4 md:grid-cols-[1.15fr_1fr]">
+        <DeclineCard b={b} />
+        <AcceptCard a={a} b={b} gain={gain} />
+      </div>
+
+      <div className="relative overflow-x-auto rounded-xl bg-background">
+        <table className="w-full min-w-[520px] text-sm tabular-nums">
           <caption className="sr-only">{K.title}</caption>
           <thead>
-            <tr className="border-b border-line bg-background text-left text-xs text-muted">
+            <tr className="text-left text-xs uppercase tracking-wide text-muted">
               <th scope="col" className="px-4 py-3 font-semibold">{K.concept}</th>
-              <th scope="col" className="px-4 py-3 text-right font-semibold">{K.decline}</th>
-              <th scope="col" className="px-4 py-3 text-right font-semibold">{K.accept}</th>
-              <th scope="col" className="px-4 py-3 text-right font-semibold">{K.difference}</th>
+              <th scope="col" className="px-4 py-3 font-semibold">{K.withoutPromo}</th>
+              <th scope="col" className="px-4 py-3 font-semibold">{K.withPromo}</th>
+              <th scope="col" className="px-4 py-3 font-semibold">{K.difference}</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="bg-white">
             {rows.map((r) => (
-              <tr key={r.key} className="border-b border-line last:border-b-0">
+              <tr key={r.key} className="border-t border-line">
                 <th scope="row" className="px-4 py-3 text-left font-medium">{r.label}</th>
-                <td className="px-4 py-3 text-right text-muted">{r.base}</td>
-                <td className="px-4 py-3 text-right font-bold">{r.treated}</td>
-                <td className={`px-4 py-3 text-right font-bold ${diffClass(r.delta, r.good)}`}>{r.diff}</td>
+                <td className="px-4 py-3">{r.base}</td>
+                <td className="px-4 py-3">{r.treated}</td>
+                <td className={`px-4 py-3 font-bold ${diffClass(r.delta, r.good)}`}>{r.diff}</td>
               </tr>
             ))}
-            <tr className="bg-primary-tint">
-              <th scope="row" className="px-4 py-3 text-left font-extrabold text-primary">
-                {K.rows.net}
-                <span className="block text-xs font-medium text-muted">{K.netNote}</span>
-              </th>
-              <td className="px-4 py-3 text-right text-muted">{K.none}</td>
-              <td className="px-4 py-3 text-right text-lg font-extrabold text-primary">≈ {formatSignedMoney(strategy.expected_margin_increment)}</td>
-              <td className="px-4 py-3 text-right text-xs text-muted">{intervalText(strategy.confidence_interval)}</td>
+            <tr className="border-t border-line bg-background font-extrabold">
+              <th scope="row" className="px-4 py-3 text-left font-extrabold">{K.rows.profit}</th>
+              <td className="px-4 py-3">{formatMoney(b.margin)}</td>
+              <td className="px-4 py-3">{formatMoney(a.margin)}</td>
+              <td className={`px-4 py-3 ${gain >= 0 ? "text-primary" : "text-alert-dark"}`}>{formatSignedMoney(gain)}</td>
             </tr>
           </tbody>
         </table>
       </div>
-      <p className="-mt-2 text-xs text-muted">{copy.strategy.estimateNote}</p>
+
+      {children}
     </section>
   );
 }

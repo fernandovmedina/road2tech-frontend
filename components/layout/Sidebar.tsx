@@ -7,7 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth-context";
 import { copy } from "@/lib/copy";
 import { getDemoState, resetDemoData, setDemoState } from "@/lib/api/client";
-import { isMockMode } from "@/lib/api/config";
+import { usesMockData } from "@/lib/api/config";
 import type { DemoState } from "@/types";
 
 const items = [
@@ -29,7 +29,7 @@ export function Sidebar() {
   const router = useRouter();
   const qc = useQueryClient();
   const { session, logout } = useAuth();
-  const [demo, setDemo] = useState<DemoState>(() => (isMockMode ? getDemoState() : "normal"));
+  const [demo, setDemo] = useState<DemoState>(() => (usesMockData ? getDemoState() : "normal"));
 
   const changeDemo = (d: DemoState) => {
     setDemoState(d);
@@ -69,7 +69,7 @@ export function Sidebar() {
       </nav>
 
       <div className="mt-auto flex flex-col gap-4">
-        {isMockMode && (
+        {usesMockData && (
           <fieldset className="rounded-xl border border-white/10 p-3">
             <legend className="px-1 text-[11px] font-bold uppercase tracking-wide text-sidebar-text/70">{copy.nav.demoStates}</legend>
             <div className="flex gap-1">

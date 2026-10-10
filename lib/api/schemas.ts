@@ -150,6 +150,10 @@ export const behaviorSchema = z.object({
     })
     .nullable(),
   estimated_gain_mxn: money,
+  /** Plan strategy that answers this behavior (e.g. the rescue promotion for a waste alert); null when none. */
+  strategy_id: z.string().nullable().optional(),
+  /** Restock suggestion (`rs_...`) that answers this behavior (e.g. the order for a demand peak); null when none. */
+  restock_suggestion_id: z.string().nullable().optional(),
 });
 
 /* ---------- trends ---------- */
@@ -191,6 +195,8 @@ export const stockItemSchema = z.object({
   status: stockStatusSchema,
   earliest_expiry: isoDate.nullable(),
   expiring_qty_7d: z.number(),
+  /** Units expected to expire unsold (0 when nothing will be wasted). Optional until the backend sends it. */
+  expected_waste_units: z.number().optional(),
   lost_demand_7d: z.number(),
   next_restock_date: isoDate.nullable(),
 });
@@ -306,6 +312,8 @@ export const calendarEventSchema = z.discriminatedUnion("kind", [
   z.object({
     id: z.string(), date: isoDate, kind: z.literal("delivery"), label_code: z.string(),
     product_id: z.string(), supplier_id: z.string(), order_id: z.string(), qty: z.number(),
+    /** true once the order arrived (actual delivery date known); absent in older mocks. */
+    delivered: z.boolean().optional(),
   }),
   z.object({
     id: z.string(), date: isoDate, kind: z.literal("strategy"), strategy_id: z.string(),
@@ -319,6 +327,8 @@ export const calendarEventSchema = z.discriminatedUnion("kind", [
     qty: z.number().optional(),
     order_id: z.string().optional(),
     expected_delivery_date: isoDate.optional(),
+    /** Set when the late order already arrived; null/absent while it is still pending. */
+    actual_delivery_date: isoDate.nullable().optional(),
     delay_days: z.number().optional(),
   }),
 ]);
@@ -403,6 +413,23 @@ export const strategySchema = z.object({
     })
     .nullable(),
   requires_approval: z.boolean(),
+});
+
+/** One point of the discount curve: the whole result if the discount were `discount_pct` (0..max, step 0.01). */
+export const discountPointSchema = z.object({
+  discount_pct: fraction,
+  treated: scenario,
+  expected_units_increment: z.number(),
+  expected_sales_increment: money,
+  expected_margin_increment: money,
+  expected_waste_reduction: money,
+  confidence_interval: ci,
+});
+
+/** GET /drafts/{id}: the strategy plus the curve that drives the discount slider (no money math in the client). */
+export const strategyDetailSchema = strategySchema.extend({
+  optimal_discount_pct: fraction,
+  discount_curve: z.array(discountPointSchema),
 });
 
 export const portfolioSchema = z.object({

@@ -99,6 +99,7 @@ export const routes: MockRoute[] = [
       const to = query.to || addDays(from, 14);
       let list = suggestionsFor(d, rows, sentOrdersByKey()).filter((s) => s.expected_delivery_date >= from && s.order_date <= to);
       if (isTrue(query.urgent_only)) list = list.filter((s) => s.is_urgent);
+      if (query.product_id) list = list.filter((s) => s.product_id === query.product_id);
       return paginate(list, query);
     },
   },

@@ -57,3 +57,21 @@ El panel lateral SHALL listar productos por demanda en alza o en baja con búsqu
 #### Scenario: Lista larga
 - **WHEN** hay 120 productos
 - **THEN** la lista muestra los primeros resultados y permite buscar o cargar más
+
+### Requirement: Dos secciones separadas con una tienda elegida
+Con una tienda seleccionada el dashboard SHALL mostrar dos secciones distintas: "Promociones para reducir pérdidas y aumentar utilidades" (las mejores tres promociones del plan) y "Comportamientos de compra detectados" (picos de demanda, riesgo de merma y ventas cruzadas observadas). Una no SHALL repetir el contenido de la otra.
+
+#### Scenario: Secciones distintas
+- **WHEN** hay una tienda elegida
+- **THEN** las promociones aparecen en su sección y los comportamientos en la suya, con encabezados propios
+
+### Requirement: Cada comportamiento termina en una acción
+Cada comportamiento SHALL describirse en una frase corta y ofrecer una acción concreta: un riesgo de merma abre la promoción de rescate del plan cuando existe; un pico de demanda abre el restock o el calendario del producto; una venta cruzada observada abre la promoción de combo cuando existe. Un comportamiento sin promoción asociada MUST NOT mostrar un botón de promoción.
+
+#### Scenario: Merma con promoción
+- **WHEN** un comportamiento de merma tiene una promoción de rescate en el plan
+- **THEN** la tarjeta muestra "Ver promoción" y abre su detalle
+
+#### Scenario: Pico de demanda
+- **WHEN** el comportamiento es un pico de demanda
+- **THEN** la tarjeta muestra una acción hacia el restock del producto

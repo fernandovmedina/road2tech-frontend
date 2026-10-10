@@ -22,7 +22,8 @@ export const formatNumber = (v: number) => number.format(Math.round(v));
 export const formatDecimal = (v: number) => decimal.format(v);
 export const formatPct = (v: number, digits = 0) => `${(v * 100).toFixed(digits)}%`;
 export const formatSignedPct = (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`;
-export const formatSignedMoney = (v: number) => `${v >= 0 ? "+" : "−"}${formatMoney(Math.abs(v))}`;
+export const formatSignedMoney = (v: number) =>
+  Math.round(v) === 0 ? formatMoney(0) : `${v > 0 ? "+" : "−"}${formatMoney(Math.abs(v))}`;
 
 export const parseIso = (iso: string) => new Date(`${iso}T12:00:00`);
 export const toIso = (d: Date) =>

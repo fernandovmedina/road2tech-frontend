@@ -1,5 +1,5 @@
 import { copy } from "@/lib/copy";
-import { formatDecimal, formatMoney, formatPct, formatRate } from "@/lib/format";
+import { formatDate, formatDecimal, formatMoney, formatPct, formatRate } from "@/lib/format";
 import type { Tone } from "@/components/ui/Badge";
 import type { Strategy, StrategyStatus } from "@/types";
 
@@ -45,4 +45,46 @@ const timestamp = new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "sho
 export function formatTimestamp(iso: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? iso : timestamp.format(d);
+}
+
+export type RiskLevel = "low" | "medium" | "high";
+
+/** Presentation label only (thresholds for the words Bajo / Medio / Alto); the risk itself comes from the backend. */
+export function riskLevel(risk: number): RiskLevel {
+  if (risk < 0.15) return "low";
+  if (risk < 0.4) return "medium";
+  return "high";
+}
+
+export const riskTone: Record<RiskLevel, string> = {
+  low: "text-primary",
+  medium: "text-[#8A5A00]",
+  high: "text-alert-dark",
+};
+
+/** A strategy the engine could not recommend: it broke a business limit, so it carries no gain figures. */
+export const isBlockedByConstraint = (s: Strategy): boolean => !s.constraints.satisfied || s.constraints.violations.length > 0;
+
+/** One plain sentence on why a strategy is not recommended ("No se recomienda: se agotaría el stock"). */
+export function notRecommendedText(s: Strategy): string {
+  const N = copy.strategy.promo.notRecommended;
+  const known: Record<string, string> = N.codes;
+  for (const v of s.constraints.violations) if (known[v.code]) return known[v.code];
+  if (isBlockedByConstraint(s)) return N.fallback;
+  return s.status === "expired" ? N.expired : N.discarded;
+}
+
+/**
+ * One readable line: "Yogurt: −10% del 2 oct al 5 oct" or "Pan + Leche: −10% en Leche, del 2 oct al 5 oct".
+ * Falls back to the backend title until the catalog (product names) has loaded.
+ */
+export function promoTitle(s: Strategy, nameOf: (id: string) => string, catalogReady: boolean): string {
+  if (!catalogReady) return s.title;
+  const P = copy.strategy.promo;
+  const discount = discountLabel(s.proposed_discount_pct);
+  const dates = P.dates(formatDate(s.period.start_date), formatDate(s.period.end_date));
+  if (s.anchor_product_id) {
+    return `${P.comboTitle(nameOf(s.anchor_product_id), nameOf(s.promoted_product_id), discount)}, ${dates}`;
+  }
+  return `${P.title(nameOf(s.promoted_product_id), discount)} ${dates}`;
 }

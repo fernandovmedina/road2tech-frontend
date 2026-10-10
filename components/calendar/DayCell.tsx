@@ -3,7 +3,7 @@ import { formatDateLong } from "@/lib/format";
 import type { CalendarContext } from "@/types";
 import type { GridDay } from "./calendarMath";
 import { describeContext } from "./contextInfo";
-import { kindChip, type DescribedEvent } from "./eventPresentation";
+import { categoryChip, type DescribedEvent } from "./eventPresentation";
 
 const C = copy.calendar;
 const MAX_CHIPS = 3;
@@ -72,7 +72,7 @@ export function DayCell({
           type="button"
           onClick={() => onSelect(day.iso)}
           title={d.label}
-          className={`min-h-6 truncate rounded-md border px-1.5 py-0.5 text-left text-[11px] font-semibold ${kindChip[d.kind]} ${
+          className={`min-h-6 truncate rounded-md border px-1.5 py-0.5 text-left text-[11px] font-semibold ${categoryChip[d.category]} ${
             focusProductId && d.productId === focusProductId ? "ring-2 ring-foreground" : ""
           }`}
         >

@@ -1,7 +1,8 @@
-import type { Strategy, StrategyDriver, StrategyType } from "@/types";
+import type { DiscountPoint, Strategy, StrategyDriver, StrategyType } from "@/types";
 import { t } from "@/lib/labels";
 import { hash01 } from "../db";
 import type { RawProduct, RawStore, StockRow } from "../db";
+import { getState } from "../store";
 import { campaignStat, type Ctx } from "./context";
 import {
   addDays, clamp, datesBetween, diffDays, dm, hashId, mxn, n1, pct0, pct1, r1, r2, rangeLabel,
@@ -298,7 +299,8 @@ export function evaluateSpec(ctx: Ctx, spec: Spec, createdAt: string, status: St
   const baseline: Scn = viable ? base : baseRelaxed;
   const violations = viable ? [] : violationsAt(prep, dStar, scenario(prep, dStar, true));
   if (!viable && violations.length === 0) return null; // would have been viable; numerical edge
-  const strategy = buildStrategy(ctx, prep, d, baseline, treated, violations, createdAt, viable ? status : "rejected");
+  const strategy = buildStrategy(prep, d, baseline, treated, violations, createdAt, viable ? status : "rejected");
+  register(strategy.draft_id, { spec, createdAt, relaxed: !viable, optimal: d });
   return { spec, outcome: viable ? "viable" : "rejected", discount: d, impact: strategy.expected_margin_increment, strategy };
 }
 
@@ -313,66 +315,87 @@ function strip(d: Detail): Scn {
   };
 }
 
+/** Scenario as published: the margin is net of the waste cost, so treated.margin - baseline.margin = expected_margin_increment. */
+const published = (s: Scn): Scn => ({
+  units: s.units, net_revenue: s.net_revenue, margin: r2(netOf(s)),
+  waste_units: s.waste_units, waste_cost: s.waste_cost, stockout_risk: s.stockout_risk,
+});
+
 function titleOf(prep: Prep): string {
   const { spec, p, a } = prep;
   if (spec.type === "affinity_combo") return `Combo ${productLabel(a!)} + ${productLabel(p)}`;
-  if (spec.type === "rescue_bundle") return `Rescate de ${productLabel(p)} con ${productLabel(a!)}`;
+  if (spec.type === "rescue_bundle") return `${productLabel(p)}: rescate con ${productLabel(a!)}`;
   return `Oferta de ${productLabel(p)}${spec.titleHint ? ` ${spec.titleHint}` : ""}`;
 }
 
+type Figures = {
+  incMargin: number; incUnits: number; incSales: number; wasteRed: number;
+  ci: { low: number; high: number; level: number };
+};
+
+/** Increments and confidence interval of a treated scenario against the baseline (same math for a strategy and a curve point). */
+function figures(prep: Prep, baseline: Scn, treated: Scn): Figures {
+  const incMargin = r2(r2(netOf(treated)) - r2(netOf(baseline)));
+  const u = clamp(prep.cv, 0.18, 0.4) * (0.85 + 0.3 * hash01(`${prep.spec.storeId}|${prep.spec.key}|ci`));
+  const lo = r2(incMargin * (1 - 1.28 * u));
+  const hi = r2(incMargin * (1 + 1.28 * u));
+  return {
+    incMargin,
+    incUnits: r1(treated.units - baseline.units),
+    incSales: r2(treated.net_revenue - baseline.net_revenue),
+    wasteRed: r2(baseline.waste_cost - treated.waste_cost),
+    ci: { low: Math.min(lo, hi), high: Math.max(lo, hi), level: 0.8 },
+  };
+}
+
+const clip = (s: string, max: number) => (s.length <= max ? s : `${s.slice(0, max - 1).replace(/[\s,;:(]+\S*$/, "")}…`);
+const cap1 = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+const BLOCKER_ES: Record<string, string> = {
+  max_discount: "supera el descuento máximo permitido",
+  min_margin: "deja menos margen del mínimo",
+  budget: "excede el presupuesto de descuentos",
+  stock_available: "no alcanza el stock",
+  stockout_risk: "hay mucho riesgo de quedarte sin stock",
+};
+
 function buildStrategy(
-  ctx: Ctx, prep: Prep, d: number, baseline: Scn, treatedD: Detail, violations: Violation[], createdAt: string,
+  prep: Prep, d: number, baseline: Scn, treatedD: Detail, violations: Violation[], createdAt: string,
   status: Strategy["status"],
 ): Strategy {
   const { spec, p, a } = prep;
   const treated = strip(treatedD);
-  const incMargin = r2(netOf(treated) - netOf(baseline));
-  const incUnits = r1(treated.units - baseline.units);
-  const incSales = r2(treated.net_revenue - baseline.net_revenue);
-  const wasteRed = r2(baseline.waste_cost - treated.waste_cost);
-  const u = clamp(prep.cv, 0.18, 0.4) * (0.85 + 0.3 * hash01(`${spec.storeId}|${spec.key}|ci`));
-  const lo = r2(incMargin * (1 - 1.28 * u));
-  const hi = r2(incMargin * (1 + 1.28 * u));
+  const { incMargin, incUnits, incSales, wasteRed, ci } = figures(prep, baseline, treated);
 
   const lift = pct0(prep.liftObserved);
   const refDisc = pct0(prep.dRef);
   const dailyP = n1(prep.dailyP);
-  let explanation: string;
+  const extra = n1(Math.max(0, incUnits));
+  const gainTxt = `Con ${pct0(d)} de descuento se venderían ${extra} unidades más y ganarías ${mxn(incMargin)} extra.`;
+  const campaigns = `Campañas anteriores: +${lift} de ventas con ${refDisc} de descuento.`;
+  const wasteNote = "La ganancia extra ya descuenta la merma.";
+  let intro: string;
+  let result: string;
   const assumptions: string[] = [];
   if (spec.type === "affinity_combo" && spec.pair) {
-    explanation =
-      `En esta tienda ${productLabel(a!)} y ${productLabel(p)} comparten ${spec.pair.tickets} tickets (${n1(spec.pair.pctTickets)} % de los tickets del mes, ` +
-      `${n1(spec.pair.lift)} veces más de lo esperado al azar). Las campañas anteriores con grupo de control movieron ${lift} más unidades con ${refDisc} de descuento; ` +
-      `con ${pct0(d)} en ${productLabel(p)} se esperan ${n1(Math.max(0, incUnits))} unidades adicionales y ${mxn(incMargin)} de margen incremental del ${dm(spec.start)} al ${dm(spec.end)}.`;
-    assumptions.push(
-      `Afinidad observada: ${spec.pair.tickets} tickets con ambos productos en los últimos 30 días (lift ${n1(spec.pair.lift)}×).`,
-      `Elasticidad tomada de ${campaignN(ctx, spec)} campañas reales con tratamiento y control: +${lift} de unidades con ${refDisc} de descuento.`,
-    );
+    intro = `${productLabel(a!)} y ${productLabel(p)} se compran juntos (${n1(spec.pair.lift)} veces más de lo normal).`;
+    result = gainTxt;
+    assumptions.push(`Se compraron juntos en ${spec.pair.tickets} tickets de los últimos 30 días.`, campaigns, wasteNote);
   } else if (spec.type === "rescue_bundle") {
-    const wu0 = n1(baseline.waste_units);
-    explanation =
-      `${productLabel(p)} caduca el ${dm(prep.pRow.earliest_expiry ?? spec.end)} y hay ${prep.pRow.quantity} piezas con una demanda de ${dailyP} al día: ` +
-      `sin acción se esperan ${wu0} piezas de merma (${mxn(baseline.waste_cost)}). Atarlo a ${productLabel(a!)}, de alta rotación (${n1(prep.dailyA)} al día), ` +
-      `con ${pct0(d)} de descuento mueve ${n1(Math.max(0, incUnits))} unidades más y evita ${mxn(Math.max(0, wasteRed))} de merma.`;
-    assumptions.push(
-      `La merma se calcula con la caducidad más próxima (${dm(prep.pRow.earliest_expiry ?? spec.end)}) y la demanda diaria pronosticada.`,
-      `Elasticidad tomada de ${campaignN(ctx, spec)} campañas de rescate con control: +${lift} de unidades con ${refDisc} de descuento.`,
-    );
+    const expiry = dm(prep.pRow.earliest_expiry ?? spec.end);
+    intro = `${productLabel(p)} caduca el ${expiry}: sin acción se perderían ${n1(baseline.waste_units)} de ${prep.pRow.quantity} piezas (${mxn(baseline.waste_cost)}).`;
+    result = `Con ${pct0(d)} de descuento junto a ${productLabel(a!)} se venden ${extra} más y se evitan ${mxn(Math.max(0, wasteRed))} de merma.`;
+    assumptions.push(`Caduca el ${expiry} y se venden unas ${dailyP} piezas al día.`, campaigns, wasteNote);
   } else {
-    explanation =
-      `${spec.notes.join("; ")}. Con ${pct0(d)} de descuento en ${productLabel(p)} se esperan ${n1(Math.max(0, incUnits))} unidades adicionales ` +
-      `y ${mxn(incMargin)} de margen incremental del ${dm(spec.start)} al ${dm(spec.end)} (campañas previas con control: +${lift} de unidades).`;
-    assumptions.push(
-      `Contexto del calendario: ${spec.notes.join("; ")}.`,
-      `Elasticidad tomada de ${campaignN(ctx, spec)} campañas reales contextuales con control: +${lift} de unidades con ${refDisc} de descuento.`,
-    );
+    intro = `${cap1(spec.notes.join(", "))}.`;
+    result = gainTxt;
+    assumptions.push(`Demanda base: ${dailyP} piezas al día, ajustada por calendario y clima.`, campaigns, wasteNote);
   }
-  assumptions.push(
-    `Demanda base de la tienda: ${dailyP} u/día (pronóstico del modelo) ajustada por calendario y clima.`,
-    "El margen incremental ya descuenta el costo de la merma.",
-  );
-  if (status === "rejected")
-    explanation += ` No se puede ejecutar: ${violations.map((v) => v.message.replace(/\.$/, "")).join("; ")}.`;
+  const blockers = [...new Set(violations.map((v) => BLOCKER_ES[v.code] ?? v.message.replace(/\.$/, "")))].join(" y ");
+  const explanation =
+    status === "rejected" && violations.length
+      ? clip(`${intro.replace(/\.$/, "")}, pero no se puede ejecutar: ${blockers}.`, 220)
+      : clip(`${intro} ${result}`, 220);
 
   return {
     draft_id: `dr_${spec.storeId}_${hashId(`${spec.key}|${spec.start}|${spec.end}`)}`,
@@ -392,14 +415,13 @@ function buildStrategy(
       violations,
     },
     assumptions,
-    // Published margins are net of waste cost, so treated.margin - baseline.margin equals expected_margin_increment.
-    baseline: { ...baseline, margin: r2(netOf(baseline)) },
-    treated: { ...treated, margin: r2(netOf(treated)) },
+    baseline: published(baseline),
+    treated: published(treated),
     expected_units_increment: incUnits,
     expected_sales_increment: incSales,
     expected_margin_increment: incMargin,
     expected_waste_reduction: wasteRed,
-    confidence_interval: { low: Math.min(lo, hi), high: Math.max(lo, hi), level: 0.8 },
+    confidence_interval: ci,
     explanation,
     drivers: spec.drivers,
     created_at: createdAt,
@@ -409,7 +431,95 @@ function buildStrategy(
   };
 }
 
-const campaignN = (ctx: Ctx, spec: Spec) => Math.max(campaignStat(ctx, spec.type, spec.promotedId).n, ctx.campaignByType.get(spec.type)?.n ?? 0);
+/* ---------- registry, discount curve and re-simulation ---------- */
+
+/** What is needed to re-run the engine for an existing draft at another discount. */
+type Registered = {
+  spec: Spec;
+  createdAt: string;
+  /** Rejected by a constraint: its numbers come from the unconstrained scenario (unlimited stock). */
+  relaxed: boolean;
+  /** Discount the engine published at origin (before any user override). */
+  optimal: number;
+};
+
+const registry = new Map<string, Registered>();
+
+function register(draftId: string, r: Registered) {
+  registry.set(draftId, r);
+}
+
+/** Registered draft; chat drafts survive a page reload through the session state (`chatSpecs`). */
+export function registeredOf(draftId: string): Registered | undefined {
+  const mem = registry.get(draftId);
+  if (mem) return mem;
+  const saved = getState().chatSpecs[draftId];
+  if (!saved || typeof saved !== "object") return undefined;
+  const r = saved as Registered;
+  registry.set(draftId, r);
+  return r;
+}
+
+export const MAX_DISCOUNT_CAP = 0.4;
+
+/** Highest discount a user may choose for a draft (fraction): its constraint cap, never above 40 %. */
+export function maxDiscountOf(s: Strategy): number {
+  const m = s.constraints.max_discount_pct;
+  return Math.min(MAX_DISCOUNT_CAP, m === null ? MAX_DISCOUNT_CAP : m);
+}
+
+/** Same strategy re-simulated at discount `d` (status, approval date and measurement are kept). Null if it cannot be re-run. */
+export function resimulate(ctx: Ctx, s: Strategy, d: number): Strategy | null {
+  const reg = registeredOf(s.draft_id);
+  if (!reg || reg.relaxed) return null;
+  const prep = prepare(ctx, reg.spec);
+  if (!prep) return null;
+  const treated = scenario(prep, d, true);
+  const rebuilt = buildStrategy(prep, d, scenario(prep, 0, true), treated, violationsAt(prep, d, treated), reg.createdAt, "selected");
+  return { ...rebuilt, status: s.status, approved_at: s.approved_at, created_at: s.created_at, measurement: s.measurement };
+}
+
+/**
+ * Optimal discount and the full curve (one point per 1 % from 0 to the draft's maximum) of a draft. Every point is
+ * computed with the same scenario math as the strategy itself, so the point of the current discount matches it exactly.
+ * Strategies rejected by a constraint use the unconstrained scenario and extend the curve up to their own discount.
+ */
+export function discountCurve(ctx: Ctx, s: Strategy): { optimal: number; points: DiscountPoint[] } | null {
+  const reg = registeredOf(s.draft_id);
+  if (!reg) return null;
+  const prep = prepare(ctx, reg.spec);
+  if (!prep) return null;
+  const capStock = !reg.relaxed;
+  const baseline = strip(scenario(prep, 0, capStock));
+  let top = Math.min(MAX_DISCOUNT_CAP, prep.caps.max);
+  if (reg.relaxed) top = Math.max(top, Math.min(MAX_DISCOUNT_CAP, reg.optimal));
+  const steps = Math.round(top * 100);
+  const points: DiscountPoint[] = [];
+  for (let i = 0; i <= steps; i++) {
+    const d = i / 100;
+    const detail = scenario(prep, d, capStock);
+    // The slider only offers discounts the engine would accept: stop at the first one that breaks a constraint,
+    // so no point of the curve earns more than the published optimum by silently violating a limit.
+    if (!reg.relaxed && i > 0 && violationsAt(prep, d, detail).length > 0) break;
+    const treated = strip(detail);
+    const f = figures(prep, baseline, treated);
+    points.push({
+      discount_pct: d,
+      treated: published(treated),
+      expected_units_increment: f.incUnits,
+      expected_sales_increment: f.incSales,
+      expected_margin_increment: f.incMargin,
+      expected_waste_reduction: f.wasteRed,
+      confidence_interval: f.ci,
+    });
+  }
+  return { optimal: reg.optimal, points };
+}
+
+/** Plain-JSON snapshot of a registered draft (stored with chat drafts so they can be re-simulated after a reload). */
+export function exportRegistered(draftId: string): Registered | undefined {
+  return registry.get(draftId);
+}
 
 /* ---------- candidate generation ---------- */
 

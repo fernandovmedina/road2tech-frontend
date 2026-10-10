@@ -14,22 +14,37 @@ import { discountLabel, intervalText } from "./strategyFormat";
 import type { Strategy, StrategyAction } from "@/types";
 
 const A = copy.strategy.actions;
+const Q = copy.product.accept;
 const linkClass =
   "inline-flex min-h-11 items-center rounded-[10px] border border-line bg-white px-4 text-sm font-semibold hover:bg-background";
 
+/** Figures the confirmation dialog shows when they differ from the strategy's own (e.g. the discount chosen on a slider). */
+type Estimate = { marginIncrement: number; interval: Strategy["confidence_interval"] };
+
 /**
  * Lifecycle actions for one strategy. The backend decides every transition; this only enables the buttons that make
- * sense for the current status. Approving always asks for confirmation first. `onChanged` receives the updated
+ * sense for the current status. Accepting always asks for confirmation first. `onChanged` receives the updated
  * strategy returned by the backend.
+ *
+ * - `discountPct` (fraction): discount chosen by the user; it is sent when adding to the plan or approving.
+ * - `estimate`: the gain/range for that discount, shown in the confirmation dialog.
+ * - `variant="promo"` (promotion detail): one "Aceptar promoción" button that, from a draft, adds it to the plan and
+ *   approves it after a single confirmation; otherwise the plan lifecycle buttons are used.
  */
 export function StrategyActions({
   strategy,
   onChanged,
   showDetailLink = true,
+  discountPct,
+  estimate,
+  variant = "plan",
 }: {
   strategy: Strategy;
   onChanged?: (next: Strategy) => void;
   showDetailLink?: boolean;
+  discountPct?: number;
+  estimate?: Estimate;
+  variant?: "plan" | "promo";
 }) {
   const add = useAddToPlan();
   const approve = useApproveStrategy();
@@ -40,6 +55,8 @@ export function StrategyActions({
   const [error, setError] = useState<string | null>(null);
   const busy = add.isPending || approve.isPending || reject.isPending;
   const id = strategy.draft_id;
+  const promo = variant === "promo";
+  const arg = discountPct === undefined ? id : { draftId: id, discountPct };
 
   const done = (result: StrategyAction, message: string) => {
     setError(null);
@@ -53,30 +70,42 @@ export function StrategyActions({
     void plan.refetch();
   };
 
-  const onAdd = () => add.mutate(id, { onSuccess: (r) => done(r, A.addedToast), onError: fail });
+  const onAdd = () => add.mutate(arg, { onSuccess: (r) => done(r, A.addedToast), onError: fail });
   const onReject = (message: string) => reject.mutate(id, { onSuccess: (r) => done(r, message), onError: fail });
-  const onApprove = () =>
-    approve.mutate(id, {
-      onSuccess: (r) => {
-        setConfirming(false);
-        done(r, A.approvedToast);
-      },
-      onError: fail,
-    });
+  const onApprove = async () => {
+    try {
+      // A draft first goes into the plan (same chosen discount), then it is approved: two valid backend transitions.
+      if (promo && strategy.status === "draft") onChanged?.((await add.mutateAsync(arg)).strategy);
+      const result = await approve.mutateAsync(arg);
+      setConfirming(false);
+      done(result, promo ? Q.toast : A.approvedToast);
+    } catch (e) {
+      fail(e);
+    }
+  };
 
   const { status } = strategy;
   const changeable = status === "draft" || status === "selected";
+  const shownDiscount = discountPct ?? strategy.proposed_discount_pct;
+  const shown = estimate ?? { marginIncrement: strategy.expected_margin_increment, interval: strategy.confidence_interval };
+  const acting = add.isPending || approve.isPending;
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
-        {status === "draft" && (
+        {promo && changeable && (
+          <>
+            <Button onClick={() => setConfirming(true)} disabled={busy}>{Q.button}</Button>
+            <Button variant="secondary" onClick={() => onReject(Q.discardedToast)} disabled={busy}>{A.discard}</Button>
+          </>
+        )}
+        {!promo && status === "draft" && (
           <>
             <Button onClick={onAdd} disabled={busy}>{add.isPending ? A.working : A.addToPlan}</Button>
             <Button variant="secondary" onClick={() => onReject(A.discardedToast)} disabled={busy}>{A.discard}</Button>
           </>
         )}
-        {status === "selected" && (
+        {!promo && status === "selected" && (
           <>
             <Button onClick={() => setConfirming(true)} disabled={busy}>{A.approve}</Button>
             <Button variant="secondary" onClick={() => onReject(A.rejectedToast)} disabled={busy}>{A.reject}</Button>
@@ -99,7 +128,7 @@ export function StrategyActions({
         </Link>
       </div>
       {!changeable && (status === "approved" || status === "scheduled" || status === "active") && (
-        <p className="text-xs text-muted">{A.locked}</p>
+        <p className="text-xs text-muted">{promo ? Q.locked : A.locked}</p>
       )}
       {error && (
         <p role="alert" className="rounded-[10px] bg-alert-tint px-3 py-2 text-sm font-medium text-alert-dark">{error}</p>
@@ -108,30 +137,39 @@ export function StrategyActions({
       <Modal
         open={confirming}
         onClose={() => setConfirming(false)}
-        title={copy.strategy.approveDialog.title}
+        title={promo ? Q.dialogTitle : copy.strategy.approveDialog.title}
         width="max-w-md"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setConfirming(false)} disabled={approve.isPending}>{copy.common.cancel}</Button>
-            <Button onClick={onApprove} disabled={approve.isPending}>
-              {approve.isPending ? A.working : copy.strategy.approveDialog.confirm}
+            <Button variant="secondary" onClick={() => setConfirming(false)} disabled={acting}>{copy.common.cancel}</Button>
+            <Button onClick={() => void onApprove()} disabled={acting}>
+              {acting ? A.working : promo ? Q.confirm : copy.strategy.approveDialog.confirm}
             </Button>
           </>
         }
       >
         <p className="text-sm font-bold">{strategy.title}</p>
         <p className="mt-2 text-sm leading-relaxed">
-          {copy.strategy.approveDialog.text(
-            discountLabel(strategy.proposed_discount_pct),
+          {(promo ? Q.dialogText : copy.strategy.approveDialog.text)(
+            discountLabel(shownDiscount),
             formatDate(strategy.period.start_date),
             formatDate(strategy.period.end_date),
           )}
         </p>
         <p className="mt-3 text-sm">
-          <span className="font-bold text-primary">≈ {formatSignedMoney(strategy.expected_margin_increment)}</span>{" "}
-          <span className="text-muted">{copy.strategy.approveDialog.estimate} · {intervalText(strategy.confidence_interval)}</span>
+          {promo ? (
+            <>
+              <span className="text-muted">{Q.gain} </span>
+              <span className="font-bold text-primary">{formatSignedMoney(shown.marginIncrement)}</span>
+            </>
+          ) : (
+            <>
+              <span className="font-bold text-primary">≈ {formatSignedMoney(shown.marginIncrement)}</span>{" "}
+              <span className="text-muted">{copy.strategy.approveDialog.estimate} · {intervalText(shown.interval)}</span>
+            </>
+          )}
         </p>
-        <p className="mt-3 text-xs text-muted">{copy.strategy.approveDialog.note}</p>
+        <p className="mt-3 text-xs text-muted">{promo ? Q.note : copy.strategy.approveDialog.note}</p>
       </Modal>
     </div>
   );

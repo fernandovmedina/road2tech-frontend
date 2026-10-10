@@ -1,103 +1,87 @@
 "use client";
 
-import { useId, type ReactNode } from "react";
-import { useCatalog, useStore } from "@/lib/api/hooks";
-import { displayBranchName } from "@/lib/branding";
+import Link from "next/link";
+import { useId } from "react";
+import { useCatalog } from "@/lib/api/hooks";
 import { copy } from "@/lib/copy";
-import { formatDate, formatMoney, formatPct, formatSignedMoney } from "@/lib/format";
+import { formatMoney, formatSignedMoney } from "@/lib/format";
 import { t } from "@/lib/labels";
+import { productHref } from "@/lib/links";
 import { Badge } from "@/components/ui/Badge";
-import { ConstraintsList } from "./ConstraintsList";
+import { HowCalculated } from "./HowCalculated";
 import { MeasurementResult } from "./MeasurementResult";
-import { StatusTimeline } from "./StatusTimeline";
 import { StrategyActions } from "./StrategyActions";
-import { discountLabel, intervalText, signedUnits, statusTone } from "./strategyFormat";
+import { isBlockedByConstraint, notRecommendedText, promoTitle, riskLevel, riskTone, signedUnits, statusTone } from "./strategyFormat";
 import { useLiveStrategy } from "./useLiveStrategy";
 import type { Strategy } from "@/types";
 
-const S = copy.strategy;
+const P = copy.strategy.promo;
 
-function Metric({ label, value, hint, emphasis = false }: { label: string; value: string; hint?: ReactNode; emphasis?: boolean }) {
+function Figure({ label, value, valueClass = "" }: { label: string; value: string; valueClass?: string }) {
   return (
-    <div className={`rounded-[10px] p-3 ${emphasis ? "bg-primary-tint" : "bg-background"}`}>
-      <dt className="text-xs font-semibold text-muted">{label}</dt>
-      <dd className={`mt-0.5 text-lg font-extrabold tabular-nums ${emphasis ? "text-primary" : ""}`}>{value}</dd>
-      {hint && <dd className="mt-0.5 text-xs text-muted">{hint}</dd>}
+    <div className="min-w-0">
+      <dt className="text-xs font-semibold leading-tight text-muted">{label}</dt>
+      <dd className={`mt-1 text-xl font-extrabold leading-tight tabular-nums ${valueClass}`}>{value}</dd>
     </div>
   );
 }
 
 /**
- * One strategy of the commercial plan: what is proposed, what it is expected to do (always as an estimate with its
- * range), why, which limits were considered, where it is in its lifecycle and what the user can do next.
+ * One promotion of the plan, as a simple card: what is promoted (one line), three everyday figures, one main action.
+ * The technical side (range, assumptions, limits, lifecycle) lives in the folded "¿Cómo se calculó?".
  */
 export function StrategyCard({ strategy, showDetailLink = true }: { strategy: Strategy; showDetailLink?: boolean }) {
   const [current, update] = useLiveStrategy(strategy);
   const s = current ?? strategy;
   const headingId = useId();
-  const { nameOf } = useCatalog();
-  const store = useStore(s.store_id);
+  const { nameOf, byId } = useCatalog();
+  const blocked = isBlockedByConstraint(s);
+  const risk = riskLevel(s.treated.stockout_risk);
+  const savesWaste = s.expected_waste_reduction > 0;
 
   return (
     <article aria-labelledby={headingId} className="flex flex-col gap-4 rounded-2xl border border-line bg-white p-5">
       <header className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge tone="orange">{t("strategyType", s.strategy_type)}</Badge>
+          <Badge tone="orange">{P.types[s.strategy_type]}</Badge>
           <Badge tone={statusTone[s.status]}>{t("strategyStatus", s.status)}</Badge>
         </div>
-        <h3 id={headingId} className="text-base font-extrabold leading-snug">{s.title}</h3>
-        <dl className="flex flex-col gap-1 text-sm text-muted">
-          {s.anchor_product_id && (
-            <div className="flex flex-wrap gap-x-2">
-              <dt className="font-semibold">{S.products.anchor}</dt>
-              <dd className="text-foreground">{nameOf(s.anchor_product_id)}</dd>
-            </div>
-          )}
-          <div className="flex flex-wrap gap-x-2">
-            <dt className="font-semibold">{s.anchor_product_id ? S.products.promoted : S.products.single}</dt>
-            <dd className="text-foreground">{nameOf(s.promoted_product_id)}</dd>
-          </div>
-          {store && (
-            <div className="flex flex-wrap gap-x-2">
-              <dt className="font-semibold">{copy.common.branch}</dt>
-              <dd className="text-foreground">{displayBranchName(store)}</dd>
-            </div>
-          )}
-          <div className="flex flex-wrap gap-x-2">
-            <dt className="font-semibold">{S.validity}</dt>
-            <dd className="text-foreground">{formatDate(s.period.start_date)} – {formatDate(s.period.end_date)}</dd>
-          </div>
-        </dl>
+        <h3 id={headingId} className="line-clamp-2 text-base font-extrabold leading-snug">
+          {promoTitle(s, nameOf, byId.has(s.promoted_product_id))}
+        </h3>
       </header>
 
-      <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        <Metric label={S.metrics.discount} value={discountLabel(s.proposed_discount_pct)} />
-        <Metric label={S.metrics.units} value={signedUnits(s.expected_units_increment)} />
-        <Metric label={S.metrics.revenue} value={formatSignedMoney(s.expected_sales_increment)} />
-        <Metric
-          label={S.metrics.margin}
-          value={`≈ ${formatSignedMoney(s.expected_margin_increment)}`}
-          hint={intervalText(s.confidence_interval)}
-          emphasis
-        />
-        <Metric label={S.metrics.waste} value={formatMoney(s.expected_waste_reduction)} />
-        <Metric
-          label={S.metrics.stockoutRisk}
-          value={formatPct(s.treated.stockout_risk)}
-          hint={S.baselineRisk(formatPct(s.baseline.stockout_risk))}
-        />
-      </dl>
-      <p className="-mt-2 text-xs text-muted">{S.estimateNote}</p>
+      {blocked ? (
+        <p role="note" className="rounded-[10px] border border-alert/30 bg-alert-tint px-3 py-2.5 text-sm font-semibold text-alert-dark">
+          {notRecommendedText(s)}
+        </p>
+      ) : (
+        <dl className="grid grid-cols-3 items-start gap-3 rounded-xl bg-background p-3">
+          <Figure label={P.gain} value={formatSignedMoney(s.expected_margin_increment)} valueClass="text-primary" />
+          {savesWaste ? (
+            <Figure label={P.waste} value={formatMoney(s.expected_waste_reduction)} />
+          ) : (
+            <Figure label={P.extraUnits} value={signedUnits(s.expected_units_increment)} />
+          )}
+          <Figure label={P.risk} value={P.riskLevels[risk]} valueClass={riskTone[risk]} />
+        </dl>
+      )}
 
-      <p className="text-sm leading-relaxed">{s.explanation}</p>
+      {s.status === "measured" && <MeasurementResult strategy={s} />}
 
-      <ConstraintsList constraints={s.constraints} rejected={s.status === "rejected"} />
-
-      <div className="flex flex-col gap-3 border-t border-line pt-4">
-        <StatusTimeline status={s.status} />
-        {s.status === "measured" && <MeasurementResult strategy={s} />}
-        <StrategyActions strategy={s} onChanged={update} showDetailLink={showDetailLink} />
+      <div className="mt-auto flex flex-col gap-2">
+        {showDetailLink && (
+          <Link
+            href={productHref(s.promoted_product_id, { storeId: s.store_id, strategyId: s.draft_id })}
+            className="inline-flex min-h-11 items-center justify-center rounded-[10px] bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          >
+            {P.viewAnalysis}
+          </Link>
+        )}
+        {!blocked && <StrategyActions strategy={s} onChanged={update} showDetailLink={false} />}
       </div>
+
+      <HowCalculated strategy={s} />
     </article>
   );
 }

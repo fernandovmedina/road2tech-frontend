@@ -1,10 +1,10 @@
 import { strategySchema } from "@/lib/api/schemas";
-import type { Plan, Portfolio, Strategy, StrategyAction, StrategyStatus } from "@/types";
+import type { Plan, Portfolio, Strategy, StrategyAction, StrategyDetail, StrategyStatus } from "@/types";
 import { hash01 } from "../db";
 import { MockHttpError } from "../errors";
 import { getState, mutate } from "../store";
 import { loadCtx, type Ctx } from "./context";
-import { evaluateSpec, evaluateStore, type Evaluated } from "./engine";
+import { discountCurve, evaluateSpec, evaluateStore, exportRegistered, maxDiscountOf, resimulate, type Evaluated } from "./engine";
 import { computePortfolio, isLive } from "./portfolio";
 import { addDays, mxn, r1, r2 } from "./util";
 
@@ -96,7 +96,11 @@ function buildBasePlan(ctx: Ctx, storeId: string, gen: number): BasePlan {
       live[i] = re && re.outcome === "viable" ? stamp(re.strategy, status, daysAgo) : stamp(live[i], status === "active" ? "approved" : status, daysAgo);
     };
     // Prefer non-contextual strategies for the "active" one: their dates are not tied to a weather/weekend window.
-    const order = picked.map((e, i) => i).sort((a, b) => Number(picked[a].spec.type === "contextual_offer") - Number(picked[b].spec.type === "contextual_offer"));
+    // Seed the lowest-impact strategies first so the top of the plan stays "En el plan" and can be tried in the demo.
+    const nonCtx = (i: number) => Number(picked[i].spec.type === "contextual_offer");
+    const idxs = picked.map((_, i) => i);
+    const low = idxs.filter((i) => i >= 3).sort((a, b) => nonCtx(a) - nonCtx(b) || a - b);
+    const order = [...low, ...idxs.filter((i) => i < 3).sort((a, b) => b - a)];
     const [iActive, iSched, iAppr] = order.slice(0, 3);
     rewindow(iActive, addDays(ctx.asOf, -1), addDays(ctx.asOf, 3), "active", 3);
     rewindow(iSched, addDays(ctx.asOf, 3), addDays(ctx.asOf, 6), "scheduled", 1);
@@ -171,8 +175,12 @@ export function parseDraftStore(draftId: string): string | null {
 }
 
 /** Applies this session's status override and the date-derived transitions to a stored strategy. */
-export function effective(ctx: Ctx, s: Strategy): Strategy {
-  const o = getState().strategyStatus[s.draft_id];
+export function effective(ctx: Ctx, raw: Strategy): Strategy {
+  const st = getState();
+  // Discount chosen by the user: the strategy is re-simulated at that discount (baseline unchanged).
+  const chosen = st.strategyDiscount[raw.draft_id];
+  const s = chosen !== undefined && Math.abs(chosen - raw.proposed_discount_pct) > 1e-9 ? (resimulate(ctx, raw, chosen) ?? raw) : raw;
+  const o = st.strategyStatus[s.draft_id];
   let status: StrategyStatus = o?.status ?? s.status;
   const approvedAt = o?.approved_at ?? s.approved_at;
   if (o && status === "approved") status = approvedStatus(ctx, s);
@@ -253,6 +261,8 @@ export async function regeneratePlan(storeId: string): Promise<Plan> {
         delete s.chatDrafts[id]; // chat drafts that were added to the plan leave with the old plan version
       }
     }
+    for (const id of Object.keys(s.strategyDiscount)) if (id.startsWith(prefix)) delete s.strategyDiscount[id];
+    for (const id of Object.keys(s.chatSpecs)) if (id.startsWith(prefix)) delete s.chatSpecs[id];
   });
   return getStorePlan(storeId);
 }
@@ -264,7 +274,17 @@ const STATUS_ES: Record<StrategyStatus, string> = {
   measured: "Medida", expired: "Expirada", rejected: "Rechazada",
 };
 
-export async function applyAction(draftId: string, action: Action): Promise<StrategyAction> {
+const outOfRange = (msg: string) => new MockHttpError(422, "discount_out_of_range", msg);
+
+/** Reads the optional `discount_pct` of the body of add-to-plan / approve (fraction); undefined when absent. */
+export function parseDiscountBody(body: unknown): number | undefined {
+  const raw = body && typeof body === "object" ? (body as { discount_pct?: unknown }).discount_pct : undefined;
+  if (raw === undefined || raw === null) return undefined;
+  if (typeof raw !== "number" || !Number.isFinite(raw)) throw outOfRange("El descuento debe ser un número entre 0 y 1 (por ejemplo, 0.12 para 12 %).");
+  return raw;
+}
+
+export async function applyAction(draftId: string, action: Action, discountPct?: number): Promise<StrategyAction> {
   const storeId = parseDraftStore(draftId);
   if (!storeId) throw new MockHttpError(404, "draft_not_found", `Estrategia desconocida: ${draftId}`);
   const { ctx, all } = await allStrategies(storeId).catch(() => {
@@ -290,10 +310,24 @@ export async function applyAction(draftId: string, action: Action): Promise<Stra
     else if (cur.status === "draft" || cur.status === "selected") next = { status: "rejected" };
     else throw invalid("Solo un borrador o una estrategia en el plan puede rechazarse");
   }
-  if (next) {
+  // Optional discount chosen by the user (only while the strategy can still be edited: draft / in the plan).
+  let chosen: number | undefined;
+  if (discountPct !== undefined && action !== "reject") {
+    const d = Math.round(discountPct * 100) / 100; // the curve has one point per 1 %
+    if (cur.status === "draft" || cur.status === "selected") {
+      const max = maxDiscountOf(cur);
+      if (discountPct < 0 || discountPct > max + 1e-9)
+        throw outOfRange(`El descuento debe estar entre 0 % y ${Math.round(max * 100)} % para esta estrategia (recibido: ${Math.round(discountPct * 1000) / 10} %).`);
+      chosen = d;
+    } else if (Math.abs(d - cur.proposed_discount_pct) > 1e-9) {
+      throw invalid("Esta estrategia ya no admite cambiar el descuento");
+    }
+  }
+  if (next || chosen !== undefined) {
     const n = next;
     mutate((s) => {
-      s.strategyStatus[draftId] = n;
+      if (n) s.strategyStatus[draftId] = n;
+      if (chosen !== undefined) s.strategyDiscount[draftId] = chosen;
     });
   }
   const { all: updated } = await allStrategies(storeId);
@@ -303,8 +337,40 @@ export async function applyAction(draftId: string, action: Action): Promise<Stra
 
 /** Persists a chat draft (status "draft") so add-to-plan / reject can find it later. */
 export function saveChatDraft(strategy: Strategy) {
+  const snapshot = exportRegistered(strategy.draft_id);
   mutate((s) => {
     s.chatDrafts[strategy.draft_id] = strategy;
+    if (snapshot) s.chatSpecs[strategy.draft_id] = snapshot;
   });
+}
+
+/** GET /drafts/{id}: the strategy as it stands (status, chosen discount) plus the engine optimum and the discount curve. */
+export async function getDraftDetail(draftId: string): Promise<StrategyDetail> {
+  const notFound = () => new MockHttpError(404, "draft_not_found", `Estrategia desconocida: ${draftId}`);
+  const storeId = parseDraftStore(draftId);
+  if (!storeId) throw notFound();
+  const { ctx, all } = await allStrategies(storeId).catch(() => {
+    throw notFound();
+  });
+  const strategy = all.find((s) => s.draft_id === draftId);
+  if (!strategy) throw notFound();
+  const curve = discountCurve(ctx, strategy);
+  if (curve) return { ...strategy, optimal_discount_pct: curve.optimal, discount_curve: curve.points };
+  // No engine snapshot (should not happen): a single point with the strategy own numbers.
+  return {
+    ...strategy,
+    optimal_discount_pct: strategy.proposed_discount_pct,
+    discount_curve: [
+      {
+        discount_pct: strategy.proposed_discount_pct,
+        treated: strategy.treated,
+        expected_units_increment: strategy.expected_units_increment,
+        expected_sales_increment: strategy.expected_sales_increment,
+        expected_margin_increment: strategy.expected_margin_increment,
+        expected_waste_reduction: strategy.expected_waste_reduction,
+        confidence_interval: strategy.confidence_interval,
+      },
+    ],
+  };
 }
 

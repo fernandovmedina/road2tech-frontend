@@ -1,90 +1,78 @@
 "use client";
 
-import { useCatalog, useStore, useStorePlan, useTendency } from "@/lib/api/hooks";
+import { useState } from "react";
+import { useCatalog, useStore, useStorePlan, useStrategy, useSuppliers } from "@/lib/api/hooks";
 import { displayBranchName } from "@/lib/branding";
 import { copy } from "@/lib/copy";
-import { formatDate } from "@/lib/format";
 import { t } from "@/lib/labels";
-import { Badge } from "@/components/ui/Badge";
-import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/States";
-import { PageHeader } from "@/components/layout/PageHeader";
-import { ConstraintsList } from "@/components/strategy/ConstraintsList";
-import { MeasurementResult } from "@/components/strategy/MeasurementResult";
-import { StatusTimeline } from "@/components/strategy/StatusTimeline";
-import { StrategyActions } from "@/components/strategy/StrategyActions";
-import { statusTone } from "@/components/strategy/strategyFormat";
 import { useLiveStrategy } from "@/components/strategy/useLiveStrategy";
-import { ProductMetrics } from "./ProductMetrics";
-import { StrategyComparison } from "./StrategyComparison";
-import { StrategyReasons } from "./StrategyReasons";
-import { TrendSection } from "./TrendSection";
+import { ProductContent, type PromoState } from "./ProductContent";
+import { BackLink, ProductHeader } from "./ProductHeader";
 
 const P = copy.product;
 
-/** Product + store detail: metrics, trend, and (when the plan has one for this product) the strategy comparison. */
+/**
+ * Product + store detail. The promotion comes from `?strategy=` or, without it, from the store's plan (the plan entry
+ * whose promoted or anchor product is this one); its discount curve is then fetched with `useStrategy`. The chart and
+ * the four tiles always show; the promotion column and the comparison appear only when there is a promotion.
+ */
 export function ProductBody({ productId, storeId, strategyId }: { productId: string; storeId: string; strategyId?: string }) {
   const catalog = useCatalog();
+  const suppliers = useSuppliers();
   const store = useStore(storeId);
-  const plan = useStorePlan(storeId);
-  const tendency = useTendency(storeId, productId);
 
-  // The requested strategy (?strategy=) or, without it, the plan's strategy for this product.
-  const strategies = plan.data?.strategies;
-  const found =
-    (strategyId ? strategies?.find((s) => s.draft_id === strategyId) : strategies?.find((s) => s.promoted_product_id === productId || s.anchor_product_id === productId)) ?? null;
-  const [live, updateLive] = useLiveStrategy(found);
-  const strategy = live && (!strategyId || live.draft_id === strategyId) ? live : null;
+  // Only look in the plan when the link did not say which promotion to open.
+  const plan = useStorePlan(strategyId ? undefined : storeId);
+  const fromPlan = plan.data?.strategies.find((s) => s.promoted_product_id === productId || s.anchor_product_id === productId);
+  // Remembered once found: a discarded promotion leaves the plan but must stay on screen with its new status.
+  const [foundId, setFoundId] = useState<string | undefined>(undefined);
+  if (!foundId && fromPlan) setFoundId(fromPlan.draft_id);
+  const draftId = strategyId ?? foundId;
+  const detail = useStrategy(draftId);
+  const [strategy, updateStrategy] = useLiveStrategy(detail.data ?? null);
 
   const product = catalog.byId.get(productId);
 
   if (catalog.isError) return <ErrorState onRetry={() => void catalog.refetch()} />;
   if (catalog.isPending) return <Skeleton className="h-96 w-full rounded-2xl" />;
-  if (!product) return <EmptyState title={copy.common.notFoundTitle} text={P.notFound} />;
+  if (!product) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div><BackLink /></div>
+        <EmptyState title={copy.common.notFoundTitle} text={P.notFound} />
+      </div>
+    );
+  }
 
-  const subtitle = P.subtitle(t("category", product.category_id), product.brand, store ? displayBranchName(store) : "");
+  const storeName = store ? displayBranchName(store) : "";
+  const supplierName = suppliers.data?.find((s) => s.supplier_id === product.default_supplier.supplier_id)?.supplier_name ?? "";
+  const current = strategy && strategy.draft_id === draftId ? strategy : null;
+
+  const looking = draftId ? detail.isPending : plan.isPending;
+  const failed = draftId ? detail.isError : plan.isError;
+  const state: PromoState = looking ? "loading" : failed ? "error" : current ? "ready" : "none";
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader title={product.product_name} subtitle={subtitle}>
-        {strategy && <Badge tone={statusTone[strategy.status]}>{t("strategyStatus", strategy.status)}</Badge>}
-      </PageHeader>
-
-      <ProductMetrics product={product} storeId={storeId} forecast={tendency.data?.forecast} />
-      <TrendSection storeId={storeId} productId={productId} strategy={strategy} />
-
-      {plan.isPending && strategyId ? (
-        <Skeleton className="h-72 w-full rounded-2xl" />
-      ) : plan.isError ? (
-        <ErrorState onRetry={() => void plan.refetch()} />
-      ) : strategy ? (
-        <div className="flex flex-col gap-6">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-accent-dark">{P.strategy.kicker}</p>
-            <h2 className="text-xl font-extrabold">{strategy.title}</h2>
-            <p className="text-sm text-muted">
-              {t("strategyType", strategy.strategy_type)} · {formatDate(strategy.period.start_date)} – {formatDate(strategy.period.end_date)}
-            </p>
-          </div>
-          <StrategyComparison strategy={strategy} />
-          <div className="grid gap-6 xl:grid-cols-2">
-            <StrategyReasons strategy={strategy} />
-            <Card className="flex flex-col gap-4">
-              <h2 className="text-lg font-extrabold">{P.strategy.statusTitle}</h2>
-              <StatusTimeline status={strategy.status} />
-              <ConstraintsList constraints={strategy.constraints} rejected={strategy.status === "rejected"} />
-              {strategy.status === "measured" && <MeasurementResult strategy={strategy} />}
-              <StrategyActions strategy={strategy} onChanged={updateLive} showDetailLink={false} />
-            </Card>
-          </div>
-        </div>
-      ) : (
-        <EmptyState
-          title={strategyId ? P.strategy.missingTitle : P.strategy.noneTitle}
-          text={strategyId ? P.strategy.missingText : P.strategy.noneText}
-        />
-      )}
+    <div className="flex flex-col gap-5">
+      <ProductHeader
+        productId={productId}
+        storeId={storeId}
+        title={product.product_name}
+        subtitle={P.subtitle(t("category", product.category_id), supplierName, product.shelf_life_days)}
+        status={current?.status ?? null}
+      />
+      <ProductContent
+        key={current?.draft_id ?? "none"}
+        product={product}
+        storeId={storeId}
+        storeName={storeName}
+        strategy={current}
+        state={state}
+        onRetry={() => void (draftId ? detail.refetch() : plan.refetch())}
+        onChanged={updateStrategy}
+      />
     </div>
   );
 }

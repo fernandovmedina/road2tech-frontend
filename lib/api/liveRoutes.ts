@@ -1,0 +1,29 @@
+import { apiMode } from "./config";
+
+// Endpoints the deployed backend (BackendRoad2Tech/api, Go Lambdas over DynamoDB) already serves. Used by the
+// "hybrid" mode: these go to the real API, everything else keeps answering from lib/mock.
+// /chat is deliberately absent: it will be replaced by the LangGraph + CopilotKit agent (openspec change
+// integrate-copilot-agent-chat), so it keeps answering from the mock.
+// Verified against the live API on 2026-10-10; when the backend ships another endpoint, add it here
+// (or switch to NEXT_PUBLIC_API_MODE=http once all of docs/backend-contract.md exists).
+
+type Method = "GET" | "POST" | "PUT" | "DELETE";
+
+const LIVE: { method: Method; re: RegExp }[] = [
+  { method: "POST", re: /^\/auth\/(signin|logout)$/ },
+  { method: "POST", re: /^\/stores\/[^/]+\/stock-policy:suggest$/ },
+  { method: "GET", re: /^\/stores\/[^/]+\/restock-suggestions$/ },
+  { method: "POST", re: /^\/restock-orders$/ },
+  { method: "GET", re: /^\/stores\/[^/]+\/calendar$/ },
+  { method: "GET", re: /^\/suppliers$/ },
+  { method: "GET", re: /^\/suppliers\/[^/]+\/offers$/ },
+  { method: "POST", re: /^\/suppliers\/[^/]+\/test-email$/ },
+  { method: "GET", re: /^\/products$/ },
+];
+
+/** True when this call must reach the real backend in the current mode. */
+export function isLiveRoute(method: Method, path: string): boolean {
+  if (apiMode === "http") return true;
+  if (apiMode === "mock") return false;
+  return LIVE.some((r) => r.method === method && r.re.test(path));
+}

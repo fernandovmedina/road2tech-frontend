@@ -1,11 +1,11 @@
 import type { z } from "zod";
 import { getState, mutate, resetState } from "@/lib/mock/store";
 import type { DemoState } from "@/types";
-import { isMockMode } from "./config";
+import { isLiveRoute } from "./liveRoutes";
 import { ApiError, envelope, type Envelope } from "./envelope";
 
 // Single entry point for every API call. Components never call this directly: they use hooks (hooks.ts).
-// Mock mode answers from lib/mock handlers; http mode calls the backend. Both are validated with the same schema.
+// Each call is routed by liveRoutes.ts: mock handlers (lib/mock) or the backend. Both are validated with the same schema.
 
 export { ApiError };
 
@@ -19,7 +19,7 @@ export async function request<T extends z.ZodType>(
   schema: T,
   opts: RequestOptions = {},
 ): Promise<Envelope<z.infer<T>>> {
-  if (!isMockMode) {
+  if (isLiveRoute(opts.method ?? "GET", path)) {
     const { httpRequest } = await import("./http");
     return httpRequest(path, schema, opts);
   }

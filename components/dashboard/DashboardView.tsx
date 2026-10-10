@@ -22,14 +22,16 @@ export function DashboardView() {
         <DashboardControls />
       </PageHeader>
       <KpiCards scope={scope} />
-      {storeId ? <BehaviorCards scope={scope} storeId={storeId} /> : <ChainNotice />}
-      <BranchAnalysis scope={scope} />
-      {storeId && (
+      {storeId ? (
         <>
           <PlanPanel storeId={storeId} />
-          <AssistantChat storeId={storeId} />
+          <BehaviorCards scope={scope} storeId={storeId} />
         </>
+      ) : (
+        <ChainNotice />
       )}
+      <BranchAnalysis scope={scope} />
+      {storeId && <AssistantChat storeId={storeId} />}
     </div>
   );
 }
