@@ -30,7 +30,7 @@ export function StorePicker({ value, onChange }: StorePickerProps) {
   if (state.status === "error") {
     return (
       <p role="alert" className="text-sm text-critical-ink">
-        ▲ {state.message} Start the Copilot API (see copilot-api/README.md).
+        ▲ {state.message} Start the Copilot API (BackendRoad2Tech/services/copilot-api).
       </p>
     );
   }

@@ -1,4 +1,4 @@
-// Contracts returned by the Copilot API (mirror of copilot-api/src/stockcopilot/domain/models.py).
+// Contracts returned by the Copilot API (mirror of BackendRoad2Tech services/copilot-api/src/stockcopilot/domain/models.py).
 // Every number is computed by deterministic backend code; the UI only renders it.
 
 export type RiskLevel = "low" | "medium" | "high";
@@ -149,6 +149,8 @@ export type ProductSellStrategy = {
   draft_id: string | null;
   draft_status: DraftStatus | null;
   requires_approval: boolean;
+  expected_anchor_units_increment: number;
+  uplift_source: "campaigns" | "assumed";
   disclaimer: string;
 };
 

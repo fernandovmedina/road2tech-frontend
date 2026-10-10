@@ -10,7 +10,7 @@ import { ToolResultView } from "./ToolResultView";
 import { ErrorCard } from "./ui/ErrorCard";
 import { ToolLoadingCard } from "./ui/Skeleton";
 
-// Backend tool name -> what the user sees while it runs. Keep in sync with copilot-api agent/tools.py.
+// Backend tool name -> what the user sees while it runs. Keep in sync with BackendRoad2Tech services/copilot-api agent/tools.py.
 const TOOLS = {
   get_product_tendency: { label: "Reading sales history and forecasting demand…" },
   get_product_sell_strategy: {

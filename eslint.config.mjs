@@ -12,8 +12,6 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
-    // Python service (own tooling: ruff + pytest).
-    "copilot-api/**",
   ]),
 ]);
 

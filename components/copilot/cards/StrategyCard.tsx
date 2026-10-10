@@ -48,6 +48,9 @@ export function StrategyCard({ data, compact = false }: StrategyCardProps) {
             <span className="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent">
               {data.strategy_type ? TYPE_LABEL[data.strategy_type] : ""}
             </span>
+            <span className="rounded-full border border-line px-2.5 py-1 text-xs text-ink-secondary">
+              {data.uplift_source === "campaigns" ? "Uplift measured from past campaigns" : "Uplift assumed"}
+            </span>
             <RiskBadge label="Run-out risk" level={data.stockout_risk} />
           </>
         ) : undefined
@@ -66,7 +69,11 @@ export function StrategyCard({ data, compact = false }: StrategyCardProps) {
             <StatTile
               label="Additional sales"
               value={formatSignedMoney(data.expected_sales_increment)}
-              detail={`${formatSignedUnits(data.expected_units_increment)} units`}
+              detail={
+                data.expected_anchor_units_increment > 0
+                  ? `${formatSignedUnits(data.expected_units_increment)} units + ${formatUnits(data.expected_anchor_units_increment)} combo anchor units`
+                  : `${formatSignedUnits(data.expected_units_increment)} units`
+              }
             />
             <StatTile
               label="Margin increment"
