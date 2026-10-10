@@ -44,3 +44,49 @@ export const formatMonth = (year: number, month: number) => {
   const s = new Intl.DateTimeFormat("es-MX", { month: "long", year: "numeric" }).format(new Date(year, month, 1));
   return s.charAt(0).toUpperCase() + s.slice(1);
 };
+
+const integerEn = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
+const compactEn = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
+const mxnCompactEn = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "MXN",
+  currencyDisplay: "narrowSymbol",
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+const shareEn = new Intl.NumberFormat("en-US", { style: "percent", maximumFractionDigits: 0 });
+const eventDateEn = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/Monterrey",
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+});
+const eventTimeEn = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/Monterrey",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
+function formatSignedValue(value: number, suffix: string): string {
+  const rounded = Math.round(value);
+  if (rounded === 0) return `0${suffix}`;
+  return `${rounded > 0 ? "+" : "−"}${integerEn.format(Math.abs(rounded))}${suffix}`;
+}
+
+export const formatInteger = (value: number) => integerEn.format(value);
+export const formatCompact = (value: number) => compactEn.format(value);
+export const formatMxnCompact = (value: number) => `${mxnCompactEn.format(value)} MXN`;
+export const formatShare = (ratio: number) => shareEn.format(ratio);
+export const formatSignedPercent = (value: number) => formatSignedValue(value, "%");
+export const formatSignedPoints = (value: number) => formatSignedValue(value, " pp");
+
+export function formatDistance(meters: number): string {
+  const roundedMeters = Math.round(meters / 10) * 10;
+  return roundedMeters < 1000 ? `${roundedMeters} m` : `${(meters / 1000).toFixed(1)} km`;
+}
+
+export function formatEventSchedule(iso: string, isAllDay: boolean): string {
+  const date = new Date(iso);
+  const time = isAllDay ? "All day" : eventTimeEn.format(date);
+  return `${eventDateEn.format(date)} · ${time}`;
+}
