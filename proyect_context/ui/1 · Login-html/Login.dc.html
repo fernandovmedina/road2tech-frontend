@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Inicio de sesión</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Manrope',system-ui,sans-serif;color:#101828;background:#F3F5F4;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:#0B6E4F;text-decoration:none}a:hover{color:#08523B}
+button,input,select{font-family:inherit;font-size:15px;color:#101828}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 18px;border-radius:10px;border:1px solid #0B6E4F;background:#0B6E4F;font-weight:700;font-size:15px;color:#fff;cursor:pointer}
+.btn:hover{background:#08523B;color:#fff}
+.lbl{font-size:13px;font-weight:700;color:#344054}
+input,select{min-height:48px;border:1px solid #D0D7D4;border-radius:10px;padding:0 14px;background:#fff;width:100%}
+:focus-visible{outline:2px solid #0B6E4F;outline-offset:2px}
+</style>
+</helmet>
+<div style="display:flex;flex-wrap:wrap;min-height:900px">
+
+<section style="flex:1 1 560px;min-width:0;background:#0F1F1A;color:#fff;padding:56px;display:flex;flex-direction:column;justify-content:space-between;gap:40px;position:relative;overflow:hidden">
+<div aria-hidden="true" style="position:absolute;right:-120px;top:120px;width:520px;height:520px;border-radius:50%;background:radial-gradient(circle, rgba(232,89,12,.55) 0%, rgba(255,146,43,.25) 42%, rgba(15,31,26,0) 70%)"></div>
+<div aria-hidden="true" style="position:absolute;left:60px;bottom:-140px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle, rgba(255,212,59,.35) 0%, rgba(255,212,59,.12) 45%, rgba(15,31,26,0) 70%)"></div>
+<div style="display:flex;align-items:center;gap:12px;position:relative">
+<svg width="40" height="40" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#1F9D74"></rect><path d="M8 21l5-6 4 3 7-9" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span style="font-weight:800;font-size:22px;letter-spacing:-.01em">StockCopilot</span>
+</div>
+<div style="display:flex;flex-direction:column;gap:20px;max-width:520px;position:relative">
+<h1 style="margin:0;font-size:46px;line-height:1.08;font-weight:800;letter-spacing:-.03em">Qué pedir, qué promover y cuándo, antes de perder la venta.</h1>
+<p style="margin:0;font-size:18px;line-height:1.55;color:#CFE3DA">Detectamos cómo compran tus clientes, anticipamos la demanda por sucursal y te decimos cuánto ganas o pierdes al aceptar cada acción.</p>
+</div>
+<div style="display:flex;gap:28px;flex-wrap:wrap;position:relative">
+<div style="display:flex;flex-direction:column;gap:2px"><span style="font-weight:800;font-size:15px">Menos merma</span><span style="font-size:13px;color:#9BB8AC">Promociones por sobrante esperado</span></div>
+<div style="display:flex;flex-direction:column;gap:2px"><span style="font-weight:800;font-size:15px">Menos quiebres</span><span style="font-size:13px;color:#9BB8AC">Reabasto antes de quedarte sin stock</span></div>
+<div style="display:flex;flex-direction:column;gap:2px"><span style="font-weight:800;font-size:15px">Mayor ticket</span><span style="font-size:13px;color:#9BB8AC">Crosssell basado en comportamiento</span></div>
+</div>
+</section>
+
+<section style="flex:1 1 480px;min-width:0;display:flex;align-items:center;justify-content:center;padding:48px 32px;background:#fff">
+<form style="width:100%;max-width:400px;display:flex;flex-direction:column;gap:20px">
+<div style="display:flex;flex-direction:column;gap:6px">
+<h2 style="margin:0;font-size:28px;font-weight:800;letter-spacing:-.02em">Iniciar sesión</h2>
+<span style="font-size:15px;color:#5B6776">Accede con tu cuenta de la cadena.</span>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px"><label class="lbl" for="mail">Correo</label><input id="mail" type="email" placeholder="nombre@cadena.com" value="marta.ruiz@cadena.com"></div>
+<div style="display:flex;flex-direction:column;gap:8px"><label class="lbl" for="pw">Contraseña</label><input id="pw" type="password" value="contraseña-demo"></div>
+<div style="display:flex;flex-direction:column;gap:8px"><label class="lbl" for="rol">Perfil</label>
+<select id="rol"><option>Gerente regional · todas las sucursales</option><option>Encargado de tienda · una sucursal</option></select></div>
+<a class="btn" href="Main.dc.html">Entrar al dashboard</a>
+<span style="font-size:13px;color:#5B6776;line-height:1.5">El perfil limita las sucursales que puedes ver. Prototipo con datos de ejemplo.</span>
+</form>
+</section>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

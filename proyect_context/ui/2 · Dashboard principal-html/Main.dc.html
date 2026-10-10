@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Dashboard principal</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Manrope',system-ui,sans-serif;color:#101828;background:#F3F5F4;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:#0B6E4F;text-decoration:none}a:hover{color:#08523B}
+button,input,select{font-family:inherit;font-size:14px;color:#101828}
+.nl{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:10px;color:#B9D0C6;font-weight:600;font-size:14px}
+.nl:hover{background:#17302A;color:#fff}
+.nl.on{background:#1C4A3B;color:#fff}
+.card{background:#fff;border:1px solid #E3E8E6;border-radius:16px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;border-radius:10px;border:1px solid #D0D7D4;background:#fff;font-weight:700;font-size:14px;color:#101828;cursor:pointer}
+.btn:hover{background:#F3F5F4;color:#101828}
+.btn.pri{background:#0B6E4F;border-color:#0B6E4F;color:#fff}
+.btn.pri:hover{background:#08523B;color:#fff}
+.btn.sm{min-height:40px;padding:0 12px;font-size:13px}
+.chip{display:inline-flex;align-items:center;min-height:40px;padding:0 14px;border-radius:999px;border:1px solid #D0D7D4;background:#fff;font-weight:600;font-size:13px;cursor:pointer;color:#344054}
+.chip:hover{background:#F3F5F4}
+.chip.on{background:#0F1F1A;border-color:#0F1F1A;color:#fff}
+.seg{display:inline-flex;background:#E8EDEA;border-radius:10px;padding:3px}
+.seg button{border:0;background:transparent;min-height:40px;padding:0 14px;border-radius:8px;font-weight:700;color:#4B5A55;cursor:pointer}
+.seg button.on{background:#fff;color:#101828;box-shadow:0 1px 2px rgba(16,24,40,.12)}
+.lbl{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#5B6776}
+input,select{min-height:44px;border:1px solid #D0D7D4;border-radius:10px;padding:0 12px;background:#fff}
+:focus-visible{outline:2px solid #0B6E4F;outline-offset:2px}
+.row:hover{border-color:#9DB8AC}
+</style>
+</helmet>
+<div style="display:flex;flex-wrap:wrap;min-height:1850px;align-items:stretch">
+
+<aside style="flex:0 0 232px;background:#0F1F1A;color:#CFE3DA;padding:24px 16px;display:flex;flex-direction:column;gap:28px">
+<div style="display:flex;align-items:center;gap:10px;padding:0 8px">
+<svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#1F9D74"></rect><path d="M8 21l5-6 4 3 7-9" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span style="font-weight:800;font-size:17px;color:#fff;letter-spacing:-.01em">StockCopilot</span>
+</div>
+<nav aria-label="Principal" style="display:flex;flex-direction:column;gap:4px">
+<a class="nl on" href="Main.dc.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z"></path></svg>Dashboard</a>
+<a class="nl" href="Calendario.dc.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3v4 M17 3v4 M4 9h16 M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"></path></svg>Calendario de restock</a>
+<a class="nl" href="Stock.dc.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8l-9-5-9 5v8l9 5 9-5z M3 8l9 5 9-5 M12 13v8"></path></svg>Stock general</a>
+<a class="nl" href="Proveedores.dc.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h11v10H3z M14 10h4l3 3v3h-7z M7.5 19.5h.01 M17.5 19.5h.01"></path></svg>Proveedores</a>
+<a class="nl" href="Productos.dc.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12V4h8l10 10-8 8z M7.5 8.5h.01"></path></svg>Productos</a>
+</nav>
+<div style="margin-top:auto;display:flex;flex-direction:column;gap:12px;padding:0 8px">
+<div style="display:flex;align-items:center;gap:10px">
+<div style="width:36px;height:36px;border-radius:50%;background:#2B5B4B;color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center">MR</div>
+<div style="display:flex;flex-direction:column"><span style="color:#fff;font-weight:700;font-size:14px">Marta Ruiz</span><span style="font-size:12px;color:#9BB8AC">Gerente regional</span></div>
+</div>
+<a class="nl" href="Login.dc.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9"></path></svg>Cerrar sesión</a>
+</div>
+</aside>
+
+<main style="flex:999 1 640px;min-width:0;padding:28px 32px;display:flex;flex-direction:column;gap:24px">
+
+<header style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between">
+<div style="display:flex;flex-direction:column;gap:4px">
+<h1 style="margin:0;font-size:28px;font-weight:800;letter-spacing:-.02em">Dashboard</h1>
+<span style="color:#5B6776;font-size:14px">{{rangeText}}</span>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">
+<div style="display:flex;flex-direction:column;gap:6px"><label class="lbl" for="storeSel">Sucursal</label>
+<select id="storeSel" value="{{s.store}}" onChange="{{setStore}}">
+<option value="all">Todas las sucursales</option><option value="s1">Centro</option><option value="s2">Valle Real</option><option value="s3">Zona Industrial</option><option value="s4">Ramos Arizpe</option><option value="s5">Los Pinos</option><option value="s6">Plaza Norte</option><option value="s7">Carlos Abedrop</option>
+</select></div>
+<div style="display:flex;flex-direction:column;gap:6px"><span class="lbl">Datos</span>
+<div class="seg" role="group" aria-label="Tipo de datos"><button class="{{actCls}}" onClick="{{setActual}}">Actuales</button><button class="{{mlCls}}" onClick="{{setMl}}">Predicción ML</button></div></div>
+<div style="display:flex;flex-direction:column;gap:6px"><label class="lbl" for="rangeSel">Rango de fechas</label>
+<select id="rangeSel" value="{{s.range}}" onChange="{{setRange}}">
+<option value="r7">Últimos 7 días</option><option value="r30">Últimos 30 días</option><option value="f14">Próximos 14 días</option><option value="f30">Próximos 30 días</option>
+</select></div>
+<span style="display:inline-flex;align-items:center;min-height:44px;padding:0 12px;border-radius:10px;background:#FFF1E6;color:#B34700;font-weight:700;font-size:12px">Datos de ejemplo</span>
+</div>
+</header>
+
+<section aria-label="Indicadores" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px">
+<div class="card" style="padding:20px;display:flex;flex-direction:column;gap:8px">
+<span class="lbl">Ticket por venta</span>
+<span style="font-size:34px;font-weight:800;letter-spacing:-.02em">{{kpi.ticket}}</span>
+<span style="font-size:13px;font-weight:700;color:#1B7F4B">▲ {{kpi.ticketDelta}} <span style="color:#5B6776;font-weight:500">vs. periodo anterior</span></span>
+</div>
+<div class="card" style="padding:20px;display:flex;flex-direction:column;gap:8px">
+<span class="lbl">Artículos sin stock</span>
+<span style="font-size:34px;font-weight:800;letter-spacing:-.02em">{{kpi.stockout}}</span>
+<span style="font-size:13px;font-weight:700;color:#C92A2A">▲ {{kpi.stockoutDelta}} <span style="color:#5B6776;font-weight:500">producto-sucursal</span></span>
+</div>
+<div class="card" style="padding:20px;display:flex;flex-direction:column;gap:8px">
+<span class="lbl">Artículos sin demanda</span>
+<span style="font-size:34px;font-weight:800;letter-spacing:-.02em">{{kpi.nodemand}}</span>
+<span style="font-size:13px;font-weight:700;color:#B34700">▼ {{kpi.nodemandDelta}} <span style="color:#5B6776;font-weight:500">capital inmovilizado</span></span>
+</div>
+<div class="card" style="padding:20px;display:flex;flex-direction:column;gap:8px;background:#0F1F1A;border-color:#0F1F1A">
+<span class="lbl" style="color:#9BD3BC">Oportunidad detectada por IA</span>
+<span style="font-size:34px;font-weight:800;letter-spacing:-.02em;color:#fff">{{kpi.opp}}</span>
+<span style="font-size:13px;color:#CFE3DA">en 3 promociones y reabastos sugeridos</span>
+</div>
+</section>
+
+<section aria-label="Comportamientos detectados" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+<h2 style="margin:0;font-size:18px;font-weight:800">Comportamientos de compra detectados</h2>
+<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:#E3F3EC;color:#08523B;font-weight:700;font-size:12px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.2 5.6L20 11l-5.8 2.4L12 19l-2.2-5.6L4 11l5.8-2.4z"></path></svg>Modelo de IA</span>
+</div>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px">
+<sc-for list="{{insights}}" as="ins" hint-placeholder-count="3">
+<article class="card" style="padding:20px;display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+<span style="padding:4px 10px;border-radius:999px;background:{{ins.bg}};color:{{ins.fg}};font-weight:700;font-size:12px">{{ins.tag}}</span>
+<span style="font-weight:800;font-size:18px;color:#1B7F4B">{{ins.gain}}</span>
+</div>
+<h3 style="margin:0;font-size:16px;font-weight:800">{{ins.title}}</h3>
+<p style="margin:0;font-size:14px;line-height:1.5;color:#475467">{{ins.text}}</p>
+<div style="display:flex;gap:8px;margin-top:auto">
+<a class="btn pri sm" href="Detalle.dc.html">Ver predicción</a>
+<a class="btn sm" href="Calendario.dc.html">Ver en calendario</a>
+</div>
+</article>
+</sc-for>
+</div>
+</section>
+
+<section aria-label="Análisis de sucursales" style="display:flex;flex-direction:column;gap:12px">
+<h2 style="margin:0;font-size:18px;font-weight:800">Análisis de sucursales</h2>
+<div style="display:flex;flex-wrap:wrap;gap:16px;align-items:stretch">
+
+<div class="card" style="flex:2 1 560px;min-width:0;padding:20px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between">
+<div style="display:flex;flex-direction:column"><span style="font-weight:800;font-size:16px">Mapa de calor · movimiento de ventas</span><span style="font-size:13px;color:#5B6776">{{mapHint}}</span></div>
+<div style="position:relative;flex:1 1 260px;max-width:340px">
+<label for="q" style="position:absolute;left:-9999px">Buscar producto</label>
+<input id="q" type="search" placeholder="Buscar producto del catálogo" value="{{s.query}}" onChange="{{setQuery}}" style="width:100%">
+<sc-if value="{{showSuggest}}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;z-index:5;top:48px;left:0;right:0;background:#fff;border:1px solid #D0D7D4;border-radius:12px;box-shadow:0 8px 24px rgba(16,24,40,.12);padding:6px;display:flex;flex-direction:column">
+<sc-for list="{{suggest}}" as="sg" hint-placeholder-count="3">
+<button onClick="{{sg.pick}}" style="text-align:left;border:0;background:transparent;min-height:44px;padding:0 10px;border-radius:8px;font-weight:600">{{sg.name}} <span style="color:#5B6776;font-weight:500">· {{sg.cat}}</span></button>
+</sc-for>
+</div>
+</sc-if>
+</div>
+</div>
+<sc-if value="{{hasProd}}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+<span style="display:inline-flex;align-items:center;gap:8px;padding:6px 6px 6px 12px;border-radius:999px;background:#E3F3EC;color:#08523B;font-weight:700;font-size:13px">Producto: {{prodName}}<button onClick="{{clearProd}}" aria-label="Quitar producto" style="border:0;background:#fff;width:28px;height:28px;border-radius:50%;font-weight:800;color:#08523B">×</button></span>
+<span style="font-size:13px;color:#475467">Mayor movimiento en <strong style="color:#101828">{{bestStore}}</strong>. Pica una sucursal para filtrar el dashboard.</span>
+</div>
+</sc-if>
+
+<div style="position:relative;height:470px;border-radius:14px;overflow:hidden;background:#E8EEE9;border:1px solid #D7E0DA">
+<svg aria-hidden="true" viewBox="0 0 100 60" preserveAspectRatio="none" style="position:absolute;left:0;top:0;width:100%;height:100%">
+<path d="M-2 40 C 18 34, 30 46, 52 38 S 88 30, 102 36" fill="none" stroke="#C9DDE6" stroke-width="3.2"></path>
+<path d="M10 -2 L 24 62" stroke="#D5DED8" stroke-width="1.1"></path>
+<path d="M40 -2 L 46 62" stroke="#D5DED8" stroke-width="1.4"></path>
+<path d="M72 -2 L 66 62" stroke="#D5DED8" stroke-width="1.1"></path>
+<path d="M-2 14 L 102 20" stroke="#D5DED8" stroke-width="1.2"></path>
+<path d="M-2 52 L 102 46" stroke="#D5DED8" stroke-width="1"></path>
+<rect x="52" y="6" width="14" height="8" rx="1.5" fill="#DCE8DF"></rect>
+<rect x="6" y="40" width="12" height="10" rx="1.5" fill="#DCE8DF"></rect>
+<rect x="76" y="44" width="16" height="9" rx="1.5" fill="#DCE8DF"></rect>
+</svg>
+<sc-for list="{{pins}}" as="p" hint-placeholder-count="7">
+<div aria-hidden="true" style="position:absolute;left:{{p.x}}%;top:{{p.y}}%;width:{{p.size}}px;height:{{p.size}}px;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle, {{p.c1}} 0%, {{p.c2}} 45%, rgba(255,255,255,0) 72%);opacity:{{p.op}};pointer-events:none"></div>
+</sc-for>
+<sc-for list="{{pins}}" as="p" hint-placeholder-count="7">
+<button onClick="{{p.pick}}" aria-label="{{p.aria}}" style="position:absolute;left:{{p.x}}%;top:{{p.y}}%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:4px;border:0;background:transparent;padding:4px;min-width:44px;min-height:44px">
+<span style="width:40px;height:40px;border-radius:50%;background:#fff;border:3px solid {{p.ring}};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;box-shadow:0 2px 8px rgba(16,24,40,.25)">{{p.val}}</span>
+<span style="background:{{p.tagBg}};color:{{p.tagFg}};font-weight:700;font-size:12px;padding:3px 8px;border-radius:6px;white-space:nowrap">{{p.name}}{{p.star}}</span>
+</button>
+</sc-for>
+<div style="position:absolute;left:14px;bottom:14px;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.94);padding:8px 12px;border-radius:10px;font-size:12px;font-weight:600;color:#475467">
+<span>Menos</span>
+<span style="width:150px;height:10px;border-radius:5px;background:linear-gradient(90deg,#FFF3BF,#FFD43B,#FF922B,#E8590C,#A61E1E)"></span>
+<span>Más movimiento</span>
+</div>
+<sc-if value="{{hasStore}}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;right:14px;bottom:14px;background:#0F1F1A;color:#fff;padding:10px 14px;border-radius:10px;font-size:13px;display:flex;align-items:center;gap:12px">
+<span>Filtrando por <strong>{{storeName}}</strong></span>
+<button onClick="{{clearStore}}" style="border:1px solid #4B7566;background:transparent;color:#fff;border-radius:8px;min-height:36px;padding:0 10px;font-weight:700">Quitar filtro</button>
+</div>
+</sc-if>
+</div>
+</div>
+
+<aside class="card" style="flex:1 1 360px;min-width:0;padding:20px;display:flex;flex-direction:column;gap:14px">
+<div class="seg" role="tablist" aria-label="Panel lateral" style="align-self:flex-start"><button role="tab" class="{{tabProdCls}}" onClick="{{setTabProd}}">Productos</button><button role="tab" class="{{tabPromoCls}}" onClick="{{setTabPromo}}">Promociones</button></div>
+<div style="display:flex;flex-wrap:wrap;gap:8px">
+<sc-for list="{{cats}}" as="c" hint-placeholder-count="6"><button class="chip {{c.cls}}" onClick="{{c.pick}}">{{c.name}}</button></sc-for>
+</div>
+<div style="display:flex;align-items:center;gap:8px;justify-content:space-between;flex-wrap:wrap">
+<span class="lbl">Ordenar por</span>
+<div class="seg"><button class="{{sortUpCls}}" onClick="{{sortUp}}">Demanda en alza</button><button class="{{sortDownCls}}" onClick="{{sortDown}}">En baja</button></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px;max-height:520px;overflow-y:auto;padding-right:4px">
+<sc-if value="{{isProdTab}}" hint-placeholder-val="{{ true }}">
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="5">
+<div class="row" style="padding:12px;border:1px solid {{r.border}};background:{{r.bg}};border-radius:12px;display:flex;flex-direction:column;gap:10px">
+<button onClick="{{r.pick}}" style="display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;border:0;background:transparent;padding:0;min-height:44px;width:100%">
+<span style="display:flex;flex-direction:column"><span style="font-weight:800;font-size:15px">{{r.name}}</span><span style="font-size:12px;color:#5B6776">{{r.cat}} · {{r.perDay}}</span></span>
+<span style="font-weight:800;font-size:15px;color:{{r.tcol}}">{{r.arrow}} {{r.trend}}</span>
+</button>
+<div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn sm" href="Detalle.dc.html">Tendencia</a><a class="btn pri sm" href="Calendario.dc.html">Ver en calendario</a></div>
+</div>
+</sc-for>
+</sc-if>
+<sc-if value="{{isPromoTab}}" hint-placeholder-val="{{ false }}">
+<sc-for list="{{promoRows}}" as="pr" hint-placeholder-count="4">
+<div class="row" style="padding:12px;border:1px solid #E3E8E6;border-radius:12px;display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><span style="font-weight:800;font-size:15px">{{pr.name}}</span><span style="font-weight:800;color:#1B7F4B;white-space:nowrap">{{pr.gain}}</span></div>
+<span style="font-size:13px;color:#475467">{{pr.why}}</span>
+<div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn sm" href="Detalle.dc.html">Ver predicción</a><a class="btn pri sm" href="Calendario.dc.html">Ver en calendario</a></div>
+</div>
+</sc-for>
+</sc-if>
+</div>
+</aside>
+
+</div>
+</section>
+
+<section aria-label="Asistente" class="card" style="padding:20px;display:flex;flex-direction:column;gap:16px">
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+<div style="display:flex;flex-direction:column"><h2 style="margin:0;font-size:18px;font-weight:800">Asistente de IA</h2><span style="font-size:13px;color:#5B6776">Pide gráficas de tendencia y predicción. Responde con datos del modelo, no con texto inventado.</span></div>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:20px;align-items:stretch">
+<div style="flex:1 1 380px;min-width:0;display:flex;flex-direction:column;gap:12px">
+<div style="align-self:flex-end;max-width:85%;background:#0F1F1A;color:#fff;padding:12px 14px;border-radius:14px 14px 4px 14px;font-size:14px;line-height:1.5">{{chatQ}}</div>
+<div style="display:flex;gap:10px;align-items:flex-start">
+<div style="flex:0 0 32px;width:32px;height:32px;border-radius:50%;background:#E3F3EC;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0B6E4F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.2 5.6L20 11l-5.8 2.4L12 19l-2.2-5.6L4 11l5.8-2.4z"></path></svg></div>
+<div style="display:flex;flex-direction:column;gap:8px;max-width:90%">
+<span style="font-size:12px;font-weight:700;color:#5B6776;background:#F3F5F4;border-radius:6px;padding:3px 8px;align-self:flex-start">{{chatTool}}</span>
+<div style="background:#F3F5F4;padding:12px 14px;border-radius:14px 14px 14px 4px;font-size:14px;line-height:1.55">{{chatA}}</div>
+</div>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">
+<button class="chip" onClick="{{askTrend}}">Tendencia de yogurt en Centro</button>
+<button class="chip" onClick="{{askOrder}}">¿Qué debo pedir mañana?</button>
+</div>
+<div style="display:flex;gap:8px;margin-top:auto">
+<label for="msg" style="position:absolute;left:-9999px">Escribe tu pregunta</label>
+<input id="msg" type="text" placeholder="Pregunta por un producto, sucursal o promoción…" style="flex:1 1 auto;min-width:0">
+<button class="btn pri" aria-label="Enviar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2L11 13 M22 2l-7 20-4-9-9-4z"></path></svg></button>
+</div>
+</div>
+<div style="flex:1.3 1 460px;min-width:0;border:1px solid #E3E8E6;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px;background:#FBFCFB">
+<sc-if value="{{isTrend}}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px"><span style="font-weight:800">Yogurt natural 900 g · Centro</span>
+<span style="display:flex;gap:14px;font-size:12px;font-weight:600;color:#475467"><span style="display:flex;align-items:center;gap:6px"><span style="width:18px;height:3px;background:#0B6E4F;display:inline-block"></span>Histórico</span><span style="display:flex;align-items:center;gap:6px"><span style="width:18px;height:0;border-top:3px dashed #E8590C;display:inline-block"></span>Predicción</span></span></div>
+<svg viewBox="0 0 560 230" role="img" aria-label="Demanda diaria de yogurt: histórico de 30 días y predicción de 14 días con banda de confianza" style="width:100%;height:auto">
+<g stroke="#E3E8E6" stroke-width="1"><path d="M40 20H550"></path><path d="M40 70H550"></path><path d="M40 120H550"></path><path d="M40 170H550"></path><path d="M40 205H550"></path></g>
+<g font-size="11" fill="#667085" font-family="Manrope,system-ui,sans-serif"><text x="6" y="24">70</text><text x="6" y="74">55</text><text x="6" y="124">40</text><text x="6" y="174">25</text><text x="40" y="224">hace 30 d</text><text x="318" y="224">hoy</text><text x="500" y="224">+14 d</text></g>
+<path d="{{chart.band}}" fill="#E8590C" opacity=".14"></path>
+<path d="M{{chart.todayX}} 14V205" stroke="#98A2B3" stroke-width="1.2" stroke-dasharray="3 4"></path>
+<path d="{{chart.hist}}" fill="none" stroke="#0B6E4F" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round"></path>
+<path d="{{chart.fc}}" fill="none" stroke="#E8590C" stroke-width="2.8" stroke-dasharray="7 6" stroke-linejoin="round" stroke-linecap="round"></path>
+</svg>
+<span style="font-size:13px;color:#475467">Demanda esperada +14% en 14 días. El stock actual cubre 21 días y la vida útil restante es de 9: <strong style="color:#B34700">riesgo de merma</strong>.</span>
+</sc-if>
+<sc-if value="{{isOrder}}" hint-placeholder-val="{{ false }}">
+<span style="font-weight:800">Pedido sugerido · mañana</span>
+<table style="width:100%;border-collapse:collapse;font-size:14px">
+<thead><tr style="text-align:left;color:#5B6776;font-size:12px;text-transform:uppercase;letter-spacing:.04em"><th style="padding:8px 6px">Producto</th><th style="padding:8px 6px">Cant.</th><th style="padding:8px 6px">Proveedor</th><th style="padding:8px 6px;text-align:right">Costo</th></tr></thead>
+<tbody>
+<tr style="border-top:1px solid #E3E8E6"><td style="padding:12px 6px;font-weight:700">Pan blanco grande</td><td style="padding:12px 6px">240</td><td style="padding:12px 6px">Panificadora Norte</td><td style="padding:12px 6px;text-align:right">$4,320</td></tr>
+<tr style="border-top:1px solid #E3E8E6"><td style="padding:12px 6px;font-weight:700">Leche entera 1 L</td><td style="padding:12px 6px">360</td><td style="padding:12px 6px">Lácteos del Valle</td><td style="padding:12px 6px;text-align:right">$6,840</td></tr>
+<tr style="border-top:1px solid #E3E8E6"><td style="padding:12px 6px;font-weight:700">Refresco cola 2 L</td><td style="padding:12px 6px">96</td><td style="padding:12px 6px">Distribuidora Sierra</td><td style="padding:12px 6px;text-align:right">$2,016</td></tr>
+</tbody>
+</table>
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span style="font-size:13px;color:#475467">Merma esperada con este pedido: <strong style="color:#1B7F4B">−34%</strong></span><a class="btn pri sm" href="Calendario.dc.html">Revisar en calendario</a></div>
+</sc-if>
+</div>
+</div>
+</section>
+
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1850}}'>
+class Component extends DCLogic {
+  get s() {
+    return Object.assign({ store: 'all', mode: 'actual', range: 'r30', query: '', prod: null, tab: 'prod', cat: 'Todas', sort: 'up', chat: 'trend' }, this.state || {});
+  }
+  renderVals() {
+    const s = this.s;
+    const stores = [
+      { id: 's1', name: 'Centro', x: 47, y: 50, base: 92, ticket: 149.8, out: 4, nod: 6 },
+      { id: 's2', name: 'Valle Real', x: 72, y: 27, base: 78, ticket: 141.2, out: 3, nod: 5 },
+      { id: 's3', name: 'Zona Industrial', x: 21, y: 30, base: 55, ticket: 133.5, out: 5, nod: 9 },
+      { id: 's4', name: 'Ramos Arizpe', x: 83, y: 68, base: 61, ticket: 128.9, out: 2, nod: 7 },
+      { id: 's5', name: 'Los Pinos', x: 31, y: 72, base: 70, ticket: 138.4, out: 3, nod: 5 },
+      { id: 's6', name: 'Plaza Norte', x: 54, y: 16, base: 84, ticket: 146.1, out: 3, nod: 4 },
+      { id: 's7', name: 'Carlos Abedrop', x: 62, y: 80, base: 48, ticket: 126.3, out: 3, nod: 5 }
+    ];
+    const products = [
+      { id: 'p1', name: 'Yogurt natural 900 g', cat: 'Lácteos', trend: 12, day: 310, heat: [96, 70, 44, 38, 72, 81, 40] },
+      { id: 'p2', name: 'Cerveza lager 6 pack', cat: 'Bebidas', trend: 18, day: 540, heat: [90, 94, 62, 55, 66, 86, 49] },
+      { id: 'p3', name: 'Pan blanco grande', cat: 'Panadería', trend: 9, day: 720, heat: [88, 60, 74, 58, 92, 70, 52] },
+      { id: 'p4', name: 'Leche entera 1 L', cat: 'Lácteos', trend: -4, day: 860, heat: [85, 76, 70, 66, 80, 79, 58] },
+      { id: 'p5', name: 'Refresco cola 2 L', cat: 'Bebidas', trend: -7, day: 620, heat: [72, 84, 58, 62, 54, 66, 60] },
+      { id: 'p6', name: 'Botana papas 180 g', cat: 'Botanas', trend: -11, day: 410, heat: [64, 52, 49, 41, 58, 60, 38] },
+      { id: 'p7', name: 'Huevo 18 pzas', cat: 'Abarrotes', trend: 3, day: 480, heat: [74, 68, 80, 72, 64, 62, 66] },
+      { id: 'p8', name: 'Tortillas de maíz 1 kg', cat: 'Panadería', trend: 6, day: 930, heat: [82, 71, 88, 75, 90, 66, 72] }
+    ];
+    const promos = [
+      { name: 'Yogurt natural −9%', pid: 'p1', gain: '+$12,800', why: 'Sobrante esperado: evita merma y mueve inventario.' },
+      { name: 'Combo cerveza + botana −8%', pid: 'p2', gain: '+$21,300', why: 'Se compran juntas viernes 16–20 h: sube el ticket.' },
+      { name: 'Pan + leche en quincena', pid: 'p3', gain: '+$7,600', why: 'Patrón de compra conjunta los días 14–16 y 29–31.' },
+      { name: 'Refresco 2 L con calor', pid: 'p5', gain: '+$8,700', why: 'Más de 32 °C sube la demanda; evita quiebre.' },
+      { name: 'Botana papas 2×1', pid: 'p6', gain: '+$3,100', why: 'Demanda en baja con 41 días de cobertura.' }
+    ];
+    const ci = (a) => stores.findIndex((x) => x.id === a);
+    const stIdx = s.store === 'all' ? -1 : ci(s.store);
+    const prod = s.prod ? products.find((p) => p.id === s.prod) : null;
+    const col = (v) => {
+      const st = [[0, [255, 243, 191]], [25, [255, 212, 59]], [50, [255, 146, 43]], [75, [232, 89, 12]], [100, [166, 30, 30]]];
+      for (let i = 1; i < st.length; i++) {
+        if (v <= st[i][0]) {
+          const a = st[i - 1], b = st[i], t = (v - a[0]) / (b[0] - a[0]);
+          return a[1].map((c, k) => Math.round(c + (b[1][k] - c) * t));
+        }
+      }
+      return st[4][1];
+    };
+    const vals = stores.map((st, i) => (prod ? prod.heat[i] : st.base));
+    const best = vals.indexOf(Math.max.apply(null, vals));
+    const pins = stores.map((st, i) => {
+      const v = vals[i], c = col(v), selected = stIdx === i;
+      return {
+        x: st.x, y: st.y, name: st.name, val: v,
+        size: 120 + v * 1.6, c1: 'rgba(' + c.join(',') + ',.85)', c2: 'rgba(' + c.join(',') + ',.38)',
+        op: stIdx === -1 || selected ? 1 : 0.5,
+        ring: selected ? '#0F1F1A' : 'rgb(' + c.join(',') + ')',
+        tagBg: selected ? '#0F1F1A' : '#fff', tagFg: selected ? '#fff' : '#101828',
+        star: prod && i === best ? ' ★' : '',
+        aria: st.name + ', movimiento ' + v + ' de 100. Filtrar por esta sucursal',
+        pick: () => this.setState({ store: selected ? 'all' : st.id })
+      };
+    });
+    const f = { r7: 0.4, r30: 1, f14: 0.6, f30: 1.1 }[s.range] || 1;
+    const ml = s.mode === 'ml';
+    const src = stIdx === -1 ? null : stores[stIdx];
+    const baseTicket = src ? src.ticket : 138.9;
+    const baseOut = src ? src.out : 23;
+    const baseNod = src ? src.nod : 41;
+    const fmt = (n) => '$' + n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const kpi = {
+      ticket: fmt(baseTicket * (ml ? 1.034 : 1)),
+      ticketDelta: ml ? '3.4%' : '2.1%',
+      stockout: String(Math.max(1, Math.round(baseOut * (ml ? 1.35 : 1) * (0.6 + 0.4 * f)))),
+      stockoutDelta: ml ? 'riesgo +35%' : '4 más',
+      nodemand: String(Math.max(1, Math.round(baseNod * (ml ? 0.92 : 1) * (0.6 + 0.4 * f)))),
+      nodemandDelta: ml ? 'bajan 8%' : '6 más',
+      opp: src ? '$' + Math.round(42800 *(src.base / 80)).toLocaleString('es-MX') : '$42,800'
+    };
+    const rangeLabel = { r7: 'Últimos 7 días', r30: 'Últimos 30 días', f14: 'Próximos 14 días', f30: 'Próximos 30 días' }[s.range];
+    const rangeText = (src ? src.name : 'Todas las sucursales') + ' · ' + rangeLabel + ' · ' + (ml ? 'datos de predicción ML' : 'datos actuales');
+    const catNames = ['Todas', 'Bebidas', 'Lácteos', 'Panadería', 'Botanas', 'Abarrotes'];
+    const cats = catNames.map((n) => ({ name: n, cls: s.cat === n ? 'on' : '', pick: () => this.setState({ cat: n }) }));
+    const okCat = (p) => s.cat === 'Todas' || p.cat === s.cat;
+    const byTrend = (a, b) => (s.sort === 'up' ? b.trend - a.trend : a.trend - b.trend);
+    let list = products.filter(okCat).sort(byTrend);
+    if (prod && okCat(prod)) list = [prod].concat(list.filter((p) => p.id !== prod.id));
+    const rows = list.map((p) => ({
+      name: p.name, cat: p.cat, perDay: p.day + ' u/día',
+      trend: (p.trend > 0 ? '+' : '') + p.trend + '%', arrow: p.trend >= 0 ? '▲' : '▼', tcol: p.trend >= 0 ? '#1B7F4B' : '#C92A2A',
+      bg: prod && prod.id === p.id ? '#E3F3EC' : '#fff', border: prod && prod.id === p.id ? '#0B6E4F' : '#E3E8E6',
+      pick: () => this.setState({ prod: p.id })
+    }));
+    const promoRows = promos.filter((x) => okCat(products.find((p) => p.id === x.pid))).sort((a, b) => byTrend(products.find((p) => p.id === a.pid), products.find((p) => p.id === b.pid)));
+    const q = (s.query || '').trim().toLowerCase();
+    const suggest = q ? products.filter((p) => p.name.toLowerCase().indexOf(q) > -1).map((p) => ({ name: p.name, cat: p.cat, pick: () => this.setState({ prod: p.id, query: '' }) })) : [];
+    const insights = [
+      { tag: 'Crosssell', bg: '#E3F3EC', fg: '#08523B', gain: '+$21,300', title: 'Cerveza + botana se compran juntas', text: 'Los viernes de 16 a 20 h aparecen en el mismo ticket con alta frecuencia. Un combo con 8% de descuento sube el ticket promedio.' },
+      { tag: 'Merma', bg: '#FFF1E6', fg: '#B34700', gain: '+$12,800', title: 'Yogurt natural con sobrante', text: 'El stock cubre 21 días y caduca en 9. Una promoción corta evita tirar producto y recupera margen.' },
+      { tag: 'Demanda', bg: '#E7F0FB', fg: '#1D4E89', gain: '+$8,700', title: 'El calor sube refrescos en Valle Real', text: 'Con más de 32 °C la demanda sube. Conviene reabastecer antes del jueves para no quedar sin stock.' }
+    ];
+    const chartPts = (n, f0) => Array.from({ length: n }, (_, i) => f0(i));
+    const X0 = 40, X1 = 550, N = 44, step = (X1 - X0) / (N - 1);
+    const yv = (v) => 205 - ((v - 20) / 50) * 185;
+    const vv = (i) => 38 + 6 * Math.sin(i / 3.1) + i * 0.18 + (i > 30 ? (i - 30) * 0.9 : 0) + 2 * Math.sin(i * 1.7);
+    const pts = chartPts(N, (i) => [X0 + i * step, yv(vv(i))]);
+    const hist = pts.slice(0, 31), fc = pts.slice(30);
+    const pstr = (a) => a.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+    const up = fc.map((p, i) => [p[0], p[1] - 6 - i * 1.2]), dn = fc.map((p, i) => [p[0], p[1] + 6 + i * 1.2]).reverse();
+    const chart = { hist: pstr(hist), fc: pstr(fc), band: pstr(up) + ' ' + dn.map((p) => 'L' + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ') + ' Z', todayX: (X0 + 30 * step).toFixed(1) };
+    const isTrend = s.chat === 'trend';
+    return {
+      s, kpi, rangeText, pins, cats, rows, promoRows, suggest, insights, chart,
+      showSuggest: suggest.length > 0, hasProd: !!prod, prodName: prod ? prod.name : '', bestStore: stores[best].name,
+      hasStore: stIdx > -1, storeName: src ? src.name : '',
+      mapHint: prod ? 'Dónde se mueve más “' + prod.name + '”' : 'Movimiento de ventas de todos los productos. Pica una sucursal para filtrar.',
+      isProdTab: s.tab === 'prod', isPromoTab: s.tab === 'promo',
+      tabProdCls: s.tab === 'prod' ? 'on' : '', tabPromoCls: s.tab === 'promo' ? 'on' : '',
+      sortUpCls: s.sort === 'up' ? 'on' : '', sortDownCls: s.sort === 'down' ? 'on' : '',
+      actCls: ml ? '' : 'on', mlCls: ml ? 'on' : '',
+      isTrend, isOrder: !isTrend,
+      chatQ: isTrend ? 'Muéstrame la tendencia de yogurt en Centro con predicción.' : '¿Qué debo pedir mañana para Centro?',
+      chatTool: isTrend ? 'Herramienta: plot_trend(producto="Yogurt natural 900 g", sucursal="Centro", predicción=14 d)' : 'Herramienta: draft_restock_order(sucursal="Centro", horizonte="mañana")',
+      chatA: isTrend ? 'Generé la gráfica. La demanda diaria sube desde hace dos semanas y el modelo espera que siga al alza. Aun así, hay sobrante y poca vida útil: te sugiero la promoción de −9% para recuperar margen.' : 'Estos tres productos llegan a su punto de reorden antes del próximo reparto. Dejé el borrador listo para que lo apruebes; no envío nada sin tu confirmación.',
+      setStore: (e) => this.setState({ store: e.target.value }), setRange: (e) => this.setState({ range: e.target.value }),
+      setActual: () => this.setState({ mode: 'actual' }), setMl: () => this.setState({ mode: 'ml' }),
+      setQuery: (e) => this.setState({ query: e.target.value }), clearProd: () => this.setState({ prod: null }), clearStore: () => this.setState({ store: 'all' }),
+      setTabProd: () => this.setState({ tab: 'prod' }), setTabPromo: () => this.setState({ tab: 'promo' }),
+      sortUp: () => this.setState({ sort: 'up' }), sortDown: () => this.setState({ sort: 'down' }),
+      askTrend: () => this.setState({ chat: 'trend' }), askOrder: () => this.setState({ chat: 'order' })
+    };
+  }
+}
+</script>
+</body>
+</html>

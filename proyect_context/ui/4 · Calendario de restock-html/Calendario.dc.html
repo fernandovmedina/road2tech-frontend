@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Calendario de restock</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Manrope',system-ui,sans-serif;color:#101828;background:#F3F5F4;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:#0B6E4F;text-decoration:none}a:hover{color:#08523B}
+button,input,select{font-family:inherit;font-size:14px;color:#101828}
+.nl{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:10px;color:#B9D0C6;font-weight:600;font-size:14px}
+.nl:hover{background:#17302A;color:#fff}
+.nl.on{background:#1C4A3B;color:#fff}
+.card{background:#fff;border:1px solid #E3E8E6;border-radius:16px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;border-radius:10px;border:1px solid #D0D7D4;background:#fff;font-weight:700;font-size:14px;color:#101828;cursor:pointer}
+.btn:hover{background:#F3F5F4;color:#101828}
+.btn.pri{background:#0B6E4F;border-color:#0B6E4F;color:#fff}
+.btn.pri:hover{background:#08523B;color:#fff}
+.btn.sm{min-height:40px;padding:0 12px;font-size:13px}
+.seg{display:inline-flex;background:#E8EDEA;border-radius:10px;padding:3px}
+.seg button{border:0;background:transparent;min-height:40px;padding:0 14px;border-radius:8px;font-weight:700;color:#4B5A55;cursor:pointer}
+.seg button.on{background:#fff;color:#101828;box-shadow:0 1px 2px rgba(16,24,40,.12)}
+.lbl{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#5B6776}
+input,select{min-height:44px;border:1px solid #D0D7D4;border-radius:10px;padding:0 12px;background:#fff}
+:focus-visible{outline:2px solid #0B6E4F;outline-offset:2px}
+.row:hover{border-color:#9DB8AC}
+</style>
+</helmet>
+<div style="display:flex;flex-wrap:wrap;min-height:1350px;align-items:stretch;position:relative">
+
+<aside style="flex:0 0 232px;background:#0F1F1A;color:#CFE3DA;padding:24px 16px;display:flex;flex-direction:column;gap:28px">
+<div style="display:flex;align-items:center;gap:10px;padding:0 8px">
+<svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#1F9D74"></rect><path d="M8 21l5-6 4 3 7-9" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span style="font-weight:800;font-size:17px;color:#fff;letter-spacing:-.01em">StockCopilot</span>
+</div>
+<nav aria-label="Principal" style="display:flex;flex-direction:column;gap:4px">
+<a class="nl" href="Main.dc.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z"></path></svg>Dashboard</a>
+<a class="nl on" href="Calendario.dc.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3v4 M17 3v4 M4 9h16 M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"></path></svg>Calendario de restock</a>
+<a class="nl" href="Stock.dc.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8l-9-5-9 5v8l9 5 9-5z M3 8l9 5 9-5 M12 13v8"></path></svg>Stock general</a>
+<a class="nl" href="Proveedores.dc.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h11v10H3z M14 10h4l3 3v3h-7z M7.5 19.5h.01 M17.5 19.5h.01"></path></svg>Proveedores</a>
+<a class="nl" href="Productos.dc.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12V4h8l10 10-8 8z M7.5 8.5h.01"></path></svg>Productos</a>
+</nav>
+<div style="margin-top:auto;display:flex;flex-direction:column;gap:12px;padding:0 8px">
+<div style="display:flex;align-items:center;gap:10px">
+<div style="width:36px;height:36px;border-radius:50%;background:#2B5B4B;color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center">MR</div>
+<div style="display:flex;flex-direction:column"><span style="color:#fff;font-weight:700;font-size:14px">Marta Ruiz</span><span style="font-size:12px;color:#9BB8AC">Gerente regional</span></div>
+</div>
+<a class="nl" href="Login.dc.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9"></path></svg>Cerrar sesión</a>
+</div>
+</aside>
+
+<main style="flex:999 1 640px;min-width:0;padding:28px 32px;display:flex;flex-direction:column;gap:24px">
+
+<header style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between">
+<div style="display:flex;flex-direction:column;gap:4px">
+<h1 style="margin:0;font-size:28px;font-weight:800;letter-spacing:-.02em">Calendario de restock</h1>
+<span style="color:#5B6776;font-size:14px">Fechas de entrega según el proveedor, alertas de quiebre y promociones sugeridas</span>
+</div>
+<div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+<div style="display:flex;flex-direction:column;gap:6px"><label class="lbl" for="st">Sucursal</label>
+<select id="st"><option>Centro</option><option>Valle Real</option><option>Zona Industrial</option><option>Ramos Arizpe</option><option>Los Pinos</option><option>Plaza Norte</option><option>Carlos Abedrop</option></select></div>
+<span style="display:inline-flex;align-items:center;min-height:44px;padding:0 12px;border-radius:10px;background:#FFF1E6;color:#B34700;font-weight:700;font-size:12px">Datos de ejemplo</span>
+</div>
+</header>
+
+<div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start">
+
+<aside class="card" style="flex:1 1 360px;max-width:440px;min-width:0;padding:20px;display:flex;flex-direction:column;gap:14px">
+<div class="seg" role="tablist" aria-label="Panel lateral" style="align-self:flex-start"><button role="tab" class="{{tabProdCls}}" onClick="{{setTabProd}}">Productos</button><button role="tab" class="{{tabSupCls}}" onClick="{{setTabSup}}">Proveedores</button></div>
+
+<sc-if value="{{isProd}}" hint-placeholder-val="{{ true }}">
+<span class="lbl">Por reabastecer en Centro</span>
+<div style="display:flex;flex-direction:column;gap:10px">
+<sc-for list="{{products}}" as="p" hint-placeholder-count="5">
+<div class="row" style="padding:12px;border:1px solid #E3E8E6;border-radius:12px;display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+<span style="font-weight:800;font-size:15px">{{p.name}}</span>
+<span style="padding:3px 10px;border-radius:999px;background:{{p.bg}};color:{{p.fg}};font-weight:700;font-size:12px;white-space:nowrap">{{p.tag}}</span>
+</div>
+<span style="font-size:13px;color:#475467">{{p.meta}}</span>
+<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+<span style="font-size:13px;color:#475467">Sugerido <strong style="color:#101828">{{p.qty}} u</strong> · {{p.supplier}}</span>
+<button class="btn pri sm" onClick="{{p.open}}">Orden Restock</button>
+</div>
+</div>
+</sc-for>
+</div>
+<span class="lbl" style="margin-top:6px">Promociones con más oportunidad</span>
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px;border-radius:12px;background:#FFF1E6"><span style="font-weight:700;font-size:14px;color:#7A3A0A">Yogurt −9% · 12 al 18 oct</span><span style="font-weight:800;color:#1B7F4B">+$12,800</span></div>
+<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px;border-radius:12px;background:#FFF1E6"><span style="font-weight:700;font-size:14px;color:#7A3A0A">Combo cerveza + botana · viernes</span><span style="font-weight:800;color:#1B7F4B">+$21,300</span></div>
+<a class="btn sm" href="Detalle.dc.html">Ver predicción de promociones</a>
+</div>
+</sc-if>
+
+<sc-if value="{{isSup}}" hint-placeholder-val="{{ false }}">
+<span class="lbl">Proveedores de la sucursal</span>
+<div style="display:flex;flex-direction:column;gap:10px">
+<sc-for list="{{suppliers}}" as="sp" hint-placeholder-count="4">
+<div class="row" style="padding:12px;border:1px solid #E3E8E6;border-radius:12px;display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><span style="font-weight:800;font-size:15px">{{sp.name}}</span><span style="font-weight:700;font-size:13px;color:#08523B;background:#E3F3EC;padding:3px 10px;border-radius:999px">{{sp.fill}}</span></div>
+<span style="font-size:13px;color:#475467">Entrega: {{sp.days}} · lead time {{sp.lead}} · pedido mínimo {{sp.min}}</span>
+<span style="font-size:13px;color:#475467">Próxima entrega: <strong style="color:#101828">{{sp.next}}</strong> · {{sp.count}} productos por pedir</span>
+<button class="btn pri sm" style="align-self:flex-start" onClick="{{sp.open}}">Orden Restock</button>
+</div>
+</sc-for>
+</div>
+</sc-if>
+</aside>
+
+<section class="card" style="flex:3 1 640px;min-width:0;padding:20px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+<h2 style="margin:0;font-size:20px;font-weight:800">Octubre 2026</h2>
+<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;font-weight:700">
+<span style="display:flex;align-items:center;gap:6px;color:#08523B"><span style="width:10px;height:10px;border-radius:3px;background:#1F9D74"></span>Entrega de proveedor</span>
+<span style="display:flex;align-items:center;gap:6px;color:#B34700"><span style="width:10px;height:10px;border-radius:3px;background:#E8590C"></span>Promoción sugerida</span>
+<span style="display:flex;align-items:center;gap:6px;color:#A31616"><span style="width:10px;height:10px;border-radius:3px;background:#C92A2A"></span>Alerta de quiebre</span>
+</div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px">
+<div class="lbl" style="padding:4px 6px">Lun</div><div class="lbl" style="padding:4px 6px">Mar</div><div class="lbl" style="padding:4px 6px">Mié</div><div class="lbl" style="padding:4px 6px">Jue</div><div class="lbl" style="padding:4px 6px">Vie</div><div class="lbl" style="padding:4px 6px">Sáb</div><div class="lbl" style="padding:4px 6px">Dom</div>
+<sc-for list="{{cells}}" as="c" hint-placeholder-count="35">
+<div style="min-height:158px;border:1px solid {{c.border}};background:{{c.bg}};border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:5px;min-width:0">
+<span style="font-weight:800;font-size:13px;color:{{c.numCol}};{{c.numStyle}}">{{c.num}}</span>
+<sc-for list="{{c.events}}" as="ev" hint-placeholder-count="1">
+<span style="background:{{ev.bg}};color:{{ev.fg}};font-weight:700;font-size:11px;line-height:1.3;padding:4px 6px;border-radius:6px">{{ev.text}}</span>
+</sc-for>
+</div>
+</sc-for>
+</div>
+</section>
+
+</div>
+</main>
+
+<sc-if value="{{modalOpen}}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:0;top:0;right:0;bottom:0;background:rgba(15,31,26,.55);display:flex;justify-content:center;align-items:flex-start;padding:110px 24px;z-index:20">
+<div role="dialog" aria-label="Orden de restock" style="width:100%;max-width:640px;background:#fff;border-radius:18px;padding:24px;display:flex;flex-direction:column;gap:16px;box-shadow:0 24px 64px rgba(16,24,40,.35)">
+<sc-if value="{{notSent}}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+<div style="display:flex;flex-direction:column;gap:2px"><h2 style="margin:0;font-size:22px;font-weight:800">Orden de restock</h2><span style="font-size:13px;color:#5B6776">Revisa el correo antes de enviarlo. Nada sale sin tu aprobación.</span></div>
+<button onClick="{{close}}" aria-label="Cerrar" style="border:0;background:#F3F5F4;width:44px;height:44px;border-radius:50%;font-size:20px;font-weight:800">×</button>
+</div>
+<div style="background:#F3F5F4;border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:6px;font-size:14px">
+<div><span style="color:#5B6776">Para:</span> <strong>{{m.email}}</strong></div>
+<div><span style="color:#5B6776">Asunto:</span> <strong>Orden de compra · Sucursal Centro · {{m.name}}</strong></div>
+</div>
+<div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+<div style="display:flex;flex-direction:column;gap:6px;flex:1 1 200px"><span class="lbl">Producto</span><span style="font-weight:800;font-size:16px">{{m.name}}</span></div>
+<div style="display:flex;flex-direction:column;gap:6px"><label class="lbl" for="qty">Cantidad (u)</label><input id="qty" type="number" min="0" step="12" value="{{m.qty}}" onChange="{{setQty}}" style="width:130px"></div>
+<div style="display:flex;flex-direction:column;gap:6px"><span class="lbl">Costo estimado</span><span style="font-weight:800;font-size:20px">{{m.cost}}</span></div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px">
+<div style="border-radius:12px;padding:14px;background:#FFF1E6"><div class="lbl" style="color:#B34700">Si no pides</div><div style="font-weight:800;font-size:22px;color:#B34700;margin-top:4px">−{{m.lost}}</div><div style="font-size:13px;color:#7A3A0A">en ventas perdidas por quiebre</div></div>
+<div style="border-radius:12px;padding:14px;background:#E3F3EC"><div class="lbl" style="color:#08523B">Si pides</div><div style="font-weight:800;font-size:22px;color:#08523B;margin-top:4px">+{{m.gain}}</div><div style="font-size:13px;color:#0A4A36">de ganancia esperada, merma {{m.waste}}</div></div>
+</div>
+<div style="display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap">
+<button class="btn" onClick="{{close}}">Cancelar</button>
+<button class="btn pri" onClick="{{send}}">Enviar correo con Resend</button>
+</div>
+</sc-if>
+<sc-if value="{{wasSent}}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:16px 0;text-align:center">
+<div style="width:56px;height:56px;border-radius:50%;background:#E3F3EC;display:flex;align-items:center;justify-content:center"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0B6E4F" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg></div>
+<h2 style="margin:0;font-size:22px;font-weight:800">Correo enviado a {{m.supplier}}</h2>
+<span style="font-size:14px;color:#475467;max-width:420px;line-height:1.5">Registramos la orden de {{m.qty}} unidades. Cuando llegue, compararemos lo que predijimos contra lo que ocurrió para mejorar el modelo.</span>
+<button class="btn pri" onClick="{{close}}">Listo</button>
+</div>
+</sc-if>
+</div>
+</div>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1350}}'>
+class Component extends DCLogic {
+  get s() {
+    return Object.assign({ tab: 'prod', modal: null, qty: null, sent: false }, this.state || {});
+  }
+  renderVals() {
+    const s = this.s;
+    const P = {
+      beer: { name: 'Cerveza lager 6 pack', tag: 'Demanda +18%', bg: '#E7F0FB', fg: '#1D4E89', meta: 'Cobertura de 3 días · demanda al alza', qty: 480, unit: 84, sup: 'Distribuidora Sierra', email: 'pedidos@distsierra.mx', lost: 14800, gain: 9600, waste: 'baja' },
+      cola: { name: 'Refresco cola 2 L', tag: 'Sin stock', bg: '#FDECEC', fg: '#A31616', meta: 'Existencia 0 · quiebre desde hace 2 días', qty: 96, unit: 21, sup: 'Distribuidora Sierra', email: 'pedidos@distsierra.mx', lost: 6300, gain: 4200, waste: 'baja' },
+      bread: { name: 'Pan blanco grande', tag: 'Demanda +9%', bg: '#E7F0FB', fg: '#1D4E89', meta: 'Cobertura de 1 día · vida útil de 3 días', qty: 240, unit: 18, sup: 'Panificadora Norte', email: 'ventas@panificadoranorte.mx', lost: 3900, gain: 2600, waste: '−12%' },
+      milk: { name: 'Leche entera 1 L', tag: 'Stock bajo', bg: '#FFF1E6', fg: '#B34700', meta: 'Cobertura de 2 días · bajo el mínimo', qty: 360, unit: 19, sup: 'Lácteos del Valle', email: 'pedidos@lacteosvalle.mx', lost: 7100, gain: 4800, waste: '−8%' },
+      eggs: { name: 'Huevo 18 pzas', tag: 'Sin stock', bg: '#FDECEC', fg: '#A31616', meta: 'Existencia 0 · reposición pendiente', qty: 120, unit: 52, sup: 'Granja San Pedro', email: 'pedidos@granjasanpedro.mx', lost: 5600, gain: 3300, waste: 'baja' }
+    };
+    const money = (n) => '$' + Math.round(n).toLocaleString('es-MX');
+    const products = Object.keys(P).map((k) => Object.assign({}, P[k], { open: () => this.setState({ modal: k, qty: null, sent: false }) }));
+    const SUP = [
+      { name: 'Distribuidora Sierra', fill: 'Cumple 96%', days: 'Lun y Jue', lead: '2 días', min: '$4,000', next: 'Jue 15 oct', count: 2, k: 'beer' },
+      { name: 'Lácteos del Valle', fill: 'Cumple 95%', days: 'Diario', lead: '1 día', min: '$1,500', next: 'Mar 13 oct', count: 1, k: 'milk' },
+      { name: 'Panificadora Norte', fill: 'Cumple 97%', days: 'Diario', lead: '1 día', min: '$1,200', next: 'Sáb 10 oct', count: 1, k: 'bread' },
+      { name: 'Granja San Pedro', fill: 'Cumple 92%', days: 'Mar y Vie', lead: '2 días', min: '$2,000', next: 'Vie 16 oct', count: 1, k: 'eggs' }
+    ].map((x) => Object.assign({}, x, { open: () => this.setState({ modal: x.k, qty: null, sent: false }) }));
+    const T = {
+      r: { bg: '#E3F3EC', fg: '#08523B' },
+      p: { bg: '#FFF1E6', fg: '#B34700' },
+      a: { bg: '#FDECEC', fg: '#A31616' }
+    };
+    const E = {
+      10: [['r', 'Entrega Panificadora Norte']],
+      12: [['p', 'Inicia promo yogurt −9%']],
+      13: [['r', 'Entrega Lácteos del Valle']],
+      14: [['a', 'Quiebre probable: refresco cola']],
+      15: [['r', 'Entrega Distribuidora Sierra'], ['r', 'Entrega Panificadora Norte']],
+      16: [['p', 'Combo cerveza + botana'], ['r', 'Entrega Granja San Pedro']],
+      18: [['p', 'Fin promo yogurt']],
+      20: [['r', 'Entrega Panificadora Norte']],
+      22: [['p', 'Promo pan + leche (quincena)'], ['r', 'Entrega Distribuidora Sierra']],
+      23: [['p', 'Combo cerveza + botana']],
+      27: [['r', 'Entrega Lácteos del Valle']],
+      29: [['a', 'Riesgo de merma: yogurt']],
+      30: [['p', 'Combo cerveza + botana']]
+    };
+    const cells = Array.from({ length: 35 }, (_, i) => {
+      const d = i - 2;
+      const inMonth = d >= 1 && d <= 31;
+      const num = d < 1 ? 30 + d : d > 31 ? d - 31 : d;
+      const today = d === 9;
+      return {
+        num: today ? 'Hoy · ' + num : String(num),
+        numCol: inMonth ? '#101828' : '#98A2B3',
+        numStyle: '',
+        bg: today ? '#E3F3EC' : inMonth ? '#fff' : '#F7F8F7',
+        border: today ? '#0B6E4F' : '#E3E8E6',
+        events: inMonth && E[d] ? E[d].map((e) => ({ text: e[1], bg: T[e[0]].bg, fg: T[e[0]].fg })) : []
+      };
+    });
+    const m0 = s.modal ? P[s.modal] : null;
+    const qty = m0 ? (s.qty === null ? m0.qty : Number(s.qty)) : 0;
+    const m = m0 ? { name: m0.name, email: m0.email, supplier: m0.sup, qty: String(qty), cost: money(qty * m0.unit), lost: money(m0.lost), gain: money(m0.gain), waste: m0.waste } : { name: '', email: '', supplier: '', qty: '', cost: '', lost: '', gain: '', waste: '' };
+    return {
+      products, suppliers: SUP, cells, m,
+      isProd: s.tab === 'prod', isSup: s.tab === 'sup',
+      tabProdCls: s.tab === 'prod' ? 'on' : '', tabSupCls: s.tab === 'sup' ? 'on' : '',
+      modalOpen: !!m0, notSent: !s.sent, wasSent: !!s.sent,
+      setTabProd: () => this.setState({ tab: 'prod' }), setTabSup: () => this.setState({ tab: 'sup' }),
+      setQty: (e) => this.setState({ qty: Number(e.target.value) }),
+      close: () => this.setState({ modal: null, sent: false, qty: null }),
+      send: () => this.setState({ sent: true })
+    };
+  }
+}
+</script>
+</body>
+</html>

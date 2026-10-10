@@ -1,210 +1,256 @@
 # StockCopilot — Frontend Guide (AGENTS.md)
 
-Context file for opencode. Read this fully before touching code.
+Context file for coding agents. Read this fully before touching code. Business and data context lives in `proyect_context/PROYECT.md`; approved visual references live in `proyect_context/ui/`.
 
 ## 1. Scope
 
-Hackatec hackathon project. **My part is ONLY the interface (frontend)**, which lives in its own folder, separate from the backend. Stay inside the frontend folder.
-- Do NOT build the real model, agent, or backend. Everything the UI needs comes from a typed data layer (`/lib/api`) that returns **mock data now** and can be swapped for real endpoints later without touching components.
-- Priority: a polished, demo-ready UI that tells a clear story in ~3 minutes. Speed over perfection; no over-engineering.
+Retail Tech Challenge hackathon (Sofftek, challenge 1: demand forecast + restock). Team of 5 systems engineers, 24 hours. **This repo is ONLY the interface (frontend).** The model, the AI agent and the backend are built by teammates in separate folders/repos.
+
+- Do NOT build the real model, agent or backend. Everything the UI needs comes from a typed data layer (`/lib/api`) that returns **mock data now** and can be swapped for real endpoints later without touching components.
+- Stay inside this repo. If something is missing from the API, add a typed mock and leave a `// TODO(backend):` comment.
+- Priority: a polished, demo-ready UI that tells a clear story in ~5 minutes. Speed over perfection; no over-engineering.
 
 ## 2. Product summary
 
-**StockCopilot** helps store managers reduce losses (stock-outs, overstock, unsold products) and increase sales (cross-sells, promotions).
+**StockCopilot** helps retail chains (target customers: Walmart, 7-Eleven, Coppel) **reduce losses (stock-outs, waste from expiry, unsold stock) and increase sales (ticket size, cross-sells)**.
 
-Three pieces:
+**Differentiator: smart promotions.** An AI agent reads the demand forecast from the model, analyzes purchase behavior from history and current stock, and builds promotions with a start and end date. For each promotion it predicts **how much we gain and how much loss we avoid**, and the user sees the comparison **with and without accepting it**. Restock orders cover the basics: products at their stock limits or with a forecast demand spike.
 
 | Piece | What it is | UI surface |
 |---|---|---|
-| **Model** | Predictions from sales behavior + events | Dashboard (KPIs, trends, demand by branch, demand map) |
-| **Agent** | Actionable part: restock + promotions | Restock suggestions (list + calendar), promo suggestions on map |
-| **User** | Store manager (the person in charge of the stores) | The person using all of the above |
+| **Model** | Demand forecast + purchase-behavior signals | KPIs, trend charts, sales heatmap |
+| **Agent** | Builds promotions and restock orders, always with human approval | Detected behaviors, promotion simulator, restock calendar, chatbot |
+| **User** | Store manager / regional manager | All screens |
 
-**User value:**
-1. Dashboard of trends/predictions, alerts, and possible promotions to avoid losses.
-2. Restock agent with calendar (**GenUI**: the agent proposes UI blocks, e.g. a restock card with an "approve / send email" action).
-3. Demand map for a product (focused on general/national view, drill down by branch).
+Human in the loop: the agent proposes, the user approves. Nothing is sent (emails, orders) without a confirmation step.
 
-## 3. Suggested stack (confirm/adjust if the repo already has one)
+## 3. Stack
 
-- Next.js (App Router) + TypeScript
-- Tailwind CSS + shadcn/ui
-- Recharts (line/area charts, dashed segment = forecast)
-- Leaflet (react-leaflet) for the demand map, centered on Mexico
-- TanStack Query for data fetching over the mock layer
-- Zustand or React state for filters (keep it simple)
+Repo already has: Next.js (App Router) + React + TypeScript + Tailwind CSS v4 + pnpm. **Follow the repo, not wishes.** Add only what the screens need, with a short plan first (see section 11):
 
-If the repo already uses something else, **follow the repo, not this list**.
+- Recharts (trend charts: solid = history, dashed = forecast, shaded band = uncertainty)
+- react-leaflet + Leaflet (branch map, centered on the Saltillo area) with a heat layer (a lightweight heat plugin, or sized/colored radial markers if the plugin is a problem)
+- TanStack Query (data fetching over the mock layer)
+- React state or Zustand for filters (keep it simple)
+- shadcn/ui is optional; build small components if it slows you down
 
 ## 4. Language & conventions
 
-- **Everything is in English and standardized: UI copy (labels, buttons, errors, toasts, placeholders), code, identifiers, comments, file names, routes, and commit messages.** No Spanish anywhere in the interface or code.
-- Do not add i18n/translation libraries; hardcode English strings (a single `/lib/copy.ts` constants file is fine if it helps keep wording consistent).
-- Use consistent terminology everywhere, per the glossary in section 5.5.
-- Number/date formats: use `Intl` with `en-US`; currency is MXN (`$` with "MXN" label where ambiguous).
+- **Code, identifiers, comments, file names, routes and commit messages are in English.**
+- **UI copy is in Spanish** (the approved mockups and the judges are Spanish-speaking). Keep every user-facing string in a single `/lib/copy.ts` so switching language later is a one-file change. Do not add i18n libraries.
+- Use the glossary in section 6 consistently in UI and code.
+- Formats: `Intl` with `es-MX`; currency is **MXN** shown as `$12,800` (add "MXN" only where ambiguous).
 - Components in PascalCase files, hooks `useX`, one component per file, small and composable.
 - Strict TypeScript, no `any`. Domain types live in `/types`.
-- Responsive: desktop-first (dashboard), but must not break on tablet.
-- Accessibility basics: semantic HTML, labels, contrast, keyboard focus.
+- Responsive: desktop-first (1440px), must not break at 1024px; the layout wraps on phone width.
+- Accessibility basics: semantic HTML, real `<button>`/`<a>`, labels on every input, aria-label on icon-only buttons, visible focus, contrast.
+- Every screen shows a small **"Datos de ejemplo"** badge while data is mocked.
 
-## 5. Screens (from the whiteboard)
+## 5. Design system (from the approved mockups)
 
-### 5.0 Login — route `/login`
+The mockups in `proyect_context/ui/*/` are **reference, not production code**: replicate their values in your own components. Open each `*.dc.html` for exact spacing and layout (serve the folder, e.g. `python3 -m http.server`).
 
-Entry point of the app. The user is the store manager.
+| Token | Value |
+|---|---|
+| Font | Manrope (400–800), tabular numerals for numbers |
+| App background / card | `#F3F5F4` / `#FFFFFF`, border `#E3E8E6`, radius 16px (cards), 10px (controls) |
+| Sidebar | `#0F1F1A`, text `#CFE3DA`, active item `#1C4A3B`, width 232px |
+| Primary (actions, history line) | `#0B6E4F`, hover `#08523B`, light tint `#E3F3EC` |
+| Forecast / promotion accent | `#E8590C`, tint `#FFF1E6`, dark text `#B34700` |
+| Alert (run-out) | `#C92A2A`, tint `#FDECEC`, text `#A31616` |
+| Info (overstock, demand up) | `#1D4E89`, tint `#E7F0FB` |
+| Text / muted | `#101828` / `#5B6776` |
+| Heat gradient (low → high) | `#FFF3BF` → `#FFD43B` → `#FF922B` → `#E8590C` → `#A61E1E` |
+| Touch targets | ≥ 44px (small buttons 40px) |
 
-- Centered card with the StockCopilot logo/name, a short tagline, and a form: **Email** + **Password** (show/hide password toggle) and a **"Sign in"** button.
-- Client-side validation (valid email, non-empty password) with clear error messages in English; error state for wrong credentials; loading state on the button while submitting.
-- Optional: "Forgot your password?" link (can be a non-functional placeholder).
-- **Auth is mocked for now.** Implement `login(email, password)` and `logout()` in `/lib/api/auth.ts` (any non-empty valid-looking credentials succeed, or use one demo account such as `demo@stockcopilot.com` / `demo1234`). Keep the session in a small auth provider (React context) persisted in `localStorage`, shaped so a real token from the backend can replace it later (`// TODO(backend): real auth endpoint`).
-- **Route protection:** every route except `/login` redirects to `/login` when there is no session (Next.js middleware or a client-side guard). If already logged in, `/login` redirects to `/`.
-- After login, redirect to the Dashboard. The top bar/sidebar shows the user's name and a **"Sign out"** button.
-- Visual style consistent with the rest of the app; a subtle retail/analytics illustration or gradient on the side is a nice-to-have on desktop.
+Layout shell: fixed left sidebar (logo, nav, user, sign out) + fluid content with 28px/32px padding. Semantics: run-outs red, overstock/no-demand amber or blue, AI/primary green.
 
-### 5.1 Dashboard (Model) — route `/`
+## 6. Glossary (exact terms)
 
-Header controls:
-- **"View data"** toggle: `Current` | `Trend`
-- **"Period"**: date range picker (from – to)
-
-**KPI cards (top row):**
-- **Total sales** (sales total for period)
-- **Run-outs** (stock-outs) — e.g. `10`
-- **No demand** (products with no demand) — e.g. `5`
-
-**Section: "Analyze demand and products by branch"**
-- Left: scrollable list of products/branches. Tabs: `Products` | `Promotions`. Each row: name, mini trend arrow (up/down), value.
-- Controls: **Sort** and **Filter by category**.
-- Right: line chart of the selected row — solid line = history, **dashed = prediction**. Button **"Back to map"** returns to the demand map view.
-- Footnote text: predictions are based on sales-behavior trends + events.
-
-**Bottom bar:** `View stock suggestions [VIEW]` → navigates to `/agent`.
-
-### 5.2 Restock suggestions (Agent) — route `/agent`
-
-Header tag: **"Suggestion"**. Two views switchable: **Restock list** | **Calendar**.
-
-- **Left sidebar:** supplier catalog (**Supplier catalog, with email**). Each supplier shows name + email.
-- **Main area:** restock suggestions as cards/chips; in calendar mode, a week/month grid with suggested restock dates (the row of circles on the board = calendar days/slots with items below).
-- Each suggestion explains **why**, based on: stock limit, demand, season (`Stock limit`, `Demand`, `Season`).
-- Primary action (the actionable part): approve suggestion → prepare/send email to the supplier. Mock this with a confirmation modal + toast.
-- Helper text: "Helps you reduce losses."
-- Small chart thumbnail per suggestion (demand curve) is a nice-to-have.
-
-### 5.3 Demand map + promotions — route `/map` (or section inside `/agent`)
-
-- Map of Mexico with demand per region/branch (heat/choropleth or sized markers).
-- Right panel: **Product + Demand** (selected product, demand figure) and **Suggested promotions** (list of suggested promos / cross-sells).
-- Goal: increase sales and cross-sells, based on: demand, weather (`Weather`), events (`Events`), seasons (`Seasons`).
-- Clicking a region updates the right panel. "Back to map" from the dashboard lands here.
-
-### 5.4 Navigation
-
-Simple top bar or sidebar: `Dashboard` · `Restock` · `Map`, plus the user's name and **Sign out** (hidden on `/login`). Keep state (period, category filter) when moving between screens.
-
-### 5.5 Glossary (use these exact terms in UI and code)
-
-| Concept | UI label | Code name |
+| Concept | UI label (Spanish) | Code name |
 |---|---|---|
-| Stock-out | Run-outs | `runOuts` |
-| Products with no demand | No demand | `noDemand` |
-| Branch / store location | Branch | `branch` |
-| Restock suggestion | Suggestion | `RestockSuggestion` |
-| Supplier catalog | Supplier catalog | `Supplier` |
-| Suggested promotions | Suggested promotions | `PromoSuggestion` |
-| Demand map | Demand map | `DemandByRegion` |
+| Average sale ticket | Ticket por venta | `averageTicket` |
+| Stock-out | Artículos sin stock | `stockouts` |
+| Products with no demand | Artículos sin demanda | `noDemand` |
+| Opportunity found by the AI | Oportunidad detectada por IA | `aiOpportunity` |
+| Branch / store | Sucursal | `branch` |
+| Detected buying pattern | Comportamientos de compra detectados | `BehaviorInsight` |
+| Suggested promotion | Promoción sugerida | `PromoSuggestion` |
+| With / without accepting | Si aceptas / Si no aceptas | `PromoScenario` |
+| Restock order | Orden Restock | `RestockOrder` |
+| Restock suggestion | Sugerencia de restock | `RestockSuggestion` |
+| Supplier catalog | Catálogo de proveedores | `Supplier` |
+| Product catalog (with min/max) | Catálogo de productos | `Product` |
+| Sales heatmap | Mapa de calor | `BranchHeat` |
 
-## 6. Data contracts (mock first)
+## 7. Screens and routes
 
-Put in `/types` and implement mocks in `/lib/mock`, served by `/lib/api`:
+Auth is mocked (see 7.0). Every route except `/login` redirects to `/login` without a session; if logged in, `/login` redirects to `/`.
+
+### 7.0 Login — `/login` (mockup: `1 · Login-html`)
+- Split screen: dark brand panel (tagline "Qué pedir, qué promover y cuándo, antes de perder la venta", three benefits, warm heat-glow circles) + form (email, password, profile select: regional manager = all branches / store manager = one branch).
+- Client validation with clear Spanish errors, loading state on the button, wrong-credentials state.
+- `login(email, password)` / `logout()` in `/lib/api/auth.ts`. Demo account `demo@stockcopilot.com` / `demo1234`. Session in a small React context persisted in `localStorage`, shaped for a real token (`// TODO(backend): real auth endpoint`). The role limits which branches appear in the selects.
+
+### 7.1 Dashboard — `/` (mockup: `2 · Dashboard principal-html`)
+Header controls (they change all data on the page): **Sucursal** select (all/one), **Datos** toggle `Actuales | Predicción ML`, **Rango de fechas** (last 7/30 days, next 14/30 days).
+1. **4 KPI cards:** Ticket por venta (+delta), Artículos sin stock, Artículos sin demanda, Oportunidad detectada por IA (dark card, MXN).
+2. **Comportamientos de compra detectados:** 3 cards (tag Crosssell / Merma / Demanda, estimated gain, explanation) with buttons "Ver predicción" (→ `/product/[id]`) and "Ver en calendario".
+3. **Análisis de sucursales:**
+   - **Heatmap** (Leaflet): branch markers are clickable and filter the dashboard. Product search (catalog autocomplete): the map then shows where that product moves most, a ★ marks the top branch; clicking a branch filters by it and moves the searched product to the top of the sidebar list. A "Quitar filtro" chip clears it.
+   - **Sidebar, two tabs** `Productos | Promociones`: category filter chips, sort `Demanda en alza | En baja`, row with trend arrow and units/day, buttons "Tendencia" and **"Ver en calendario"**. The promotions tab lists suggested promotions with estimated gain.
+4. **Asistente de IA (GenUI chatbot):** answers with components, not just text. Tool results render as a trend chart (history + forecast) or a restock-order table, with a visible tool label (e.g. `plot_trend(...)`, `draft_restock_order(...)`). The assistant proposes; the user approves. Mock the conversation with canned replies keyed by the quick-prompt chips.
+
+### 7.2 Product detail — `/product/[id]` (mockup: `3 · Tendencia y simulador de promoción-html`)
+This is the "prediction" view the whiteboard calls the trend chart. **"Regresar al mapa"** goes back to `/`.
+- Trend chart: 30 days history (solid) + 14 days forecast without promotion (dashed) and with promotion (orange), uncertainty band, shaded promotion window; metric tiles (14-day demand, stock, days to expiry, expected waste).
+- **Promoción sugerida (IA):** adjustable discount slider (0–40%), shows the model's optimal discount, and the reasons (surplus vs shelf life, bought-together pattern, diminishing returns of discount).
+- **"Qué ganas y qué pierdes":** two scenarios side by side (**Si no aceptas** / **Si aceptas**) and a table: units sold, revenue, margin, waste cost, cross-sell revenue, **net profit**, with differences. Buttons: Aceptar promoción, Descartar, Ver en calendario. Accepting schedules it in the calendar.
+
+### 7.3 Restock calendar — `/calendar` (mockup: `4 · Calendario de restock-html`)
+- Branch select; sidebar with tabs `Productos | Proveedores`.
+  - Productos: items to restock (tag: demand spike, run-out, below minimum) with suggested quantity and supplier, a **"Orden Restock"** button, and top promotions with potential.
+  - Proveedores: lead time, delivery days, minimum order, fill rate, next delivery, items to order.
+- Month grid with supplier deliveries (green), suggested promotions (orange) and run-out alerts (red). Today highlighted.
+- **Orden Restock modal:** to / subject, editable quantity, estimated cost, "Si no pides" (lost sales) vs "Si pides" (expected gain, waste), then **"Enviar correo con Resend"** → confirmation. Mock the send (`// TODO(backend): POST /orders → Resend`).
+
+### 7.4 Stock — `/stock` (mockup: `5 · Stock general-html`)
+Branch and category filters, status chips (Sin stock / Bajo mínimo / En rango / Sobrestock), 4 count cards, table with existence, level bar against min and max markers, coverage in days, status, next restock, "Ver en calendario".
+
+### 7.5 Suppliers — `/suppliers` (mockup: `6 · Catálogo de proveedores-html`)
+Table (name, email, lead time, delivery days, minimum order, fill rate), edit form for the selected supplier, "Resend conectado" card with a test email button. The supplier email is where restock orders go.
+
+### 7.6 Products — `/products` (mockup: `7 · Catálogo de productos-html`)
+Catalog with cost, price, case size, shelf life, **editable min/max stock** inputs, and the button "Sugerir min/max con IA" (shows suggestions per row with a one-line reason; "Aplicar sugerencias" fills the inputs).
+
+### 7.7 Navigation
+Fixed sidebar: Dashboard · Calendario de restock · Stock general · Proveedores · Productos, then user name/role and "Cerrar sesión". Keep filters (branch, data mode, range) when moving between screens.
+
+## 8. Data contracts (mock first)
+
+Put in `/types`, implement mocks in `/lib/mock`, serve through `/lib/api` hooks:
 
 ```ts
-type AuthUser = { id: string; name: string; email: string };
-
+type Role = "regional_manager" | "store_manager";
+type AuthUser = { id: string; name: string; email: string; role: Role; branchIds: string[] };
 type Session = { user: AuthUser; token: string };
 
 type Branch = { id: string; name: string; lat: number; lng: number };
 
-type Product = { id: string; name: string; category: string };
-
-type KPI = { totalSales: number; runOuts: number; noDemand: number };
-
-type TrendPoint = { date: string; value: number; isForecast: boolean };
-
-type ProductRow = {
-  productId: string;
-  branchId: string;
-  trend: "up" | "down" | "flat";
-  demand: number;
-  series: TrendPoint[];
+type Product = {
+  id: string; sku: string; name: string; category: string;
+  supplierId: string; unitCost: number; price: number;
+  caseSize: number; shelfLifeDays: number;
+  minStock: number; maxStock: number;
 };
 
-type Supplier = { id: string; name: string; email: string };
+type Supplier = {
+  id: string; name: string; email: string;
+  leadTimeDays: number; deliveryDays: string; // e.g. "Mon/Thu"
+  minOrderValue: number; fillRate: number;     // 0..1
+};
+
+type Kpis = {
+  averageTicket: number; averageTicketDeltaPct: number;
+  stockouts: number; noDemand: number; aiOpportunity: number; // MXN
+};
+
+type TrendPoint = { date: string; value: number; kind: "history" | "forecast" | "forecast_promo" };
+
+type BranchHeat = { branchId: string; productId: string | null; movement: number }; // 0..100
+
+type StockStatus = "out" | "low" | "ok" | "over";
+type StockItem = {
+  productId: string; branchId: string; quantity: number;
+  coverageDays: number; status: StockStatus; nextRestock: string | null;
+};
+
+type BehaviorInsight = {
+  id: string; kind: "crosssell" | "waste" | "demand";
+  title: string; text: string; estimatedGain: number; productId: string;
+};
+
+type PromoScenario = {
+  unitsSold: number; revenue: number; margin: number;
+  wasteUnits: number; wasteCost: number; crossSellRevenue: number; netProfit: number;
+};
+type PromoSuggestion = {
+  id: string; productId: string; branchId: string;
+  title: string; kind: "promo" | "crosssell";
+  discountPct: number; optimalDiscountPct: number;
+  startDate: string; endDate: string; // ISO
+  drivers: ("demand" | "weather" | "event" | "season" | "shelf_life" | "bought_together")[];
+  withoutPromo: PromoScenario; withPromo: PromoScenario;
+  status: "pending" | "accepted" | "dismissed";
+};
 
 type RestockSuggestion = {
-  id: string;
-  productId: string;
-  branchId: string;
-  supplierId: string;
-  suggestedQty: number;
-  suggestedDate: string; // ISO
-  reasons: ("stock_limit" | "demand" | "season")[];
-  status: "pending" | "approved" | "dismissed";
+  id: string; productId: string; branchId: string; supplierId: string;
+  suggestedQty: number; suggestedDate: string; // ISO
+  reasons: ("below_min" | "demand_spike" | "stockout" | "season")[];
+  expectedLostSalesIfSkipped: number; expectedGainIfOrdered: number;
+};
+type RestockOrder = {
+  id: string; suggestionId: string; qty: number; estimatedCost: number;
+  status: "draft" | "sent"; sentAt: string | null;
 };
 
-type PromoSuggestion = {
-  id: string;
-  productId: string;
-  title: string;
-  kind: "promo" | "crosssell";
-  drivers: ("demand" | "weather" | "event" | "season")[];
-};
+type CalendarEvent = { date: string; kind: "delivery" | "promo" | "alert"; label: string };
 
-type DemandByRegion = { regionId: string; productId: string; demand: number };
+type ChatBlock =
+  | { type: "text"; text: string }
+  | { type: "trend_chart"; productId: string; branchId: string; points: TrendPoint[] }
+  | { type: "restock_table"; suggestions: RestockSuggestion[] };
+type ChatMessage = { id: string; role: "user" | "assistant"; tool?: string; blocks: ChatBlock[] };
 ```
 
-Rule: components never import mock data directly — always through `/lib/api` hooks, so the real backend can replace it.
+Rule: components never import mock data directly; always through `/lib/api` hooks, so the real backend replaces it without touching the UI.
 
-## 7. Suggested structure
+## 9. Mock layer and demo numbers
 
-Paths below are relative to the frontend folder.
+- Believable demo set: ~7 branches in the Saltillo area (Centro, Valle Real, Zona Industrial, Ramos Arizpe, Los Pinos, Plaza Norte, Carlos Abedrop) with approximate coordinates, ~10 products (yogurt, lager 6-pack, white bread, whole milk, cola 2 L, potato chips, eggs, corn tortillas, granola, orange juice), 5 suppliers (Distribuidora Sierra, Lácteos del Valle, Panificadora Norte, Granja San Pedro, Botanas del Norte). Product/category names in Spanish.
+- Filters must actually change the numbers (branch, data mode, range) so the demo feels live.
+- **Promotion math (mock only; replace with the model later).** For discount `d` (0–100):
+  `demand(d) = base × (1 + 0.7 × (1 − e^(−d/14)))`, `sold = min(stock, demand)`, `waste = stock − sold`, `effectivePrice = price × (1 − d/100)`, `margin = sold × (effectivePrice − cost)`, `wasteCost = waste × cost`, `crossSell = max(0, sold − base) × carryRate × complementMargin`, `net = margin − wasteCost + crossSell`. The **optimal discount** is the `d` in 0..40 that maximizes `net`. The same function drives the slider and both scenario cards, so the numbers always agree.
+- Keep one consistent set of headline numbers across screens (e.g. the yogurt promotion estimate must match on Dashboard, Product detail and Calendar).
+- Mock latency of 300–600 ms so loading skeletons are visible; include one empty and one error state you can trigger.
+
+## 10. Suggested structure
 
 ```
 app/
-  login/page.tsx      # Login (public)
-  page.tsx            # Dashboard
-  agent/page.tsx      # Restock list + calendar
-  map/page.tsx        # Demand map + promos
+  login/page.tsx
+  page.tsx                  # Dashboard
+  product/[id]/page.tsx     # Trend + promotion simulator
+  calendar/page.tsx
+  stock/page.tsx
+  suppliers/page.tsx
+  products/page.tsx
 components/
-  dashboard/  agent/  map/  ui/
+  layout/  dashboard/  map/  product/  calendar/  stock/  catalog/  chat/  ui/
 lib/
-  api/  mock/
+  api/  mock/  copy.ts  format.ts
 types/
 ```
 
-## 8. UI/UX direction
+Remove the old placeholder files in `app/(auth)/` (`login.tsx`, `signin.tsx`, `welcome.tsx`, all empty); the login lives at `app/login/page.tsx`.
 
-- Clean, professional retail-analytics look: lots of whitespace, one accent color, clear red/amber/green semantics for alerts (run-outs = red, low demand = amber).
-- Cards with soft borders, rounded corners; charts are the visual hero.
-- Always handle **loading, empty, and error** states (skeletons, not spinners).
-- Forecast = dashed line + lighter fill, with a legend.
-- Include a believable demo dataset (Mexican retail products and cities, with English product/category names) so the demo looks real.
+## 11. How to work
 
-## 9. How to work with me
+- Frontend is not the owner's specialty: **you write the code.** Implement features end to end (files, components, styles, mock data) instead of giving instructions.
+- Make reasonable decisions and keep moving. Ask only when truly blocked.
+- Explain what you did in plain language, short and without jargon; one line of "why" for non-obvious choices.
+- Before large changes (new dependency, restructuring), give the plan in 3–5 bullets, then proceed unless the owner objects.
+- Run the dev server, type-check and lint after changes and fix errors yourself.
+- Do not commit the dataset or large files into this repo (see `proyect_context/PROYECT.md`, section on the dataset).
 
-- Frontend is **not my specialty**, and this is a hackathon: **you write the code**. Implement features end to end (files, components, styles, mock data) instead of giving me instructions to follow.
-- Make reasonable decisions on your own (layout, component structure, libraries from the stack above) and keep moving. Only ask me when something truly blocks you.
-- Explain what you did in plain language, short and without frontend jargon. If you pick a non-obvious approach, say why in one line.
-- Before large changes (new dependency, restructuring), give me the plan in 3–5 bullets, then proceed unless I object.
-- Run the dev server / type-check / lint after changes and fix errors yourself.
-- The repo has **separate folders for backend and frontend**. Work **only inside the frontend folder**. Never edit the backend folder; if something is missing from the API, add a typed mock and leave a `// TODO(backend):` comment.
+## 12. Definition of done (per screen)
 
-## 10. Definition of done (per screen)
-
-- [ ] Matches the layout described above
+- [ ] Matches the approved mockup in `proyect_context/ui/`
 - [ ] Uses typed mock data via `/lib/api`
-- [ ] Loading / empty / error states
-- [ ] English everywhere (UI copy and code), terminology matches the glossary
-- [ ] No console errors, `tsc` and lint pass
-- [ ] Looks good at 1440px and 1024px widths
+- [ ] Loading (skeleton), empty and error states
+- [ ] UI in Spanish from `/lib/copy.ts`; code in English; terminology matches the glossary
+- [ ] Filters and promotion simulator change the numbers; headline numbers consistent across screens
+- [ ] No console errors; `tsc` and lint pass
+- [ ] Looks good at 1440px and 1024px
 - [ ] Login works with mock auth; protected routes redirect to `/login`; logout clears the session
