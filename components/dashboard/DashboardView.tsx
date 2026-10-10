@@ -3,17 +3,18 @@
 import { copy } from "@/lib/copy";
 import { useFilters } from "@/lib/filters";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { useEffectiveBranch } from "@/components/layout/BranchSelect";
 import { DashboardControls } from "@/components/dashboard/DashboardControls";
 import { KpiCards } from "@/components/dashboard/KpiCards";
+import { ChainNotice } from "@/components/dashboard/ChainNotice";
 import { BehaviorCards } from "@/components/dashboard/BehaviorCards";
 import { BranchAnalysis } from "@/components/dashboard/BranchAnalysis";
+import { PlanPanel } from "@/components/strategy/PlanPanel";
 import { AssistantChat } from "@/components/chat/AssistantChat";
 
 export function DashboardView() {
-  const { mode, range } = useFilters();
-  const branchId = useEffectiveBranch();
+  const { branchId, mode, range } = useFilters();
   const scope = { branchId, mode, range };
+  const storeId = branchId === "all" ? null : branchId;
 
   return (
     <div className="flex flex-col gap-6">
@@ -21,9 +22,14 @@ export function DashboardView() {
         <DashboardControls />
       </PageHeader>
       <KpiCards scope={scope} />
-      <BehaviorCards scope={scope} />
+      {storeId ? <BehaviorCards scope={scope} storeId={storeId} /> : <ChainNotice />}
       <BranchAnalysis scope={scope} />
-      <AssistantChat branchId={branchId} />
+      {storeId && (
+        <>
+          <PlanPanel storeId={storeId} />
+          <AssistantChat storeId={storeId} />
+        </>
+      )}
     </div>
   );
 }

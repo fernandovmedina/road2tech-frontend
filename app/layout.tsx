@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/layout/Providers";
+import { copy } from "@/lib/copy";
 
 const manrope = Manrope({
   variable: "--font-manrope",
@@ -10,9 +11,8 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "StockCopilot",
-  description:
-    "Promociones y restock inteligentes con IA para reducir pérdidas y aumentar ventas en retail.",
+  title: copy.shell.brand,
+  description: copy.shell.metaDescription,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

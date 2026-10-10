@@ -11,6 +11,7 @@
 - **Network:** 25 stores in Saltillo, 8 zone types, 120 products (same catalog in every store), 20 categories, 19 suppliers
 - **Format:** CSV, UTF-8, comma delimiter, `snake_case` columns, dates `YYYY-MM-DD`, money in MXN with 2 decimals
 - **Reproducible:** `python3 scripts/dataset/run_all.py` regenerates every file (fixed seed `SEED = 42`)
+- **Setup:** `python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt`
 
 | File | Rows | Size | Content |
 |---|---|---|---|
@@ -22,9 +23,14 @@
 | `supplier_products.csv` | 405 | 0.01 MB | Each supplier's offer per product (3-5 offers per product). |
 | `calendar.csv` | 1,004 | 0.06 MB | One row per day, 2024-01-01 to 2026-09-30. |
 | `weather.csv` | 1,004 | 0.03 MB | Daily synthetic weather for Saltillo (semi-arid). |
-| `sales.csv` | 3,012,000 | 89.38 MB | Main training table: full grid of date x store x product (zero-sale rows included). |
-| `inventory_lots.csv` | 313,500 | 16.36 MB | One row per received lot (initial stock on 2024-01-01 plus every delivered order). |
-| `purchase_orders.csv` | 311,517 | 24.81 MB | Order history generated with select_supplier(). |
+| `sales.csv` | 3,012,000 | 155.46 MB | Main daily outcome table: full grid of date x store x product (zero-sale rows included). |
+| `inventory_daily.csv` | 3,012,000 | 122.13 MB | Daily inventory state after the operations simulation; one row per date x store x product. |
+| `promotion_campaigns.csv` | 72 | 0.01 MB | Historical promotion definitions. These are observed experiments, not agent recommendations. |
+| `promotion_store_days.csv` | 7,200 | 0.33 MB | Store-day campaign assignment; treatment and control make uplift estimable. |
+| `ticket_lines.csv` | 6,994,268 | 557.05 MB | Synthetic transactional baskets for affinity and ticket KPI analysis; reconciles to sales.csv. |
+| `forecast_context.csv` | 14 | 0.00 MB | Known external features for the 14-day period immediately after observed sales; no targets included. |
+| `inventory_lots.csv` | 313,515 | 16.67 MB | One row per received lot (initial stock on 2024-01-01 plus every delivered order). |
+| `purchase_orders.csv` | 311,526 | 25.13 MB | Order history generated with select_supplier(). |
 
 ### Relationships
 
@@ -33,6 +39,9 @@ stores.zone_type / secondary_zone_type -> zones.zone_type
 products.category_id                    -> categories.category_id
 supplier_products.(supplier_id, product_id) -> suppliers, products
 sales.(store_id, product_id)            -> stores, products;   sales.date -> calendar.date, weather.date
+inventory_daily.(store_id, product_id)  -> stores, products; inventory_daily.units_sold -> sales.units_sold
+promotion_store_days.campaign_id        -> promotion_campaigns.campaign_id
+ticket_lines.(store_id, product_id)     -> stores, products; aggregates -> sales
 inventory_lots / purchase_orders .(store_id, product_id, supplier_id) -> stores, products, suppliers
 ```
 
@@ -57,6 +66,10 @@ expected_units = base_daily_demand
 demand        = Poisson(expected_units x Gamma(shape=8, scale=1/8))
 units_sold    = min(demand, stock on hand)
 ```
+
+Controlled campaigns add a known treatment multiplier only for the assigned store-days. They are generated
+before operations so inventory constraints can cap their observed effect. `promotion_store_days.is_treatment = 0`
+rows are concurrent controls. Campaign outcome columns must **not** be used as future-looking forecast features.
 
 Business rules encoded (exact factors are in `EVENT_RULES`, `ZONE_MULT`, `WEATHER_MULT` in the script):
 
@@ -229,7 +242,7 @@ Daily synthetic weather for Saltillo (semi-arid).
 
 ### `sales.csv`
 
-Main training table: full grid of date x store x product (zero-sale rows included).
+Main daily outcome table: full grid of date x store x product (zero-sale rows included).
 
 | Column | Type | Unit | Description | Example |
 |---|---|---|---|---|
@@ -237,7 +250,102 @@ Main training table: full grid of date x store x product (zero-sale rows include
 | `store_id` | string | - | FK to stores. | `S001` |
 | `product_id` | string | - | FK to products. | `P001` |
 | `units_sold` | int | units | Units sold = min(demand, stock on hand). Target variable. | `14` |
-| `revenue` | float | MXN | units_sold x retail_price. | `280.00` |
+| `gross_revenue` | float | MXN | units_sold x retail_price before promotion discount. | `280.00` |
+| `discount_amount` | float | MXN | Campaign discount applied to sold units; 0 outside treatment. | `0.00` |
+| `net_revenue` | float | MXN | gross_revenue - discount_amount. | `280.00` |
+| `revenue` | float | MXN | Backward-compatible alias of net_revenue. | `280.00` |
+| `campaign_id` | string (nullable) | - | Observed treatment campaign affecting this SKU/day/store, if any. | `CMP0001` |
+| `campaign_units` | int | units | Sold units exposed to campaign treatment; 0 otherwise. | `0` |
+
+### `inventory_daily.csv`
+
+Daily inventory state after the operations simulation; one row per date x store x product.
+
+| Column | Type | Unit | Description | Example |
+|---|---|---|---|---|
+| `date` | date | YYYY-MM-DD | Day. | `2024-01-01` |
+| `store_id` | string | - | FK to stores. | `S001` |
+| `product_id` | string | - | FK to products. | `P001` |
+| `opening_qty` | int | units | On-hand units at start of day, before deliveries. | `186` |
+| `received_qty` | int | units | Delivered units received during the morning. | `0` |
+| `expired_qty` | int | units | Units removed because their lot expired before sale. | `0` |
+| `units_sold` | int | units | Must equal sales.units_sold for the same key. | `14` |
+| `lost_demand` | int | units | Unfulfilled simulated demand after inventory was exhausted. | `0` |
+| `closing_qty` | int | units | On-hand units after expirations and sales. | `172` |
+| `on_order_qty` | int | units | Open purchase-order quantity at end of day. | `0` |
+| `stockout_flag` | int (0/1) | - | 1 when lost_demand > 0. | `0` |
+
+### `promotion_campaigns.csv`
+
+Historical promotion definitions. These are observed experiments, not agent recommendations.
+
+| Column | Type | Unit | Description | Example |
+|---|---|---|---|---|
+| `campaign_id` | string | - | Campaign key. | `CMP0001` |
+| `strategy_type` | string | - | affinity_combo / rescue_bundle / contextual_offer. | `affinity_combo` |
+| `objective` | string | - | Business objective of the experiment. | `increase_ticket` |
+| `anchor_product_id` | string | - | High-velocity or complementary SKU, FK to products. | `P069` |
+| `promoted_product_id` | string | - | Discounted / rescued SKU, FK to products. | `P085` |
+| `discount_pct` | float | fraction | Discount on promoted_product_id in treatment stores. | `0.100` |
+| `uplift_anchor_pct` | float | fraction | Demand effect intentionally simulated for the anchor. | `0.060` |
+| `uplift_promoted_pct` | float | fraction | Demand effect intentionally simulated for the promoted SKU. | `0.280` |
+| `start_date` | date | YYYY-MM-DD | Campaign start. | `2024-01-01` |
+| `end_date` | date | YYYY-MM-DD | Campaign end. | `2024-01-04` |
+| `trigger_reason` | string | - | Business rationale used by the synthetic generator. | `Coffee and sweet-bread affinity observed in morning baskets` |
+
+### `promotion_store_days.csv`
+
+Store-day campaign assignment; treatment and control make uplift estimable.
+
+| Column | Type | Unit | Description | Example |
+|---|---|---|---|---|
+| `campaign_id` | string | - | FK to promotion_campaigns. | `CMP0001` |
+| `date` | date | YYYY-MM-DD | Eligible campaign day. | `2024-01-01` |
+| `store_id` | string | - | FK to stores. | `S001` |
+| `assignment_group` | string | - | Zone-based stratum used to split treatment/control. | `residential` |
+| `is_eligible` | int (0/1) | - | Store was in the experiment population. | `1` |
+| `is_treatment` | int (0/1) | - | Store received the offer; 0 means comparable control. | `1` |
+| `expected_uplift_pct` | float | fraction | Simulated promoted-SKU effect used only for data generation. | `0.280` |
+
+### `ticket_lines.csv`
+
+Synthetic transactional baskets for affinity and ticket KPI analysis; reconciles to sales.csv.
+
+| Column | Type | Unit | Description | Example |
+|---|---|---|---|---|
+| `ticket_id` | string | - | Synthetic transaction key; repeats for each line in a basket. | `T0000000001` |
+| `timestamp` | datetime | ISO-8601 | Synthetic checkout timestamp. | `2024-01-01T13:29:05` |
+| `date` | date | YYYY-MM-DD | Date component of timestamp. | `2024-01-01` |
+| `store_id` | string | - | FK to stores. | `S001` |
+| `product_id` | string | - | FK to products. | `P069` |
+| `quantity` | int | units | Units on this ticket line. | `1` |
+| `gross_amount` | float | MXN | quantity x retail_price. | `29.0` |
+| `discount_amount` | float | MXN | Line discount for treatment campaign, if any. | `0.0` |
+| `net_amount` | float | MXN | gross_amount - discount_amount. | `29.0` |
+| `campaign_id` | string (nullable) | - | Observed campaign attribution, if any. | `CMP0001` |
+| `line_type` | string | - | regular / affinity_bundle / campaign_bundle. | `campaign_bundle` |
+
+### `forecast_context.csv`
+
+Known external features for the 14-day period immediately after observed sales; no targets included.
+
+| Column | Type | Unit | Description | Example |
+|---|---|---|---|---|
+| `date` | date | YYYY-MM-DD | Future date (2026-10-01 to 2026-10-14). | `2026-10-01` |
+| `day_of_week` | string | - | Monday..Sunday. | `Thursday` |
+| `is_weekend` | int (0/1) | - | Saturday or Sunday. | `0` |
+| `is_holiday` | int (0/1) | - | Official holiday. | `0` |
+| `holiday_name` | string (nullable) | - | Official holiday name. | `` |
+| `season_name` | string | - | winter / spring / summer / autumn. | `autumn` |
+| `event_name` | string (nullable) | - | Known events active that day. | `` |
+| `event_scope` | string (nullable) | - | Scope of event_name. | `` |
+| `is_payday` | int (0/1) | - | 15th or last day of month. | `0` |
+| `is_school_vacation` | int (0/1) | - | SEP vacation feature. | `0` |
+| `is_college_vacation` | int (0/1) | - | University vacation feature. | `0` |
+| `temp_max_c` | float | °C | Synthetic forecast maximum temperature. | `26.9` |
+| `temp_min_c` | float | °C | Synthetic forecast minimum temperature. | `13.1` |
+| `precipitation_mm` | float | mm | Synthetic forecast rainfall. | `4.8` |
+| `weather_label` | string | - | rainy / hot / cold / mild. | `mild` |
 
 ### `inventory_lots.csv`
 
@@ -276,5 +384,6 @@ Order history generated with select_supplier().
 ## Validation
 
 `python3 scripts/dataset/validate.py` checks foreign keys, store coordinates, supplier counts/prices/categories,
-constant prices, `select_supplier` reproducibility on 100 sampled orders, calendar/weather coverage, nulls,
-negative units, lot dates and the sales grid size, and prints the sanity checks.
+daily inventory balance, treatment/control validity, campaign pricing, ticket-to-sales reconciliation, leakage
+guards, `select_supplier` reproducibility on 100 sampled orders, calendar/weather coverage, nulls, negative units,
+lot dates and the sales grid size, and prints sanity checks.

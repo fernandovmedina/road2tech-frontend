@@ -1,29 +1,24 @@
-import type { DemoState, PromoSuggestion, RestockOrder } from "@/types";
+import type { DemoState, StrategyStatus } from "@/types";
 
-// Mutable mock state persisted for the browser session. TODO(backend): replaced by real mutations.
-const KEY = "stockcopilot.mock.v1";
-
-export type SupplierPatch = {
-  name?: string; email?: string; leadTimeDays?: number; deliveryDays?: string; minOrderValue?: number; fillRate?: number;
-};
+// Mutable state of the mock "backend", persisted for the browser session so actions survive reloads.
+// Mock handlers read/write it; components never touch it directly.
+const KEY = "stockcopilot.mock.v2";
 
 export type MockState = {
-  promoStatus: Record<string, { status: PromoSuggestion["status"]; discountPct?: number }>;
-  orders: RestockOrder[];
-  supplierPatches: Record<string, SupplierPatch>;
-  extraSuppliers: { id: string; name: string; email: string; leadTimeDays: number; deliveryDays: string; minOrderValue: number; fillRate: number }[];
-  minMax: Record<string, { minStock: number; maxStock: number }>;
+  /** draft_id → status override (add-to-plan / approve / reject done in this session). */
+  strategyStatus: Record<string, { status: StrategyStatus; approved_at?: string }>;
+  /** Strategies created from the chat (drafts), keyed by draft_id, stored as plain JSON. */
+  chatDrafts: Record<string, unknown>;
+  /** suggestion_id → sent order (JSON of RestockOrder). */
+  sentOrders: Record<string, unknown>;
+  /** `${store_id}|${product_id}` → edited stock policy. */
+  policies: Record<string, { reorder_point: number; max_stock: number; updated_at: string }>;
+  /** store_id → plan generation (bumped by `strategies:generate`) and when it was generated. */
+  planMeta: Record<string, { generation: number; generated_at: string }>;
   demo: DemoState;
 };
 
-const empty = (): MockState => ({
-  promoStatus: {},
-  orders: [],
-  supplierPatches: {},
-  extraSuppliers: [],
-  minMax: {},
-  demo: "normal",
-});
+const empty = (): MockState => ({ strategyStatus: {}, chatDrafts: {}, sentOrders: {}, policies: {}, planMeta: {}, demo: "normal" });
 
 let state: MockState | null = null;
 

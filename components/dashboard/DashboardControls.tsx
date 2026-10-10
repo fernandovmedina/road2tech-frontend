@@ -1,18 +1,27 @@
 "use client";
 
-import { useFilters } from "@/lib/filters";
+import { useStores } from "@/lib/api/hooks";
+import { displayBranchName } from "@/lib/branding";
 import { copy } from "@/lib/copy";
-import { BranchSelect } from "@/components/layout/BranchSelect";
+import { useFilters } from "@/lib/filters";
 import { Select } from "@/components/ui/Select";
 import type { RangeKey } from "@/types";
 
 const D = copy.dashboard;
+const RANGES = Object.keys(D.ranges) as RangeKey[];
 
 export function DashboardControls() {
-  const { mode, range, setMode, setRange } = useFilters();
+  const { branchId, mode, range, setBranch, setMode, setRange } = useFilters();
+  const stores = useStores().data ?? [];
+
   return (
     <>
-      <BranchSelect />
+      <Select id="branch-select" label={copy.common.branch} value={branchId} onChange={(e) => setBranch(e.target.value)} className="min-w-52">
+        <option value="all">{copy.common.allBranches}</option>
+        {stores.map((s) => (
+          <option key={s.store_id} value={s.store_id}>{displayBranchName(s)}</option>
+        ))}
+      </Select>
       <div className="flex flex-col gap-1">
         <span id="mode-label" className="text-xs font-semibold text-muted">{D.dataMode}</span>
         <div role="group" aria-labelledby="mode-label" className="flex rounded-[10px] border border-line bg-white p-1">
@@ -30,7 +39,7 @@ export function DashboardControls() {
         </div>
       </div>
       <Select id="range-select" label={D.range} value={range} onChange={(e) => setRange(e.target.value as RangeKey)}>
-        {(Object.keys(D.ranges) as RangeKey[]).map((k) => (
+        {RANGES.map((k) => (
           <option key={k} value={k}>{D.ranges[k]}</option>
         ))}
       </Select>

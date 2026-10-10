@@ -4,6 +4,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { AuthError } from "@/lib/api/auth";
+import { isMockMode } from "@/lib/api/config";
+import { ApiError } from "@/lib/api/envelope";
 import { copy } from "@/lib/copy";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
@@ -37,7 +39,14 @@ export function LoginView() {
       await login(email, password);
       router.replace("/");
     } catch (err) {
-      setErrors({ form: err instanceof AuthError ? L.errors.credentials : copy.common.errorText });
+      // Wrong credentials and connectivity/server problems are different situations for the user.
+      const form =
+        err instanceof AuthError
+          ? L.errors.credentials
+          : err instanceof ApiError && err.kind === "network"
+            ? L.errors.network
+            : L.errors.server;
+      setErrors({ form });
       setLoading(false);
     }
   }
@@ -49,7 +58,7 @@ export function LoginView() {
         <span aria-hidden className="absolute -bottom-32 left-10 h-96 w-96 rounded-full bg-heat-3/30 blur-3xl" />
         <div className="relative flex items-center gap-3">
           <span aria-hidden className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-xl font-extrabold">S</span>
-          <span className="text-2xl font-extrabold">StockCopilot</span>
+          <span className="text-2xl font-extrabold">{copy.shell.brand}</span>
         </div>
         <div className="relative max-w-lg">
           <h2 className="text-[40px] font-extrabold leading-[1.1]">{L.tagline}</h2>
@@ -62,7 +71,7 @@ export function LoginView() {
             ))}
           </ul>
         </div>
-        <p className="relative text-xs text-sidebar-text/60">Retail Tech Challenge · Sofftek</p>
+        <p className="relative text-xs text-sidebar-text/60">{L.footer}</p>
       </section>
 
       <section className="flex items-center justify-center bg-white p-6">
@@ -115,7 +124,7 @@ export function LoginView() {
           <Button type="submit" disabled={loading} className="mt-2">
             {loading ? L.submitting : L.submit}
           </Button>
-          <p className="text-center text-xs text-muted">{L.demoHint}</p>
+          {isMockMode && <p className="text-center text-xs text-muted">{L.demoHint}</p>}
         </form>
       </section>
     </div>

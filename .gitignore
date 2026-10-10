@@ -42,3 +42,7 @@ next-env.d.ts
 
 # hackathon example dataset (~80 MB, synthetic; its rules forbid redistributing it outside the repo/event)
 /proyect_context/dataset-hacktahton-road2tech-master/
+
+# backend dataset CSVs (never versioned here; JSON samples in lib/mock/data are)
+*.csv
+/.tmp-csv/

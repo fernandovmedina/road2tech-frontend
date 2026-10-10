@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { login as apiLogin, logout as apiLogout, readStoredSession, storeSession } from "@/lib/api/auth";
+import { setUnauthorizedHandler } from "@/lib/api/http";
 import type { Session } from "@/types";
 
 type AuthCtx = {
@@ -21,6 +22,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate from localStorage after mount
     setSession(readStoredSession());
     setReady(true);
+  }, []);
+
+  useEffect(() => {
+    // A 401 from the API clears the session so the route guard sends the user to /login.
+    setUnauthorizedHandler(() => setSession(null));
+    return () => setUnauthorizedHandler(null);
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {

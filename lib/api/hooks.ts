@@ -1,201 +1,308 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import * as engine from "@/lib/mock/engine";
-import { branches, categories as seedCategories, productSeeds } from "@/lib/mock/seed";
-import { getState, mutate, type SupplierPatch } from "@/lib/mock/store";
-import { addDays, todayIso } from "@/lib/format";
-import { mockCall } from "./client";
-import type { Branch, ChatMessage, DataMode, Product, RangeKey, RestockOrder, Supplier } from "@/types";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { addDays } from "@/lib/format";
+import { request } from "./client";
+import * as S from "./schemas";
+import type { ChatBlock, ChatMessage, DataMode, Product, RangeKey, Store } from "@/types";
 
-// All screen data goes through these hooks. TODO(backend): swap each queryFn for a real request.
+// Every screen reads and writes data through these hooks (and only these). Names follow docs/backend-contract.md.
+// "Hoy" is always `data_as_of` from the backend (useAsOf), never the browser clock.
 
 const qk = (...k: unknown[]) => ["api", ...k];
 
 export type Scope = { branchId: string | "all"; mode: DataMode; range: RangeKey };
+export type PageParams = { page?: number; pageSize?: number };
 
-/* ---------- reads ---------- */
+/* ---------- date helpers driven by data_as_of ---------- */
 
-export const useBranches = () =>
-  useQuery({ queryKey: qk("branches"), queryFn: () => mockCall<Branch[]>(() => branches) });
+export function rangeToDates(asOf: string, range: RangeKey): { from: string; to: string } {
+  switch (range) {
+    case "last7": return { from: addDays(asOf, -6), to: asOf };
+    case "last30": return { from: addDays(asOf, -29), to: asOf };
+    case "next14": return { from: addDays(asOf, 1), to: addDays(asOf, 14) };
+    case "next30": return { from: addDays(asOf, 1), to: addDays(asOf, 30) };
+  }
+}
 
-export const useCategories = () => ({ data: seedCategories });
+/* ---------- meta / catalogs ---------- */
 
-export const useProducts = () =>
-  useQuery({ queryKey: qk("products"), queryFn: () => mockCall(() => engine.getProducts(), { emptyValue: [] }) });
+export const useMeta = () =>
+  useQuery({ queryKey: qk("meta"), queryFn: async () => (await request("/meta", S.metaSchema)).data, staleTime: Infinity });
 
-export const useProduct = (id: string) =>
-  useQuery({ queryKey: qk("product", id), queryFn: () => mockCall(() => engine.getProduct(id) ?? null) });
+/** The "today" of the whole UI. `undefined` until /meta answers; dependent queries wait for it. */
+export const useAsOf = (): string | undefined => useMeta().data?.data_as_of;
+
+export const useStores = () =>
+  useQuery({
+    queryKey: qk("stores"),
+    queryFn: async () => (await request("/stores", S.itemsOf(S.storeSchema))).data.items,
+    staleTime: Infinity,
+  });
+
+export function useStore(storeId: string | "all"): Store | undefined {
+  const stores = useStores().data;
+  return storeId === "all" ? undefined : stores?.find((s) => s.store_id === storeId);
+}
+
+export const useProducts = (p: PageParams & { categoryId?: string; q?: string } = {}) =>
+  useQuery({
+    queryKey: qk("products", p),
+    queryFn: async () =>
+      (await request("/products", S.pageOf(S.productSchema), {
+        query: { page: p.page ?? 1, page_size: p.pageSize ?? 25, category_id: p.categoryId, q: p.q },
+      })).data,
+    placeholderData: keepPreviousData,
+  });
+
+/** Whole catalog (120 products) for name lookups and autocomplete; pages of 100 are merged. */
+export function useCatalog() {
+  const q = useQuery({
+    queryKey: qk("catalog"),
+    queryFn: async () => {
+      const a = (await request("/products", S.pageOf(S.productSchema), { query: { page: 1, page_size: 100 } })).data;
+      const rest: Product[] = [];
+      for (let page = 2; (page - 1) * 100 < a.total; page++) {
+        rest.push(...(await request("/products", S.pageOf(S.productSchema), { query: { page, page_size: 100 } })).data.items);
+      }
+      return [...a.items, ...rest];
+    },
+    staleTime: Infinity,
+  });
+  const byId = new Map((q.data ?? []).map((p) => [p.product_id, p]));
+  return { ...q, byId, nameOf: (id: string) => byId.get(id)?.product_name ?? id };
+}
 
 export const useSuppliers = () =>
-  useQuery({ queryKey: qk("suppliers"), queryFn: () => mockCall(() => engine.getSuppliers(), { emptyValue: [] }) });
-
-export const useSupplierNextDelivery = (supplier: Supplier | undefined) => supplier ? engine.nextDeliveryDate(supplier) : null;
-
-export const useKpis = (s: Scope) =>
   useQuery({
-    queryKey: qk("kpis", s),
-    queryFn: () => mockCall(() => engine.getKpis(s.branchId, s.mode, s.range), {
-      emptyValue: { averageTicket: 0, averageTicketDeltaPct: 0, stockouts: 0, noDemand: 0, aiOpportunity: 0 },
-    }),
+    queryKey: qk("suppliers"),
+    queryFn: async () => (await request("/suppliers", S.itemsOf(S.supplierSchema))).data.items,
+    staleTime: Infinity,
   });
 
-export const useBehaviors = (s: Scope) =>
-  useQuery({ queryKey: qk("behaviors", s), queryFn: () => mockCall(() => engine.getBehaviors(s.branchId), { emptyValue: [] }) });
-
-export const useHeat = (productId: string | null) =>
-  useQuery({ queryKey: qk("heat", productId), queryFn: () => mockCall(() => engine.getHeat(productId), { emptyValue: [] }) });
-
-export const useProductRows = (s: Scope) =>
-  useQuery({ queryKey: qk("rows", s), queryFn: () => mockCall(() => engine.getProductRows(s.branchId, s.mode, s.range), { emptyValue: [] }) });
-
-export const usePromos = () =>
-  useQuery({ queryKey: qk("promos"), queryFn: () => mockCall(() => engine.getPromos(), { emptyValue: [] }) });
-
-export const usePromo = (id: string | undefined) =>
-  useQuery({ queryKey: qk("promo", id), queryFn: () => mockCall(() => engine.getPromos().find((p) => p.id === id) ?? null), enabled: !!id });
-
-export const usePromoForProduct = (productId: string, branchId: string | "all") =>
+export const useSupplierOffers = (supplierId: string | undefined, p: PageParams & { categoryId?: string; q?: string } = {}) =>
   useQuery({
-    queryKey: qk("promoForProduct", productId, branchId),
-    queryFn: () => mockCall(() => engine.getPromos().find((p) => engine.promoProductId(p) === productId && (branchId === "all" || p.branchId === branchId))
-      ?? engine.getPromos().find((p) => engine.promoProductId(p) === productId) ?? null),
+    queryKey: qk("offers", supplierId, p),
+    enabled: !!supplierId,
+    queryFn: async () =>
+      (await request(`/suppliers/${supplierId}/offers`, S.pageOf(S.supplierOfferSchema), {
+        query: { page: p.page ?? 1, page_size: p.pageSize ?? 25, category_id: p.categoryId, q: p.q },
+      })).data,
+    placeholderData: keepPreviousData,
   });
 
-export const useTrend = (productId: string, branchId: string | "all", discount?: number) =>
+/* ---------- dashboard ---------- */
+
+export function useChainSummary(scope: Pick<Scope, "mode" | "range">, zone?: string) {
+  const asOf = useAsOf();
+  return useQuery({
+    queryKey: qk("chain", scope, zone, asOf),
+    enabled: !!asOf,
+    queryFn: async () => {
+      const { from, to } = rangeToDates(asOf!, scope.range);
+      return (await request("/chain/summary", S.chainSummarySchema, { query: { from, to, mode: scope.mode, zone } })).data;
+    },
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useStoreKpis(storeId: string | "all", scope: Pick<Scope, "mode" | "range">) {
+  const asOf = useAsOf();
+  return useQuery({
+    queryKey: qk("kpis", storeId, scope, asOf),
+    enabled: !!asOf && storeId !== "all",
+    queryFn: async () => {
+      const { from, to } = rangeToDates(asOf!, scope.range);
+      return (await request(`/stores/${storeId}/kpis`, S.storeKpisSchema, { query: { from, to, mode: scope.mode } })).data;
+    },
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useHeat(scope: Pick<Scope, "mode" | "range">, opts: { productId?: string | null; zone?: string } = {}) {
+  const asOf = useAsOf();
+  return useQuery({
+    queryKey: qk("heat", scope, opts, asOf),
+    enabled: !!asOf,
+    queryFn: async () => {
+      const { from, to } = rangeToDates(asOf!, scope.range);
+      return (await request("/heat", S.heatSchema, {
+        query: { from, to, mode: scope.mode, product_id: opts.productId ?? undefined, zone: opts.zone },
+      })).data;
+    },
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useBehaviors(storeId: string | "all", scope: Pick<Scope, "mode" | "range">, limit = 6) {
+  const asOf = useAsOf();
+  return useQuery({
+    queryKey: qk("behaviors", storeId, scope, limit, asOf),
+    enabled: !!asOf && storeId !== "all",
+    queryFn: async () => {
+      const { from, to } = rangeToDates(asOf!, scope.range);
+      return (await request(`/stores/${storeId}/behaviors`, S.itemsOf(S.behaviorSchema), { query: { from, to, limit } })).data.items;
+    },
+  });
+}
+
+/* ---------- trend ---------- */
+
+export const useTendency = (storeId: string | undefined, productId: string | undefined, historyDays = 30, forecastDays = 14) =>
   useQuery({
-    queryKey: qk("trend", productId, branchId, discount),
-    queryFn: () => mockCall(() => engine.getTrend(productId, branchId, discount)),
-    placeholderData: (prev) => prev,
+    queryKey: qk("tendency", storeId, productId, historyDays, forecastDays),
+    enabled: !!storeId && storeId !== "all" && !!productId,
+    queryFn: async () =>
+      (await request(`/stores/${storeId}/tendency`, S.tendencySchema, {
+        query: { product_id: productId, history_days: historyDays, forecast_days: forecastDays },
+      })).data,
   });
 
-export const useStock = (branchId: string | "all") =>
-  useQuery({ queryKey: qk("stock", branchId), queryFn: () => mockCall(() => engine.getStock(branchId), { emptyValue: [] }) });
+/* ---------- stock ---------- */
 
-export const useRestockSuggestions = (branchId: string | "all") =>
-  useQuery({ queryKey: qk("restock", branchId), queryFn: () => mockCall(() => engine.getRestockSuggestions(branchId), { emptyValue: [] }) });
+export type StockParams = PageParams & {
+  storeId: string | "all";
+  status?: "out" | "low" | "ok" | "over";
+  categoryId?: string;
+  q?: string;
+  sort?: "coverage_days" | "quantity" | "product_name";
+};
 
-export const useCalendarEvents = (branchId: string | "all") =>
-  useQuery({ queryKey: qk("calendar", branchId), queryFn: () => mockCall(() => engine.getCalendarEvents(branchId), { emptyValue: [] }) });
+export const useStock = (p: StockParams) =>
+  useQuery({
+    queryKey: qk("stock", p),
+    queryFn: async () =>
+      (await request(`/stores/${p.storeId}/stock`, S.pageOf(S.stockItemSchema), {
+        query: { page: p.page ?? 1, page_size: p.pageSize ?? 25, status: p.status, category_id: p.categoryId, q: p.q, sort: p.sort },
+      })).data,
+    placeholderData: keepPreviousData,
+  });
 
-export const useOrders = () =>
-  useQuery({ queryKey: qk("orders"), queryFn: () => mockCall(() => getState().orders) });
+export const useStockSummary = (p: { storeId: string | "all"; categoryId?: string; q?: string }) =>
+  useQuery({
+    queryKey: qk("stock-summary", p),
+    queryFn: async () =>
+      (await request("/stock/summary", S.stockSummarySchema, {
+        query: { store_id: p.storeId === "all" ? undefined : p.storeId, category_id: p.categoryId, q: p.q },
+      })).data,
+    placeholderData: keepPreviousData,
+  });
 
-/* ---------- pure helpers backed by the mock model (synchronous: drive the slider live) ---------- */
+export const useStockPolicy = (storeId: string | undefined, p: PageParams & { categoryId?: string; q?: string } = {}) =>
+  useQuery({
+    queryKey: qk("policy", storeId, p),
+    enabled: !!storeId && storeId !== "all",
+    queryFn: async () =>
+      (await request(`/stores/${storeId}/stock-policy`, S.policyPageSchema, {
+        query: { page: p.page ?? 1, page_size: p.pageSize ?? 25, category_id: p.categoryId, q: p.q },
+      })).data,
+    placeholderData: keepPreviousData,
+  });
 
-export const simulateForPromo = (promoId: string, discountPct: number) => engine.getPromoSim(promoId, discountPct);
+/* ---------- restock & calendar ---------- */
 
-/* ---------- mutations ---------- */
+export const useRestockSuggestions = (storeId: string | undefined, p: PageParams & { urgentOnly?: boolean } = {}) => {
+  const asOf = useAsOf();
+  return useQuery({
+    queryKey: qk("restock", storeId, p, asOf),
+    enabled: !!storeId && storeId !== "all" && !!asOf,
+    queryFn: async () =>
+      (await request(`/stores/${storeId}/restock-suggestions`, S.pageOf(S.restockSuggestionSchema), {
+        query: { from: asOf, to: addDays(asOf!, 14), urgent_only: p.urgentOnly, page: p.page ?? 1, page_size: p.pageSize ?? 25 },
+      })).data,
+    placeholderData: keepPreviousData,
+  });
+};
+
+export const useCalendar = (storeId: string | undefined, from: string, to: string, layers?: string) =>
+  useQuery({
+    queryKey: qk("calendar", storeId, from, to, layers),
+    enabled: !!storeId && storeId !== "all",
+    queryFn: async () => (await request(`/stores/${storeId}/calendar`, S.calendarSchema, { query: { from, to, layers } })).data,
+    placeholderData: keepPreviousData,
+  });
+
+/* ---------- plan & strategies ---------- */
+
+export function useStorePlan(storeId: string | undefined) {
+  const asOf = useAsOf();
+  return useQuery({
+    queryKey: qk("plan", storeId, asOf),
+    enabled: !!storeId && storeId !== "all" && !!asOf,
+    queryFn: async () =>
+      (await request(`/stores/${storeId}/plan`, S.planSchema, { query: { from: addDays(asOf!, 1), to: addDays(asOf!, 7) } })).data,
+  });
+}
 
 function useInvalidating<TArgs, TRes>(fn: (a: TArgs) => Promise<TRes>) {
   const qc = useQueryClient();
   return useMutation({ mutationFn: fn, onSuccess: () => qc.invalidateQueries({ queryKey: ["api"] }) });
 }
 
-export const useAcceptPromo = () =>
-  useInvalidating(({ id, discountPct }: { id: string; discountPct: number }) =>
-    mockCall(() => { mutate((s) => { s.promoStatus[id] = { status: "accepted", discountPct }; }); return true; }));
+const action = (draftId: string, verb: "add-to-plan" | "approve" | "reject") =>
+  request(`/drafts/${draftId}/${verb}`, S.strategyActionSchema, { method: "POST", body: {} }).then((r) => r.data);
 
-export const useDismissPromo = () =>
-  useInvalidating((id: string) =>
-    mockCall(() => { mutate((s) => { s.promoStatus[id] = { status: "dismissed" }; }); return true; }));
+/** draft → selected. The backend returns the recalculated portfolio. */
+export const useAddToPlan = () => useInvalidating((draftId: string) => action(draftId, "add-to-plan"));
+/** selected → approved. Call only after an explicit confirmation dialog. */
+export const useApproveStrategy = () => useInvalidating((draftId: string) => action(draftId, "approve"));
+export const useRejectStrategy = () => useInvalidating((draftId: string) => action(draftId, "reject"));
+export const useRegeneratePlan = () =>
+  useInvalidating((storeId: string) => request(`/stores/${storeId}/strategies:generate`, S.planSchema, { method: "POST", body: {} }).then((r) => r.data));
 
-export const useSendOrder = () =>
-  useInvalidating(({ suggestionId, qty, estimatedCost }: { suggestionId: string; qty: number; estimatedCost: number }) =>
-    // TODO(backend): POST /orders → Resend
-    mockCall<RestockOrder>(() => {
-      const order: RestockOrder = { id: `ord-${Date.now()}`, suggestionId, qty, estimatedCost, status: "sent", sentAt: new Date().toISOString() };
-      mutate((s) => { s.orders.push(order); });
-      return order;
-    }));
+/* ---------- mutations: stock policy, orders, e-mails ---------- */
 
-export const useSaveSupplier = () =>
-  useInvalidating(({ id, patch }: { id: string; patch: SupplierPatch }) =>
-    mockCall(() => {
-      mutate((s) => {
-        const extra = s.extraSuppliers.find((x) => x.id === id);
-        if (extra) Object.assign(extra, patch);
-        else s.supplierPatches[id] = { ...s.supplierPatches[id], ...patch };
-      });
-      return true;
-    }));
+export const useSavePolicy = () =>
+  useInvalidating(({ storeId, items }: { storeId: string; items: { product_id: string; reorder_point: number; max_stock: number }[] }) =>
+    request(`/stores/${storeId}/stock-policy`, S.itemsOf(S.policyItemSchema), { method: "PUT", body: { items } }).then((r) => r.data));
 
-export const useAddSupplier = () =>
-  useInvalidating((sup: Omit<Supplier, "id">) =>
-    mockCall<Supplier>(() => {
-      const created: Supplier = { ...sup, id: `s-new-${Date.now()}` };
-      mutate((s) => { s.extraSuppliers.push(created); });
-      return created;
-    }));
+export const useSuggestPolicy = () =>
+  useMutation({
+    mutationFn: ({ storeId, productIds }: { storeId: string; productIds: string[] }) =>
+      request(`/stores/${storeId}/stock-policy:suggest`, S.policySuggestionSchema, { method: "POST", body: { product_ids: productIds } }).then((r) => r.data),
+  });
+
+/** Sends the order e-mail. Only call after an explicit confirmation. The backend picks the real recipient. */
+export const useSendRestockOrder = () =>
+  useInvalidating(({ suggestionId, supplierId, qty }: { suggestionId: string; supplierId: string; qty: number }) =>
+    request("/restock-orders", S.restockOrderSchema, {
+      method: "POST",
+      body: { suggestion_id: suggestionId, supplier_id: supplierId, qty },
+    }).then((r) => r.data));
 
 export const useSendTestEmail = () =>
-  // TODO(backend): POST /suppliers/:id/test-email → Resend
-  useMutation({ mutationFn: (email: string) => mockCall(() => ({ to: email, sentAt: new Date().toISOString() })) });
-
-export const useSaveMinMax = () =>
-  useInvalidating((rows: Record<string, { minStock: number; maxStock: number }>) =>
-    mockCall(() => { mutate((s) => { Object.assign(s.minMax, rows); }); return true; }));
-
-export type MinMaxSuggestion = { productId: string; minStock: number; maxStock: number; reason: string };
-export const useSuggestMinMax = () =>
-  // TODO(backend): POST /agent/min-max-suggestions
   useMutation({
-    mutationFn: () => mockCall<MinMaxSuggestion[]>(() =>
-      productSeeds.map((p) => {
-        const perBranch = (p.baseDemand * 0.14) | 0;
-        const leadFactor = p.shelfLifeDays <= 7 ? 2.5 : 4;
-        const minStock = Math.max(10, Math.round(perBranch * leadFactor / p.caseSize) * p.caseSize);
-        const cap = p.shelfLifeDays <= 7 ? 6 : p.shelfLifeDays <= 21 ? 9 : 14;
-        const maxStock = Math.max(minStock + p.caseSize * 2, Math.round(perBranch * cap / p.caseSize) * p.caseSize);
-        const reason = p.shelfLifeDays <= 7
-          ? `Caduca en ${p.shelfLifeDays} días: baja el máximo para evitar merma.`
-          : p.trendPct >= 10
-            ? `Demanda en alza (+${p.trendPct}%): sube el mínimo para evitar quiebres.`
-            : `Ajustado a ${perBranch} u/día por sucursal y entrega del proveedor.`;
-        return { productId: p.id, minStock, maxStock, reason };
-      })),
+    mutationFn: (supplierId: string) =>
+      request(`/suppliers/${supplierId}/test-email`, S.testEmailSchema, { method: "POST", body: {} }).then((r) => r.data),
   });
 
-export type ChatReply = Pick<ChatMessage, "tool" | "blocks">;
-export async function askAssistant(prompt: string, branchId: string | "all"): Promise<ChatReply> {
-  // TODO(backend): POST /agent/chat (tool-calling agent) streaming ChatBlocks
-  return mockCall<ChatReply>(() => {
-    const p = prompt.toLowerCase();
-    const bid = branchId === "all" ? "b-centro" : branchId;
-    if (p.includes("tendencia") || p.includes("yogurt") || p.includes("demanda")) {
-      return {
-        tool: 'plot_trend(product="Yogurt natural 1 L", horizon=14)',
-        blocks: [
-          { type: "text", text: "El yogurt muestra un excedente en Centro: la demanda proyectada baja y el stock supera lo que se venderá antes de caducar." },
-          { type: "trend_chart", productId: "p-yogurt", branchId: bid, points: engine.getTrend("p-yogurt", bid) },
-        ],
-      };
-    }
-    if (p.includes("pedir") || p.includes("restock") || p.includes("orden")) {
-      return {
-        tool: 'draft_restock_order(branch="' + (bid) + '", limit=4)',
-        blocks: [
-          { type: "text", text: "Estos son los pedidos con mayor riesgo de quiebre. Revísalos y confirma; no enviaré nada sin tu aprobación." },
-          { type: "restock_table", suggestions: engine.getRestockSuggestions(branchId).slice(0, 4) },
-        ],
-      };
-    }
-    if (p.includes("promo")) {
-      const top = engine.getPromos().sort((a, b) => engine.promoGain(b) - engine.promoGain(a))[0];
-      const topProduct = engine.promoProductId(top);
-      return {
-        tool: "suggest_promotions(top=1)",
-        blocks: [
-          { type: "text", text: `Mi mejor promoción hoy: "${top.title}" (${engine.promoShortLabel(top)}). Ganancia estimada +$${Math.round(engine.promoGain(top)).toLocaleString("es-MX")}. Ábrela en el simulador para comparar escenarios.` },
-          { type: "trend_chart", productId: topProduct, branchId: top.branchId, points: engine.getTrend(topProduct, top.branchId) },
-        ],
-      };
-    }
-    return {
-      blocks: [{ type: "text", text: "Aún no tengo una respuesta para eso. Prueba con: «Tendencia del yogurt», «¿Qué debo pedir hoy?» o «Mejor promoción»." }],
-    };
-  });
+/* ---------- chat ---------- */
+
+export type ChatResult = { conversationId: string; messageId: string; dropped: number } & Pick<ChatMessage, "tools" | "constraints" | "blocks">;
+
+/** Parses blocks one by one: an unknown or invalid block is dropped (and counted), the rest is shown. */
+export function parseChatBlocks(raw: unknown[]): { blocks: ChatBlock[]; dropped: number } {
+  const blocks: ChatBlock[] = [];
+  let dropped = 0;
+  for (const b of raw) {
+    const r = S.chatBlockSchema.safeParse(b);
+    if (r.success) blocks.push(r.data);
+    else dropped++;
+  }
+  return { blocks, dropped };
 }
 
-export const todayPlus = (n: number) => addDays(todayIso(), n);
-export type { Product };
+export const useSendChat = () => {
+  const qc = useQueryClient();
+  // A chat reply may create a draft; only the plan-related data can change.
+  return useMutation({ mutationFn: sendChat, onSuccess: () => qc.invalidateQueries({ queryKey: ["api", "plan"] }) });
+};
+
+const sendChat = (async ({ storeId, conversationId, message }: { storeId: string; conversationId: string | null; message: string }): Promise<ChatResult> => {
+    const res = (await request("/chat", S.chatResponseSchema, {
+      method: "POST",
+      body: { store_id: storeId, conversation_id: conversationId, message },
+    })).data;
+    const { blocks, dropped } = parseChatBlocks(res.blocks);
+    return { conversationId: res.conversation_id, messageId: res.message_id, tools: res.tools, constraints: res.interpreted_constraints, blocks, dropped };
+  });

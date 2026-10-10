@@ -6,13 +6,13 @@ Context file for coding agents. Read this fully before touching code. Business a
 
 Retail Tech Challenge hackathon (Sofftek, challenge 1: demand forecast + restock). Team of 5 systems engineers, 24 hours. **This repo is ONLY the interface (frontend).** The model, the AI agent and the backend are built by teammates in separate folders/repos.
 
-- Do NOT build the real model, agent or backend. Everything the UI needs comes from a typed data layer (`/lib/api`) that returns **mock data now** and can be swapped for real endpoints later without touching components.
+- Do NOT build the real model, agent or backend. Everything the UI needs comes from a typed data layer (`/lib/api`) that returns **mock data now** (shaped like the real dataset) and switches to the real API with `NEXT_PUBLIC_API_MODE=http`, without touching components.
 - Stay inside this repo. If something is missing from the API, add a typed mock and leave a `// TODO(backend):` comment.
 - Priority: a polished, demo-ready UI that tells a clear story in ~5 minutes. Speed over perfection; no over-engineering.
 
 ## 2. Product summary
 
-**StockCopilot** helps retail chains (target customers: Walmart, 7-Eleven, Coppel) **reduce losses (stock-outs, waste from expiry, unsold stock) and increase sales (ticket size, cross-sells)**.
+**StockCopilot** helps retail chains (demo dataset: 25 synthetic convenience stores in Saltillo, shown with the generic brand "Retail") **reduce losses (stock-outs, waste from expiry, unsold stock) and increase sales (ticket size, cross-sells)**.
 
 **Differentiator: smart promotions.** An AI agent reads the demand forecast from the model, analyzes purchase behavior from history and current stock, and builds promotions with a start and end date. For each promotion it predicts **how much we gain and how much loss we avoid**, and the user sees the comparison **with and without accepting it**. Restock orders cover the basics: products at their stock limits or with a forecast demand spike.
 
@@ -30,7 +30,7 @@ Repo already has: Next.js (App Router) + React + TypeScript + Tailwind CSS v4 + 
 
 - Recharts (trend charts: solid = history, dashed = forecast, shaded band = uncertainty)
 - react-leaflet + Leaflet (branch map, centered on the Saltillo area) with a heat layer (a lightweight heat plugin, or sized/colored radial markers if the plugin is a problem)
-- TanStack Query (data fetching over the mock layer)
+- TanStack Query (data fetching) and zod (API schemas and response validation)
 - React state or Zustand for filters (keep it simple)
 - shadcn/ui is optional; build small components if it slows you down
 
@@ -69,184 +69,76 @@ Layout shell: fixed left sidebar (logo, nav, user, sign out) + fluid content wit
 
 | Concept | UI label (Spanish) | Code name |
 |---|---|---|
-| Average sale ticket | Ticket por venta | `averageTicket` |
-| Stock-out | Artículos sin stock | `stockouts` |
-| Products with no demand | Artículos sin demanda | `noDemand` |
-| Opportunity found by the AI | Oportunidad detectada por IA | `aiOpportunity` |
-| Branch / store | Sucursal | `branch` |
-| Detected buying pattern | Comportamientos de compra detectados | `BehaviorInsight` |
-| Suggested promotion | Promoción sugerida | `PromoSuggestion` |
-| With / without accepting | Si aceptas / Si no aceptas | `PromoScenario` |
-| Restock order | Orden Restock | `RestockOrder` |
-| Restock suggestion | Sugerencia de restock | `RestockSuggestion` |
-| Supplier catalog | Catálogo de proveedores | `Supplier` |
-| Product catalog (with min/max) | Catálogo de productos | `Product` |
-| Sales heatmap | Mapa de calor | `BranchHeat` |
+| Average ticket (net amount per ticket, from `ticket_lines`) | Ticket por venta | `average_ticket` |
+| Items per ticket | Artículos por ticket | `items_per_ticket` |
+| Stock-out | Artículos sin stock | `stockout_products` |
+| Products with no demand | Artículos sin demanda | `no_demand_products` |
+| Opportunity found by the AI (portfolio net impact) | Oportunidad detectada por IA | `ai_opportunity_mxn` |
+| Store (shown as "Retail <colonia>") | Sucursal | `store` / `store_id` |
+| Detected buying pattern (observed or estimated) | Comportamientos de compra detectados | `Behavior` |
+| Commercial plan of a store (up to 5 strategies) | Plan comercial | `Plan` |
+| Strategy (affinity combo, rescue bundle, contextual offer) | Estrategia / Promoción sugerida | `Strategy` |
+| Without / with accepting | Si no aceptas / Si aceptas | `baseline` / `treated` |
+| Strategy lifecycle | Borrador → En el plan → Aprobada → Programada → Activa → Medida (Rechazada, Expirada) | `StrategyStatus` |
+| Restock suggestion / order | Sugerencia de restock / Orden Restock | `RestockSuggestion` / `RestockOrder` |
+| Supplier (reliability = on-time probability) | Proveedor / Puntualidad | `Supplier` / `reliability_score` |
+| Supplier offer per product | Oferta del proveedor | `SupplierOffer` |
+| Min / max stock per store x product (min = reorder point) | Mínimo / Máximo | `reorder_point` / `max_stock` |
+| Sales heatmap | Mapa de calor | `Heat` |
 
 ## 7. Screens and routes
 
-Auth is mocked (see 7.0). Every route except `/login` redirects to `/login` without a session; if logged in, `/login` redirects to `/`.
+Auth: login against the mock (demo account `demo@stockcopilot.com` / `demo1234`) or `POST /auth/login` when the API mode is `http`. Every route except `/login` redirects to `/login` without a session. Filters (store, data mode, range) live in `lib/filters.ts` and are kept while navigating by the menu (a full page reload resets them). "Hoy" is always `data_as_of` from the backend (`useAsOf`), never the browser clock.
 
-### 7.0 Login — `/login` (mockup: `1 · Login-html`)
-- Split screen: dark brand panel (tagline "Qué pedir, qué promover y cuándo, antes de perder la venta", three benefits, warm heat-glow circles) + form (email, password with show/hide eye button). No roles or permissions: every user sees every branch.
-- Client validation with clear Spanish errors, loading state on the button, wrong-credentials state.
-- `login(email, password)` / `logout()` in `/lib/api/auth.ts`. Demo account `demo@stockcopilot.com` / `demo1234`. Session in a small React context persisted in `localStorage`, shaped for a real token (`// TODO(backend): real auth endpoint`).
+- **`/` Dashboard.** Scope "Todas las sucursales" = chain view: aggregated KPIs (`useChainSummary`), heatmap of 25 stores with zone filter and product search (star on the top store), store ranking. No plan, chat or orders in this view. With a store selected: store KPIs, behaviors (Observado / Estimado badge), products | promotions side panel, **PlanPanel** (up to 5 strategies, portfolio impact from the backend, reason when fewer than 5, "Regenerar plan") and the **AI assistant**.
+- **`/product/[id]?store=&strategy=`** Trend chart (history, forecast with real P50/P80/P90 bands, treated series), the strategy detail with the engine's proposed discount (**no slider**), "Si no aceptas / Si aceptas" and the lifecycle actions.
+- **`/calendar`** Requires a store. Month grid with deliveries, strategies and alerts (out of stock, expiring, delayed order), optional context layer (holidays, events, payday, weather). Sidebar: restock suggestions + suppliers. "Orden Restock" modal with explicit confirmation; the real recipient is decided by the backend (demo mailbox).
+- **`/stock`** Server-paginated table with filters and server-side status counts; min/max = reorder point and max stock per store.
+- **`/suppliers`** Read-only suppliers with their offers per product and a "correo de prueba" (confirmation required).
+- **`/products`** Requires a store. Min/max per store x product, editable, with AI suggestions applied only on confirmation.
+- Navigation: fixed sidebar (Dashboard, Calendario de restock, Stock general, Proveedores, Productos), user, "Cerrar sesión".
 
-### 7.1 Dashboard — `/` (mockup: `2 · Dashboard principal-html`)
-Header controls (they change all data on the page): **Sucursal** select (all/one), **Datos** toggle `Actuales | Predicción ML`, **Rango de fechas** (last 7/30 days, next 14/30 days).
-1. **4 KPI cards:** Ticket por venta (+delta), Artículos sin stock, Artículos sin demanda, Oportunidad detectada por IA (dark card, MXN).
-2. **Comportamientos de compra detectados:** 3 cards (tag Crosssell / Merma / Demanda, estimated gain, explanation) with buttons "Ver predicción" (→ `/product/[id]`) and "Ver en calendario".
-3. **Análisis de sucursales:**
-   - **Heatmap** (Leaflet): branch markers are clickable and filter the dashboard. Product search (catalog autocomplete): the map then shows where that product moves most, a ★ marks the top branch; clicking a branch filters by it and moves the searched product to the top of the sidebar list. A "Quitar filtro" chip clears it.
-   - **Sidebar, two tabs** `Productos | Promociones`: category filter chips, sort `Demanda en alza | En baja`, row with trend arrow and units/day, buttons "Tendencia" and **"Ver en calendario"**. The promotions tab lists suggested promotions with estimated gain.
-4. **Asistente de IA (GenUI chatbot):** answers with components, not just text. Tool results render as a trend chart (history + forecast) or a restock-order table, with a visible tool label (e.g. `plot_trend(...)`, `draft_restock_order(...)`). The assistant proposes; the user approves. Mock the conversation with canned replies keyed by the quick-prompt chips.
+## 8. Data contract
 
-### 7.2 Tendencia y simulador de promoción — `/product/[id]` (mockup: `3 · Tendencia y simulador de promoción-html`)
-This is the "prediction" view the whiteboard calls the trend chart. **"Regresar al mapa"** goes back to `/`.
-- Trend chart: 30 days history (solid) + 14 days forecast without promotion (dashed) and with promotion (orange), uncertainty band, shaded promotion window; metric tiles (14-day demand, stock, days to expiry, expected waste).
-- **Promoción sugerida (IA):** single-product discount or anchor bundle. For a single promo, an adjustable discount slider (0–40%) with the model's optimal discount. For a bundle, the anchor (product + qty + discount) is decided by the model and shown read-only ("óptimo IA"); the adjustable slider controls the reward discount (0–100%). Shows the reasons (surplus vs shelf life, bought-together pattern, diminishing returns of discount).
-- **"Qué ganas y qué pierdes":** two scenarios side by side (**Si no aceptas** / **Si aceptas**) and a table: units sold, revenue, margin, waste cost, cross-sell revenue, giveaway cost, **net profit**, with differences. Buttons: Aceptar promoción, Descartar, Ver en calendario. Accepting schedules it in the calendar.
+The contract between frontend and backend is **`docs/backend-contract.md`** (proposal sent to the backend team; the 7 endpoints of `milestones.md` M0 are defined by them, see `public/context/MILESTONES.md`). In code it lives in **`lib/api/schemas.ts`** (zod) and `types/index.ts` (types inferred from the schemas). Rules:
 
-### 7.3 Restock calendar — `/calendar` (mockup: `4 · Calendario de restock-html`)
-- Branch select; sidebar with tabs `Productos | Proveedores`.
-  - Productos: items to restock (tag: demand spike, run-out, below minimum) with suggested quantity and supplier, a **"Orden Restock"** button, and top promotions with potential.
-  - Proveedores: lead time, delivery days, minimum order, fill rate, next delivery, items to order.
-- Month grid with supplier deliveries (green), suggested promotions (orange) and run-out alerts (red). Today highlighted.
-- **Orden Restock modal:** to / subject, editable quantity, estimated cost, "Si no pides" (lost sales) vs "Si pides" (expected gain, waste), then **"Enviar correo con Resend"** → confirmation. Mock the send (`// TODO(backend): POST /orders → Resend`).
+- Field names stay `snake_case` exactly like the API; ids are opaque strings (`S001`, `P001`, `SUP01`, `C01`): never hardcode them.
+- Every response is `{ request_id, data_as_of, data }` and is validated with the schemas, in mock **and** http mode.
+- Components only use the hooks in `lib/api/hooks.ts`. They never import `lib/mock/*` and never call `fetch`.
+- **No financial calculations in the client**: impact, margin, waste, portfolio, stock status, delivery dates and totals come from the backend. The client only formats (and may subtract two values that the backend already sent to show a difference).
+- Proportions are fractions (`0.10` = 10 %); money is MXN with 2 decimals.
+- The LLM output is never rendered as HTML; chat blocks are a closed union validated with zod and unknown blocks are dropped.
+- Anything the backend does not provide yet is a `// TODO(backend)` and is listed in the contract document (open questions D1 to D19).
 
-### 7.4 Stock — `/stock` (mockup: `5 · Stock general-html`)
-Branch and category filters, status chips (Sin stock / Bajo mínimo / En rango / Sobrestock), 4 count cards, table with existence, level bar against min and max markers, coverage in days, status, next restock, "Ver en calendario".
+## 9. Data modes and mock layer
 
-### 7.5 Suppliers — `/suppliers` (mockup: `6 · Catálogo de proveedores-html`)
-Table (name, email, lead time, delivery days, minimum order, fill rate), edit form for the selected supplier, "Resend conectado" card with a test email button. The supplier email is where restock orders go.
+- `NEXT_PUBLIC_API_MODE` = `mock` (default) or `http`; `NEXT_PUBLIC_API_URL` is the API base URL for `http`. In mock mode the "Datos de ejemplo" badge is shown.
+- The mock plays the backend: `lib/mock/router.ts` + `lib/mock/handlers/*` answer the same paths as the contract, with the same schemas. Data comes from `lib/mock/data/*.json`, extracted from the real dataset generator (`scripts/extract-sample-data.py`, see `lib/mock/data/README.md`); CSV files are never versioned.
+- Mock rules (simulated engine, optimizer, agent) live only under `lib/mock/**` and are deterministic. They are a stand-in for the model and must not leak into components.
+- Mock latency 300-600 ms; the sidebar offers the demo states "Normal / Vacío / Error" and "Reiniciar datos de ejemplo".
+- Demo stores: the first store (by `store_id`) has 5 strategies at different lifecycle stages and one rejected by a constraint; the second has a measured strategy; the third has fewer than 5 with a reason.
+- Translation of dataset codes (categories, zones, weekdays, weather, events, states, reasons) is in `lib/labels.ts` (`t(kind, code)`); an unknown code is shown as is. Stores are shown with `displayBranchName` ("Retail <colonia>", `lib/branding.ts`).
 
-### 7.6 Products — `/products` (mockup: `7 · Catálogo de productos-html`)
-Catalog with cost, price, case size, shelf life, **editable min/max stock** inputs, and the button "Sugerir min/max con IA" (shows suggestions per row with a one-line reason; "Aplicar sugerencias" fills the inputs).
-
-### 7.7 Navigation
-Fixed sidebar: Dashboard · Calendario de restock · Stock general · Proveedores · Productos, then user name and "Cerrar sesión". Keep filters (branch, data mode, range) when moving between screens.
-
-## 8. Data contracts (mock first)
-
-Put in `/types`, implement mocks in `/lib/mock`, serve through `/lib/api` hooks:
-
-```ts
-type AuthUser = { id: string; name: string; email: string };
-type Session = { user: AuthUser; token: string };
-
-type Branch = { id: string; name: string; lat: number; lng: number };
-
-type Product = {
-  id: string; sku: string; name: string; category: string;
-  supplierId: string; unitCost: number; price: number;
-  caseSize: number; shelfLifeDays: number;
-  minStock: number; maxStock: number;
-};
-
-type Supplier = {
-  id: string; name: string; email: string;
-  leadTimeDays: number; deliveryDays: string; // e.g. "Mon/Thu"
-  minOrderValue: number; fillRate: number;     // 0..1
-};
-
-type Kpis = {
-  averageTicket: number; averageTicketDeltaPct: number;
-  stockouts: number; noDemand: number; aiOpportunity: number; // MXN
-};
-
-type TrendPoint = { date: string; value: number; kind: "history" | "forecast" | "forecast_promo" };
-
-type BranchHeat = { branchId: string; productId: string | null; movement: number }; // 0..100
-
-type StockStatus = "out" | "low" | "ok" | "over";
-type StockItem = {
-  productId: string; branchId: string; quantity: number;
-  coverageDays: number; status: StockStatus; nextRestock: string | null;
-};
-
-type BehaviorInsight = {
-  id: string; kind: "crosssell" | "waste" | "demand";
-  title: string; text: string; estimatedGain: number; productId: string;
-};
-
-type PromoScenario = {
-  unitsSold: number; revenue: number; margin: number;
-  wasteUnits: number; wasteCost: number; crossSellRevenue: number;
-  giveawayCost: number; netProfit: number;
-};
-type PromoLine = {
-  productId: string;
-  role: "single" | "anchor" | "reward";
-  qty: number;          // anchor: units to buy (model decides); reward: 1 per ticket
-  discountPct: number;  // anchor: model decides; reward: adjustable slider 0..100
-};
-type PromoSuggestion = {
-  id: string; branchId: string;
-  title: string; kind: "single" | "bundle";
-  lines: PromoLine[];   // single = 1 line; bundle = anchor + reward
-  discountPct: number;            // current adjustable discount (single discount or reward discount)
-  optimalDiscountPct: number;     // model's suggested adjustable discount
-  startDate: string; endDate: string; // ISO
-  drivers: ("demand" | "weather" | "event" | "season" | "shelf_life" | "bought_together")[];
-  withoutPromo: PromoScenario; withPromo: PromoScenario;
-  status: "pending" | "accepted" | "dismissed";
-};
-```
-The promo's primary product (used for navigation and the product page) is the anchor for bundles and the single product otherwise — see `promoProductId()` in `/lib/mock/engine`.
-
-type RestockSuggestion = {
-  id: string; productId: string; branchId: string; supplierId: string;
-  suggestedQty: number; suggestedDate: string; // ISO
-  reasons: ("below_min" | "demand_spike" | "stockout" | "season")[];
-  expectedLostSalesIfSkipped: number; expectedGainIfOrdered: number;
-};
-type RestockOrder = {
-  id: string; suggestionId: string; qty: number; estimatedCost: number;
-  status: "draft" | "sent"; sentAt: string | null;
-};
-
-type CalendarEvent = { date: string; kind: "delivery" | "promo" | "alert"; label: string };
-
-type ChatBlock =
-  | { type: "text"; text: string }
-  | { type: "trend_chart"; productId: string; branchId: string; points: TrendPoint[] }
-  | { type: "restock_table"; suggestions: RestockSuggestion[] };
-type ChatMessage = { id: string; role: "user" | "assistant"; tool?: string; blocks: ChatBlock[] };
-```
-
-Rule: components never import mock data directly; always through `/lib/api` hooks, so the real backend replaces it without touching the UI.
-
-## 9. Mock layer and demo numbers
-
-- Believable demo set: ~7 branches in the Saltillo area (Centro, Valle Real, Zona Industrial, Ramos Arizpe, Los Pinos, Plaza Norte, Carlos Abedrop) with approximate coordinates, ~10 products (yogurt, lager 6-pack, white bread, whole milk, cola 2 L, potato chips, eggs, corn tortillas, granola, orange juice), 5 suppliers (Distribuidora Sierra, Lácteos del Valle, Panificadora Norte, Granja San Pedro, Botanas del Norte). Product/category names in Spanish.
-- Filters must actually change the numbers (branch, data mode, range) so the demo feels live.
-- **Promotion math (mock only; replace with the model later).** Single-product discount `d` (0–100):
-  `demand(d) = base × (1 + 0.7 × (1 − e^(−d/14)))`, `sold = min(stock, demand)`, `waste = stock − sold`, `effectivePrice = price × (1 − d/100)`, `margin = sold × (effectivePrice − cost)`, `wasteCost = waste × cost`, `crossSell = max(0, sold − base) × carryRate × complementMargin`, `net = margin − wasteCost + crossSell`.
-- **Bundle promotion (anchor + reward).** Anchor qty and discount are model inputs; the reward is 1 per ticket at the adjustable reward discount:
-  `lift = 1 + 0.6 × (rewardDiscount/100)`, `anchorSold = min(anchorStock, anchorBase × lift)`, `rewardGiven = min(⌊anchorSold / anchorQty⌋, tickets)`, `giveawayCost = rewardGiven × [ (1 − cannibalRate) × (rewardCost − rewardEffPrice) + cannibalRate × (rewardPrice − rewardEffPrice) ]`, `netProfit = margin − wasteCost + crossSell − giveawayCost`. `lift` and `cannibalRate` are declared assumptions.
-- The **optimal parameters** (anchor qty, anchor discount, reward discount) are **proposed by the model**, not computed in the frontend (`// TODO(backend)`). The same scenario function drives the slider and both scenario cards, so the numbers always agree. In the simulator the slider adjusts the reward discount for bundles (and the product discount for singles); the anchor is read-only.
-- Keep one consistent set of headline numbers across screens (e.g. the yogurt promotion estimate must match on Dashboard, Product detail and Calendar).
-- Mock latency of 300–600 ms so loading skeletons are visible; include one empty and one error state you can trigger.
-
-## 10. Suggested structure
+## 10. Structure
 
 ```
 app/
   login/page.tsx
-  page.tsx                  # Dashboard
-  product/[id]/page.tsx     # Trend + promotion simulator
-  calendar/page.tsx
-  stock/page.tsx
-  suppliers/page.tsx
-  products/page.tsx
+  (app)/                    # authenticated shell
+    page.tsx                # Dashboard
+    product/[id]/page.tsx   # Trend + strategy detail
+    calendar/ stock/ suppliers/ products/
 components/
-  layout/  dashboard/  map/  product/  calendar/  stock/  catalog/  chat/  ui/
+  layout/ dashboard/ map/ strategy/ product/ chat/ calendar/ stock/ catalog/ ui/
 lib/
-  api/  mock/  copy.ts  format.ts
-types/
+  api/        # client.ts (request), hooks.ts, schemas.ts, envelope.ts, http.ts, config.ts, auth.ts
+  mock/       # router.ts, handlers/, strategy/, ops/, data/ (JSON samples), db.ts, derive.ts, store.ts
+  copy.ts labels.ts branding.ts format.ts filters.ts links.ts heat.ts
+types/        # inferred from lib/api/schemas.ts
+docs/         # backend-contract.md
+scripts/      # extract-sample-data.py
+openspec/     # change align-frontend-to-backend-model
 ```
-
-Remove the old placeholder files in `app/(auth)/` (`login.tsx`, `signin.tsx`, `welcome.tsx`, all empty); the login lives at `app/login/page.tsx`.
 
 ## 11. How to work
 
@@ -259,16 +151,14 @@ Remove the old placeholder files in `app/(auth)/` (`login.tsx`, `signin.tsx`, `w
 
 ## 12. Definition of done (per screen)
 
-- [ ] Matches the approved mockup in `proyect_context/ui/`
-- [ ] Uses typed mock data via `/lib/api`
+- [ ] Matches the approved mockup in `proyect_context/ui/` (adapted to the OpenSpec change where they differ)
+- [ ] Data only through `lib/api/hooks.ts`, validated by `lib/api/schemas.ts`; works in mock and http mode
 - [ ] Loading (skeleton), empty and error states
-- [ ] UI in Spanish from `/lib/copy.ts`; code in English; terminology matches the glossary
-- [ ] Filters and promotion simulator change the numbers; headline numbers consistent across screens
-- [ ] No console errors; `tsc` and lint pass
-- [ ] Looks good at 1440px and 1024px
-- [ ] Login works with mock auth; protected routes redirect to `/login`; logout clears the session
-
-<!-- BEGIN:nextjs-agent-rules -->
+- [ ] UI in Spanish from `lib/copy.ts` and `lib/labels.ts`; code in English; terminology matches the glossary
+- [ ] No financial calculation in the client; nothing is approved or sent without an explicit confirmation
+- [ ] No console errors; `tsc` and lint pass; `pnpm build` passes
+- [ ] Looks good at 1440px and 1024px (no horizontal page scroll)
+- [ ] Login works; protected routes redirect to `/login`; logout clears the session
 
 ## This is NOT the Next.js you know
 
