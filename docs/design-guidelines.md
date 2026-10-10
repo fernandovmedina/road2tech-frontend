@@ -9,7 +9,7 @@ Si este documento y `AGENTS.md` §5 se contradicen, **este documento manda** (y 
 ## 1. Principios
 
 1. **El dato lleva el color.** Los fondos y el mapa base son neutros; solo los datos (riesgo, calor, escenarios, acción) usan color saturado. Un mapa base gris, una tarjeta blanca.
-2. **Un solo título fuerte por pantalla.** Un único peso 800 (el título de página). Las secciones usan 700, las tarjetas 600, el cuerpo 500. Si todo es "negrita", nada destaca.
+2. **Un solo título fuerte por pantalla.** Un único peso 800 (el título de página). Las secciones y los títulos de tarjeta usan 700, el cuerpo 500. Si todo es "negrita", nada destaca.
 3. **Verde = acción / selección oscura = tinta.** El botón primario (acción, IA) es verde `primary`. La selección activa (segmentado, marcador, item activo) es tinta oscura `foreground`. Acción y selección nunca compiten por el mismo color.
 
 Regla transversal: un color de estado nunca es el único medio para comunicar ese estado; siempre va con texto o icono.
@@ -302,7 +302,6 @@ Clases reales del repo (estilo original y del mapa) → clases del estándar.
 | `bg-brand-soft` | `bg-primary-tint` |
 | `hover:bg-brand-soft/30` | `hover:bg-primary-tint/30` |
 | `text-critical` | `text-alert` |
-| `bg-critical` | `bg-alert` |
 | `focus-visible:outline-brand` | `focus-visible:outline-primary` |
 | `bg-ink text-white` (botón del mapa) | `<Button variant="primary">` |
 | `bg-ink` (opción activa del segmentado) | `bg-foreground` |
