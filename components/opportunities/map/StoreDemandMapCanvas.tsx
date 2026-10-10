@@ -31,6 +31,10 @@ export function StoreDemandMapCanvas({
   onSelectBranch,
 }: StoreDemandMapCanvasProps) {
   const [map, setMap] = useState<LeafletMap | null>(null);
+  // MapContainer is rendered only while its host div is attached. React detaches the ref when the screen is
+  // hidden (Cache Components keeps previous routes alive) and re-attaches it on return, so Leaflet never
+  // sees a container it already initialised ("Map container is being reused by another instance").
+  const [host, setHost] = useState<HTMLDivElement | null>(null);
   const predictionByBranch = useMemo(
     () => new Map(predictions.map((prediction) => [prediction.branchId, prediction])),
     [predictions],
@@ -45,35 +49,37 @@ export function StoreDemandMapCanvas({
   const setMapRef = useCallback((nextMap: LeafletMap | null) => setMap(nextMap), []);
 
   return (
-    <div className="relative size-full">
-      <MapContainer
-        ref={setMapRef}
-        bounds={homeBounds}
-        boundsOptions={HOME_FIT}
-        zoomSnap={0.25}
-        zoomControl={false}
-        scrollWheelZoom
-        className="opportunity-map size-full"
-      >
-        <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} maxZoom={19} />
-        <ZoomControl position="topright" />
-        {branches.map((branch) => {
-          const prediction = predictionByBranch.get(branch.id);
-          return prediction ? (
-            <StoreDemandMarker
-              key={branch.id}
-              branch={branch}
-              prediction={prediction}
-              maxDemand={maxDemand}
-              isSelected={branch.id === selectedBranchId}
-              onSelect={onSelectBranch}
-            />
-          ) : null;
-        })}
-        <MapViewportController
-          focus={selectedBranch ? { lat: selectedBranch.lat, lng: selectedBranch.lng, radiusMeters: 800 } : null}
-        />
-      </MapContainer>
+    <div ref={setHost} className="relative size-full">
+      {host && (
+        <MapContainer
+          ref={setMapRef}
+          bounds={homeBounds}
+          boundsOptions={HOME_FIT}
+          zoomSnap={0.25}
+          zoomControl={false}
+          scrollWheelZoom
+          className="opportunity-map size-full"
+        >
+          <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} maxZoom={19} />
+          <ZoomControl position="topright" />
+          {branches.map((branch) => {
+            const prediction = predictionByBranch.get(branch.id);
+            return prediction ? (
+              <StoreDemandMarker
+                key={branch.id}
+                branch={branch}
+                prediction={prediction}
+                maxDemand={maxDemand}
+                isSelected={branch.id === selectedBranchId}
+                onSelect={onSelectBranch}
+              />
+            ) : null;
+          })}
+          <MapViewportController
+            focus={selectedBranch ? { lat: selectedBranch.lat, lng: selectedBranch.lng, radiusMeters: 800 } : null}
+          />
+        </MapContainer>
+      )}
       <button
         type="button"
         onClick={() => map?.flyToBounds(homeBounds, { ...HOME_FIT, duration: 0.6 })}

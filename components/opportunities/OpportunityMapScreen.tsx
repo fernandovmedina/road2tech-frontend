@@ -9,9 +9,21 @@ import { OpportunityMapContent } from "./OpportunityMapContent";
 import { OpportunityMapFrame } from "./OpportunityMapFrame";
 import { OpportunityMapSkeleton } from "./OpportunityMapSkeleton";
 
-export function OpportunityMapScreen({ embedded = false }: { embedded?: boolean }) {
+type OpportunityMapScreenProps = {
+  embedded?: boolean;
+  /** Controlled branch (e.g. the dashboard store filter). Falls back to local state when undefined. */
+  branchId?: string;
+  onBranchChange?: (branchId: string) => void;
+};
+
+export function OpportunityMapScreen({ embedded = false, branchId, onBranchChange }: OpportunityMapScreenProps) {
   const [selectedProductId, setSelectedProductId] = useState(ALL_PRODUCTS_ID);
-  const [selectedBranchId, setSelectedBranchId] = useState("S001");
+  const [localBranchId, setLocalBranchId] = useState("S001");
+  const selectedBranchId = branchId ?? localBranchId;
+  const setSelectedBranchId = (next: string) => {
+    setLocalBranchId(next);
+    onBranchChange?.(next);
+  };
   const [category, setCategory] = useState("all");
   const [tag, setTag] = useState("all");
   const state = useOpportunityMapData({
