@@ -43,6 +43,7 @@ export function dailyDemand(productId: string, branchId: string | "all"): number
 
 export type PromoInput = { price: number; cost: number; stock: number; baseUnits: number; carryRate: number; complementMargin: number };
 
+// Single-product discount promo (kind: "single")
 export function simulatePromo(input: PromoInput, discountPct: number): PromoScenario {
   const { price, cost, stock, baseUnits, carryRate, complementMargin } = input;
   const demand = baseUnits * (1 + 0.7 * (1 - Math.exp(-discountPct / 14)));
@@ -59,6 +60,7 @@ export function simulatePromo(input: PromoInput, discountPct: number): PromoScen
     wasteUnits: Math.round(waste),
     wasteCost: Math.round(wasteCost),
     crossSellRevenue: Math.round(crossSell),
+    giveawayCost: 0,
     netProfit: Math.round(margin - wasteCost + crossSell),
   };
 }
@@ -73,21 +75,83 @@ export function optimalDiscount(input: PromoInput): number {
   return best;
 }
 
+export type BundleInput = {
+  anchor: PromoInput;
+  anchorQty: number;
+  anchorDiscountPct: number;
+  reward: PromoInput;
+  tickets: number;
+  liftFactor: number;
+  cannibalRate: number;
+};
+
+// Anchor + reward bundle (kind: "bundle"). rewardDiscountPct = 0 means baseline (no promo).
+export function simulateBundle(input: BundleInput, rewardDiscountPct: number): PromoScenario {
+  const { anchor, anchorQty, anchorDiscountPct, reward, tickets, liftFactor, cannibalRate } = input;
+
+  // anchor: the slow-moving product we want to push (demand lifted by the reward incentive)
+  const lift = 1 + liftFactor * (rewardDiscountPct / 100);
+  const anchorSold = Math.min(anchor.stock, anchor.baseUnits * lift);
+  const anchorWaste = anchor.stock - anchorSold;
+  const anchorEffPrice = anchor.price * (1 - anchorDiscountPct / 100);
+  const anchorRevenue = anchorSold * anchorEffPrice;
+  const anchorMargin = anchorSold * (anchorEffPrice - anchor.cost);
+  const anchorWasteCost = anchorWaste * anchor.cost;
+  const anchorCrossSell = Math.max(0, anchorSold - anchor.baseUnits) * anchor.carryRate * anchor.complementMargin;
+
+  // reward: the high-consumption product handed out at a discount (1 per ticket)
+  const rewardGiven = rewardDiscountPct > 0 ? Math.min(Math.floor(anchorSold / anchorQty), tickets) : 0;
+  const rewardEffPrice = reward.price * (1 - rewardDiscountPct / 100);
+  const rewardWaste = Math.max(0, reward.stock - reward.baseUnits);
+  const giveawayCost = rewardGiven * (
+    (1 - cannibalRate) * (reward.cost - rewardEffPrice) + cannibalRate * (reward.price - rewardEffPrice)
+  );
+
+  const unitsSold = anchorSold + reward.baseUnits;
+  const revenue = anchorRevenue + reward.baseUnits * reward.price;
+  const margin = anchorMargin + reward.baseUnits * (reward.price - reward.cost);
+  const wasteUnits = anchorWaste + rewardWaste;
+  const wasteCost = anchorWasteCost + rewardWaste * reward.cost;
+  const crossSellRevenue = anchorCrossSell;
+
+  return {
+    unitsSold: Math.round(unitsSold),
+    revenue: Math.round(revenue),
+    margin: Math.round(margin),
+    wasteUnits: Math.round(wasteUnits),
+    wasteCost: Math.round(wasteCost),
+    crossSellRevenue: Math.round(crossSellRevenue),
+    giveawayCost: Math.round(giveawayCost),
+    netProfit: Math.round(margin - wasteCost + crossSellRevenue - giveawayCost),
+  };
+}
+
 type PromoSeed = {
-  id: string; productId: string; branchId: string; title: string; kind: "promo" | "crosssell";
-  startOffset: number; durationDays: number; windowFactor: number; drivers: PromoSuggestion["drivers"];
+  id: string;
+  branchId: string;
+  title: string;
+  kind: "single" | "bundle";
+  startOffset: number;
+  durationDays: number;
+  windowFactor: number;
+  drivers: PromoSuggestion["drivers"];
+  productId: string;          // single product OR bundle anchor
+  anchorQty: number;          // bundle: units to buy (model decides); single: 1
+  anchorDiscountPct: number;  // bundle: anchor discount (model decides); single: 0
+  rewardId: string | null;    // bundle reward product
+  rewardDiscountPct: number;  // bundle: optimal reward discount (model); single: 0
 };
 
 const promoSeeds: PromoSeed[] = [
-  { id: "promo-yogurt", productId: "p-yogurt", branchId: "b-centro", title: "Yogurt natural 1 L: liquidar excedente", kind: "promo", startOffset: 3, durationDays: 7, windowFactor: 0.6, drivers: ["shelf_life", "bought_together", "demand"] },
-  { id: "promo-cerveza", productId: "p-cerveza", branchId: "b-norte", title: "Cerveza + papas fritas para el fin de semana", kind: "crosssell", startOffset: 6, durationDays: 3, windowFactor: 0.7, drivers: ["event", "bought_together", "weather"] },
-  { id: "promo-jugo", productId: "p-jugo", branchId: "b-valle", title: "Jugo de naranja 1 L: evitar merma", kind: "promo", startOffset: 5, durationDays: 6, windowFactor: 0.55, drivers: ["shelf_life", "season"] },
-  { id: "promo-granola", productId: "p-granola", branchId: "b-centro", title: "Granola con miel junto al yogurt", kind: "crosssell", startOffset: 9, durationDays: 7, windowFactor: 0.9, drivers: ["bought_together", "demand"] },
+  { id: "promo-yogurt", branchId: "b-centro", title: "Yogurt natural 1 L: liquidar excedente", kind: "single", startOffset: 3, durationDays: 7, windowFactor: 0.6, drivers: ["shelf_life", "bought_together", "demand"], productId: "p-yogurt", anchorQty: 1, anchorDiscountPct: 0, rewardId: null, rewardDiscountPct: 0 },
+  { id: "promo-cerveza", branchId: "b-norte", title: "Compra 3 papas fritas y llévate un six de cerveza", kind: "bundle", startOffset: 6, durationDays: 3, windowFactor: 0.7, drivers: ["event", "bought_together", "weather"], productId: "p-papas", anchorQty: 3, anchorDiscountPct: 0, rewardId: "p-cerveza", rewardDiscountPct: 100 },
+  { id: "promo-jugo", branchId: "b-valle", title: "Jugo de naranja 1 L: evitar merma", kind: "single", startOffset: 5, durationDays: 6, windowFactor: 0.55, drivers: ["shelf_life", "season"], productId: "p-jugo", anchorQty: 1, anchorDiscountPct: 0, rewardId: null, rewardDiscountPct: 0 },
+  { id: "promo-granola", branchId: "b-centro", title: "Compra 2 granolas y llévate un yogurt natural", kind: "bundle", startOffset: 9, durationDays: 7, windowFactor: 0.9, drivers: ["bought_together", "demand"], productId: "p-granola", anchorQty: 2, anchorDiscountPct: 0, rewardId: "p-yogurt", rewardDiscountPct: 100 },
 ];
 
 export const WINDOW_DAYS = 14;
 
-function promoInput(seed: PromoSeed): PromoInput {
+function singleInput(seed: PromoSeed): PromoInput {
   const p = seedOf(seed.productId)!;
   const comp = seedOf(p.complementId)!;
   const stock = stockQuantity(p.id, seed.branchId, p.maxStock);
@@ -101,39 +165,138 @@ function promoInput(seed: PromoSeed): PromoInput {
   };
 }
 
-export function getPromoInput(promoId: string): PromoInput | undefined {
-  const s = promoSeeds.find((x) => x.id === promoId);
-  return s ? promoInput(s) : undefined;
+function bundleInput(seed: PromoSeed): BundleInput {
+  const anchor = seedOf(seed.productId)!;
+  const reward = seedOf(seed.rewardId!)!;
+  const comp = seedOf(anchor.complementId)!;
+  const anchorBase = dailyDemand(anchor.id, seed.branchId) * WINDOW_DAYS * seed.windowFactor;
+  return {
+    anchor: {
+      price: anchor.price,
+      cost: anchor.unitCost,
+      stock: stockQuantity(anchor.id, seed.branchId, anchor.maxStock),
+      baseUnits: anchorBase,
+      carryRate: 0.35,
+      complementMargin: (comp.price - comp.unitCost) * 1.1,
+    },
+    anchorQty: seed.anchorQty,
+    anchorDiscountPct: seed.anchorDiscountPct,
+    reward: {
+      price: reward.price,
+      cost: reward.unitCost,
+      stock: stockQuantity(reward.id, seed.branchId, reward.maxStock),
+      baseUnits: dailyDemand(reward.id, seed.branchId) * WINDOW_DAYS * seed.windowFactor,
+      carryRate: 0,
+      complementMargin: 0,
+    },
+    tickets: Math.max(1, Math.round(anchorBase * 0.6)),
+    liftFactor: 0.6,
+    cannibalRate: 0.25,
+  };
+}
+
+export type PromoSim = {
+  kind: "single" | "bundle";
+  without: PromoScenario;
+  with: PromoScenario;
+  anchorStock: number;       // stock of the product the promo is about (anchor/single)
+  anchorUnitsSold: number;   // anchor/single units sold (with promo), for the metric tiles
+  anchorWasteUnits: number;  // anchor/single waste (with promo), for the metric tiles
+};
+
+export function getPromoSim(promoId: string, discountPct: number): PromoSim | null {
+  const seed = promoSeeds.find((x) => x.id === promoId);
+  if (!seed) return null;
+  if (seed.kind === "single") {
+    const input = singleInput(seed);
+    const withResult = simulatePromo(input, discountPct);
+    return {
+      kind: "single",
+      without: simulatePromo(input, 0),
+      with: withResult,
+      anchorStock: input.stock,
+      anchorUnitsSold: withResult.unitsSold,
+      anchorWasteUnits: withResult.wasteUnits,
+    };
+  }
+  const input = bundleInput(seed);
+  const withResult = simulateBundle(input, discountPct);
+  const lift = 1 + input.liftFactor * (discountPct / 100);
+  const anchorSold = Math.min(input.anchor.stock, input.anchor.baseUnits * lift);
+  const anchorWaste = input.anchor.stock - anchorSold;
+  return {
+    kind: "bundle",
+    without: simulateBundle(input, 0),
+    with: withResult,
+    anchorStock: input.anchor.stock,
+    anchorUnitsSold: anchorSold,
+    anchorWasteUnits: anchorWaste,
+  };
 }
 
 export function getPromos(): PromoSuggestion[] {
   const today = todayIso();
   const st = getState().promoStatus;
   return promoSeeds.map((s) => {
-    const input = promoInput(s);
-    const opt = optimalDiscount(input);
     const saved = st[s.id];
+    if (s.kind === "single") {
+      const input = singleInput(s);
+      const opt = optimalDiscount(input);
+      const discountPct = saved?.discountPct ?? opt;
+      return {
+        id: s.id,
+        branchId: s.branchId,
+        title: s.title,
+        kind: "single" as const,
+        lines: [{ productId: s.productId, role: "single" as const, qty: 1, discountPct }],
+        discountPct,
+        optimalDiscountPct: opt,
+        startDate: addDays(today, s.startOffset),
+        endDate: addDays(today, s.startOffset + s.durationDays - 1),
+        drivers: s.drivers,
+        // headline numbers are always at the optimal discount so every screen agrees
+        withoutPromo: simulatePromo(input, 0),
+        withPromo: simulatePromo(input, opt),
+        status: saved?.status ?? "pending",
+      };
+    }
+    const input = bundleInput(s);
+    const opt = s.rewardDiscountPct;
     const discountPct = saved?.discountPct ?? opt;
     return {
       id: s.id,
-      productId: s.productId,
       branchId: s.branchId,
       title: s.title,
-      kind: s.kind,
+      kind: "bundle" as const,
+      lines: [
+        { productId: s.productId, role: "anchor" as const, qty: s.anchorQty, discountPct: s.anchorDiscountPct },
+        { productId: s.rewardId!, role: "reward" as const, qty: 1, discountPct },
+      ],
       discountPct,
       optimalDiscountPct: opt,
       startDate: addDays(today, s.startOffset),
       endDate: addDays(today, s.startOffset + s.durationDays - 1),
       drivers: s.drivers,
-      // headline numbers are always at the optimal discount so every screen agrees
-      withoutPromo: simulatePromo(input, 0),
-      withPromo: simulatePromo(input, opt),
+      withoutPromo: simulateBundle(input, 0),
+      withPromo: simulateBundle(input, opt),
       status: saved?.status ?? "pending",
     };
   });
 }
 
 export const promoGain = (p: PromoSuggestion) => p.withPromo.netProfit - p.withoutPromo.netProfit;
+
+// The product a promo is "about": the single product, or the bundle anchor (never the reward).
+export const promoProductId = (p: PromoSuggestion): string => {
+  const line = p.lines.find((l) => l.role !== "reward") ?? p.lines[0];
+  return line.productId;
+};
+export const promoAnchorLine = (p: PromoSuggestion) => p.lines.find((l) => l.role === "anchor");
+export const promoRewardLine = (p: PromoSuggestion) => p.lines.find((l) => l.role === "reward");
+
+// Short offer descriptor: "−25%" for a single, "3×1" for a bundle.
+export const promoShortLabel = (p: PromoSuggestion): string =>
+  p.kind === "single" ? `−${p.discountPct}%` : `${promoAnchorLine(p)?.qty ?? 1}×1`;
 
 /* ---------- scope helpers ---------- */
 
@@ -236,9 +399,17 @@ export function getTrend(productId: string, branchId: string | "all", promoDisco
   }
   const promo = promoSeeds.find((s) => s.productId === productId && (branchId === "all" || s.branchId === branchId))
     ?? promoSeeds.find((s) => s.productId === productId);
-  const input = promo ? promoInput(promo) : undefined;
-  const d = promoDiscount ?? (input ? optimalDiscount(input) : 0);
-  const uplift = 1 + 0.7 * (1 - Math.exp(-d / 14));
+  let uplift = 1;
+  if (promo) {
+    if (promo.kind === "single") {
+      const input = singleInput(promo);
+      const d = promoDiscount ?? optimalDiscount(input);
+      uplift = 1 + 0.7 * (1 - Math.exp(-d / 14));
+    } else {
+      const d = promoDiscount ?? promo.rewardDiscountPct;
+      uplift = 1 + 0.6 * (d / 100);
+    }
+  }
   const startIdx = promo ? promo.startOffset : 3;
   const endIdx = promo ? promo.startOffset + promo.durationDays - 1 : 9;
   for (let i = 1; i <= WINDOW_DAYS; i++) {
@@ -253,8 +424,8 @@ export function getTrend(productId: string, branchId: string | "all", promoDisco
 }
 
 export function promoWindowFor(productId: string, branchId: string | "all") {
-  const p = getPromos().find((x) => x.productId === productId && (branchId === "all" || x.branchId === branchId))
-    ?? getPromos().find((x) => x.productId === productId);
+  const p = getPromos().find((x) => promoProductId(x) === productId && (branchId === "all" || x.branchId === branchId))
+    ?? getPromos().find((x) => promoProductId(x) === productId);
   return p ? { start: p.startDate, end: p.endDate } : null;
 }
 
@@ -288,8 +459,8 @@ export function getBehaviors(branchId: string | "all"): BehaviorInsight[] {
   const beer = pick("promo-cerveza");
   const leche = getRestockSuggestions("all").find((r) => r.productId === "p-leche" && r.reasons.includes("demand_spike")) ?? getRestockSuggestions("all")[0];
   const all: (BehaviorInsight & { branchId: string })[] = [
-    { id: "bh-waste", kind: "waste", title: "Yogurt natural con excedente", text: "Sucursal Centro tiene stock para 2.5× la demanda esperada antes de caducar. Una promoción del " + yog.optimalDiscountPct + "% recupera utilidad.", estimatedGain: promoGain(yog), productId: "p-yogurt", branchId: yog.branchId },
-    { id: "bh-cross", kind: "crosssell", title: "Cerveza + papas fritas", text: "El 42% de los tickets con cerveza incluye botana. Un combo de fin de semana sube el ticket promedio.", estimatedGain: promoGain(beer), productId: "p-cerveza", branchId: beer.branchId },
+    { id: "bh-waste", kind: "waste", title: "Yogurt natural con excedente", text: "Sucursal Centro tiene stock para 2.5× la demanda esperada antes de caducar. Una promoción del " + yog.optimalDiscountPct + "% recupera utilidad.", estimatedGain: promoGain(yog), productId: promoProductId(yog), branchId: yog.branchId },
+    { id: "bh-cross", kind: "crosssell", title: "Papas + cerveza: combo de fin de semana", text: "Al comprar 3 papas fritas se regala un six de cerveza. Mueve la botana que se queda y sube el ticket por venta.", estimatedGain: promoGain(beer), productId: promoProductId(beer), branchId: beer.branchId },
     { id: "bh-demand", kind: "demand", title: "Demanda en alza: leche entera", text: "La demanda crece 22% en las últimas semanas; conviene adelantar el pedido para evitar quiebres.", estimatedGain: leche?.expectedGainIfOrdered ?? 0, productId: "p-leche", branchId: leche?.branchId ?? "b-centro" },
   ];
   const scoped = branchId === "all" ? all : all.map((b) => (b.branchId === branchId ? b : { ...b, estimatedGain: Math.round(b.estimatedGain * 0.35) }));
@@ -346,13 +517,13 @@ export function getCalendarEvents(branchId: string | "all"): CalendarEvent[] {
   for (const p of getPromos()) {
     if (p.status === "dismissed") continue;
     if (branchId !== "all" && p.branchId !== branchId) continue;
-    const prod = prods.find((x) => x.id === p.productId);
+    const prod = prods.find((x) => x.id === promoProductId(p));
     events.push({
       id: `ev-${p.id}`,
       date: p.startDate,
       kind: "promo",
-      label: `${p.status === "accepted" ? "✓ " : ""}Promo ${prod?.name ?? ""} −${p.discountPct}%`,
-      productId: p.productId,
+      label: `${p.status === "accepted" ? "✓ " : ""}Promo ${prod?.name ?? ""} ${promoShortLabel(p)}`,
+      productId: promoProductId(p),
       branchId: p.branchId,
     });
   }

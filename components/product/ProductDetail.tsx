@@ -126,7 +126,11 @@ export function ProductDetail({ productId }: { productId: string }) {
             </>
           }
         >
-          <p className="text-sm leading-relaxed">{P.confirmText(activeDiscount, formatDate(promoData.startDate), formatDate(promoData.endDate))}</p>
+          <p className="text-sm leading-relaxed">
+            {promoData.kind === "bundle"
+              ? P.confirmTextBundle(formatDate(promoData.startDate), formatDate(promoData.endDate))
+              : P.confirmText(activeDiscount, formatDate(promoData.startDate), formatDate(promoData.endDate))}
+          </p>
           {gain && (
             <p className="mt-3 text-sm font-bold text-primary">
               {formatMoney(gain.without.netProfit)} → {formatMoney(gain.with.netProfit)} ({formatSignedMoney(gain.with.netProfit - gain.without.netProfit)})

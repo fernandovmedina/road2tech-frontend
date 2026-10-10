@@ -67,19 +67,27 @@ export type PromoScenario = {
   wasteUnits: number;
   wasteCost: number;
   crossSellRevenue: number;
+  giveawayCost: number;
   netProfit: number;
 };
 
 export type PromoDriver = "demand" | "weather" | "event" | "season" | "shelf_life" | "bought_together";
 
+export type PromoLine = {
+  productId: string;
+  role: "single" | "anchor" | "reward";
+  qty: number;          // anchor: units to buy (model decides); reward/single: 1
+  discountPct: number;  // anchor: model decides; reward: adjustable 0..100; single: 0..40
+};
+
 export type PromoSuggestion = {
   id: string;
-  productId: string;
   branchId: string;
   title: string;
-  kind: "promo" | "crosssell";
-  discountPct: number;
-  optimalDiscountPct: number;
+  kind: "single" | "bundle";
+  lines: PromoLine[];              // single = 1 line; bundle = anchor + reward
+  discountPct: number;             // current adjustable discount (single discount or reward discount)
+  optimalDiscountPct: number;      // model's suggested adjustable discount
   startDate: string;
   endDate: string;
   drivers: PromoDriver[];

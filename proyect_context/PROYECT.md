@@ -126,7 +126,7 @@ Lógica de IA:
 | D — Frontend (calendario, catálogos, chatbot) | este repo |
 | E — DevOps/integración | Supabase, auth, Resend, despliegue, adaptador de datos, guion de demo |
 
-Prioridades: **P0** login, datos limpios, forecast, KPIs, mapa, simulador de promoción, orden de restock con correo. **P1** chatbot GenUI, calendario completo, backtest visible, min/max sugerido. **P2** llamada automática de emergencia, transferencias entre tiendas, clima.
+Prioridades: **P0** login, datos limpios, forecast, KPIs, mapa, simulador de promoción, orden de restock con correo. **P1** chatbot GenUI, calendario completo, backtest visible, min/max sugerido. **P2** llamada automática de emergencia, clima.
 
 ## 8. Guion de demo (5 min)
 

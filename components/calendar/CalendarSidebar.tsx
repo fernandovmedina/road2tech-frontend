@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { nextDeliveryDate, promoGain } from "@/lib/mock/engine";
+import { nextDeliveryDate, promoGain, promoProductId, promoShortLabel } from "@/lib/mock/engine";
 import { useBranches, useProducts, usePromos, useRestockSuggestions, useSuppliers } from "@/lib/api/hooks";
 import { copy } from "@/lib/copy";
 import { formatDate, formatMoney, formatNumber, formatPct } from "@/lib/format";
@@ -72,10 +72,10 @@ export function CalendarSidebar({ branchId, onOrder }: { branchId: string | "all
               <h3 className="mb-2 mt-1 text-sm font-extrabold">{C.topPromos}</h3>
               <div className="flex flex-col gap-2">
                 {topPromos.map((p) => (
-                  <Link key={p.id} href={productHref(p.productId, p.id)} className="rounded-xl border border-accent/30 bg-accent-tint/50 p-3 hover:border-accent">
+                  <Link key={p.id} href={productHref(promoProductId(p), p.id)} className="rounded-xl border border-accent/30 bg-accent-tint/50 p-3 hover:border-accent">
                     <p className="text-sm font-bold leading-snug">{p.title}</p>
                     <p className="mt-1 flex justify-between text-xs text-muted">
-                      <span>{formatDate(p.startDate)} · −{p.discountPct}%{p.status === "accepted" ? " ✓" : ""}</span>
+                      <span>{formatDate(p.startDate)} · {promoShortLabel(p)}{p.status === "accepted" ? " ✓" : ""}</span>
                       <span className="font-extrabold text-primary">+{formatMoney(promoGain(p))}</span>
                     </p>
                   </Link>

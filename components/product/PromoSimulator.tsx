@@ -1,14 +1,16 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { simulateForPromo } from "@/lib/api/hooks";
+import { simulateForPromo, useProducts } from "@/lib/api/hooks";
 import { copy } from "@/lib/copy";
 import { formatMoney, formatNumber, formatSignedMoney } from "@/lib/format";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
-import type { Product, PromoSuggestion } from "@/types";
+import type { Product, PromoScenario, PromoSuggestion } from "@/types";
 
 const P = copy.product;
+
+type Row = { label: string; key: keyof PromoScenario; money: boolean; invert?: boolean };
 
 export function PromoSimulator({
   product,
@@ -23,22 +25,30 @@ export function PromoSimulator({
   onDiscount: (d: number) => void;
   chart: ReactNode;
 }) {
+  const products = useProducts().data ?? [];
+  const nameOf = (id: string) => products.find((p) => p.id === id)?.name ?? id;
+
   const sim = promo ? simulateForPromo(promo.id, discount) : null;
-  const stock = sim?.input.stock ?? 0;
+  const isBundle = promo?.kind === "bundle";
+  const anchorLine = promo?.lines.find((l) => l.role === "anchor");
+  const rewardLine = promo?.lines.find((l) => l.role === "reward");
+  const sliderMax = isBundle ? 100 : 40;
+  const sliderLabel = isBundle ? P.rewardDiscount : P.discount;
 
   const tiles = [
-    { label: P.metrics.demand14, value: sim ? `${formatNumber(sim.with.unitsSold)} ${copy.common.units}` : "—", tone: "text-foreground" },
-    { label: P.metrics.stock, value: sim ? `${formatNumber(stock)} ${copy.common.units}` : "—", tone: "text-foreground" },
+    { label: P.metrics.demand14, value: sim ? `${formatNumber(sim.anchorUnitsSold)} ${copy.common.units}` : "—", tone: "text-foreground" },
+    { label: P.metrics.stock, value: sim ? `${formatNumber(sim.anchorStock)} ${copy.common.units}` : "—", tone: "text-foreground" },
     { label: P.metrics.daysToExpiry, value: `${Math.round(product.shelfLifeDays * 0.6)}`, tone: "text-info" },
-    { label: P.metrics.wasteExpected, value: sim ? `${formatNumber(sim.with.wasteUnits)} ${copy.common.units}` : "—", tone: "text-alert" },
+    { label: P.metrics.wasteExpected, value: sim ? `${formatNumber(sim.anchorWasteUnits)} ${copy.common.units}` : "—", tone: "text-alert" },
   ];
 
-  const rows: { label: string; key: keyof NonNullable<typeof sim>["with"]; money: boolean; invert?: boolean }[] = [
+  const rows: Row[] = [
     { label: P.rows.unitsSold, key: "unitsSold", money: false },
     { label: P.rows.revenue, key: "revenue", money: true },
     { label: P.rows.margin, key: "margin", money: true },
     { label: P.rows.wasteCost, key: "wasteCost", money: true, invert: true },
     { label: P.rows.crossSell, key: "crossSellRevenue", money: true },
+    ...(isBundle ? [{ label: P.rows.giveaway, key: "giveawayCost", money: true, invert: true } as Row] : []),
     { label: P.rows.net, key: "netProfit", money: true },
   ];
 
@@ -64,16 +74,35 @@ export function PromoSimulator({
             </div>
             <p className="text-sm font-semibold leading-snug">{promo.title}</p>
 
+            {isBundle && anchorLine && rewardLine && (
+              <div className="flex flex-col gap-2 rounded-xl border border-line bg-white p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm">
+                    <span className="font-semibold text-muted">{P.anchorLabel}: </span>
+                    <strong>{nameOf(anchorLine.productId)}</strong>
+                    <span className="text-muted"> · compra {anchorLine.qty}</span>
+                    {anchorLine.discountPct > 0 && <span className="text-muted"> · −{anchorLine.discountPct}%</span>}
+                  </p>
+                  <Badge tone="gray">{P.anchorHint}</Badge>
+                </div>
+                <p className="text-sm">
+                  <span className="font-semibold text-muted">{P.rewardLabel}: </span>
+                  <strong>{nameOf(rewardLine.productId)}</strong>
+                  <span className="text-muted"> · {P.onePerTicket}</span>
+                </p>
+              </div>
+            )}
+
             <div>
               <div className="flex items-end justify-between">
-                <label htmlFor="discount" className="text-sm font-semibold text-muted">{P.discount}</label>
+                <label htmlFor="discount" className="text-sm font-semibold text-muted">{sliderLabel}</label>
                 <span className="text-3xl font-extrabold text-accent">{discount}%</span>
               </div>
               <input
                 id="discount"
                 type="range"
                 min={0}
-                max={40}
+                max={sliderMax}
                 step={1}
                 value={discount}
                 onChange={(e) => onDiscount(Number(e.target.value))}
@@ -81,7 +110,7 @@ export function PromoSimulator({
                 className="mt-2 h-11 w-full cursor-pointer accent-[#E8590C]"
                 disabled={promo.status !== "pending"}
               />
-              <div className="flex justify-between text-xs text-muted"><span>0%</span><span>40%</span></div>
+              <div className="flex justify-between text-xs text-muted"><span>0%</span><span>{sliderMax}%</span></div>
               <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm">
                   {P.optimal}: <strong className="text-primary">{promo.optimalDiscountPct}%</strong>
