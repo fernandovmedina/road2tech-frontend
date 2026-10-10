@@ -139,6 +139,39 @@ const overlapTypes: Record<string, string> = {
   category_cannibalization: "Misma categoría",
 };
 
+// Vocabulary of the LangGraph agent (services/copilot-api); the Go backend uses different codes (see above).
+const agentStrategyTypes: Record<string, string> = {
+  contextual_discount: "Descuento contextual",
+  rescue_combo: "Combo de rescate",
+  affinity_combo: "Combo de afinidad",
+};
+
+const agentObjectives: Record<string, string> = {
+  increase_sales: "Aumentar ventas",
+  reduce_waste: "Reducir merma",
+  maximize_margin: "Maximizar margen",
+};
+
+const agentDraftStatuses: Record<string, string> = {
+  draft: "Borrador · pendiente de aprobación",
+  selected: "En el plan",
+  approved: "Aprobada",
+  rejected: "Rechazada",
+};
+
+const agentRestockReasons: Record<string, string> = { stock_limit: "Límite de stock", demand: "Demanda", season: "Temporada" };
+
+const agentAlertKinds: Record<string, string> = {
+  run_out: "Quiebre de stock",
+  expiration: "Caducidad",
+  demand_spike: "Pico de demanda",
+  no_demand: "Sin demanda",
+};
+
+const agentRiskLevels: Record<string, string> = { low: "Bajo", medium: "Medio", high: "Alto" };
+
+const agentTrends: Record<string, string> = { increasing: "↗ Al alza", stable: "→ Estable", decreasing: "↘ A la baja" };
+
 export const labels = {
   category: categories,
   zone: zones,
@@ -155,6 +188,13 @@ export const labels = {
   strategyStatus: strategyStatuses,
   stockStatus: stockStatuses,
   overlapType: overlapTypes,
+  agentStrategyType: agentStrategyTypes,
+  agentObjective: agentObjectives,
+  agentDraftStatus: agentDraftStatuses,
+  agentRestockReason: agentRestockReasons,
+  agentAlertKind: agentAlertKinds,
+  agentRiskLevel: agentRiskLevels,
+  agentTrend: agentTrends,
 } as const;
 
 export type LabelKind = keyof typeof labels;

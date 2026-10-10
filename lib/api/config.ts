@@ -7,6 +7,7 @@
 //   NEXT_PUBLIC_API_HTTP_PATHS = optional, "mock" and "hybrid": comma-separated path prefixes forced to the real backend on
 //                                top of the mode, e.g. "/chat" to try the real assistant while the rest stays on sample data.
 //   NEXT_PUBLIC_CHAT_ANALYSIS_SOURCE = "compat" (default) | "backend" once Lambda accepts chain/inventory analysis.
+//   NEXT_PUBLIC_COPILOT_URL = base URL of the LangGraph agent (AG-UI at /copilot). With it (and not in mock mode) the dashboard assistant uses the agent.
 
 export type ApiMode = "mock" | "hybrid" | "http";
 
@@ -18,6 +19,10 @@ export const isMockMode = apiMode === "mock";
 /** At least part of the data is simulated: shows the "Datos de ejemplo" badge and the demo controls. */
 export const usesMockData = apiMode !== "http";
 export const chatAnalysisSource = process.env.NEXT_PUBLIC_CHAT_ANALYSIS_SOURCE === "backend" ? "backend" : "compat";
+/** Base URL of the LangGraph agent (services/copilot-api); the AG-UI endpoint is `${copilotUrl}/copilot`. */
+export const copilotUrl = (process.env.NEXT_PUBLIC_COPILOT_URL ?? "").replace(/\/$/, "");
+/** The dashboard assistant talks to the agent over AG-UI instead of POST /chat (mock mode keeps the fallback chat). */
+export const copilotAgentEnabled = !isMockMode && copilotUrl !== "";
 
 const listedPaths = (process.env.NEXT_PUBLIC_API_HTTP_PATHS ?? "")
   .split(",")
