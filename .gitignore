@@ -46,3 +46,6 @@ next-env.d.ts
 # backend dataset CSVs (never versioned here; JSON samples in lib/mock/data are)
 *.csv
 /.tmp-csv/
+
+# multi-agent coordination artifacts
+/.agents/
