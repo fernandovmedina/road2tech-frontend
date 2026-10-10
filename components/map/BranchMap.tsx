@@ -1,6 +1,7 @@
 "use client";
 
 import L from "leaflet";
+import { useEffect, useState } from "react";
 import { CircleMarker, MapContainer, Marker, TileLayer, Tooltip } from "react-leaflet";
 import { copy } from "@/lib/copy";
 import { heatColor } from "@/lib/heat";
@@ -29,8 +30,17 @@ export default function BranchMap({
   topBranchId: string | null;
   onSelect: (branchId: string) => void;
 }) {
+  // The page can be hidden/re-shown (cacheComponents Activity, Strict Mode): effect
+  // cleanups run and Leaflet's map gets destroyed while React keeps the tree. Tie the
+  // map to an effect so it is fully unmounted on hide and rebuilt fresh on show.
+  const [mapKey, setMapKey] = useState(0);
+  useEffect(() => {
+    setMapKey((k) => k + 1);
+    return () => setMapKey(0);
+  }, []);
+  if (mapKey === 0) return <div className="h-[380px] w-full bg-[#E9EEEC]" />;
   return (
-    <MapContainer center={SALTILLO} zoom={11} scrollWheelZoom={false} className="h-[380px] w-full bg-[#E9EEEC]" aria-label={copy.dashboard.analysis.mapTitle}>
+    <MapContainer key={mapKey} center={SALTILLO} zoom={11} scrollWheelZoom={false} className="h-[380px] w-full bg-[#E9EEEC]" aria-label={copy.dashboard.analysis.mapTitle}>
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
