@@ -58,8 +58,8 @@ export const usePromo = (id: string | undefined) =>
 export const usePromoForProduct = (productId: string, branchId: string | "all") =>
   useQuery({
     queryKey: qk("promoForProduct", productId, branchId),
-    queryFn: () => mockCall(() => engine.getPromos().find((p) => p.productId === productId && (branchId === "all" || p.branchId === branchId))
-      ?? engine.getPromos().find((p) => p.productId === productId) ?? null),
+    queryFn: () => mockCall(() => engine.getPromos().find((p) => engine.promoProductId(p) === productId && (branchId === "all" || p.branchId === branchId))
+      ?? engine.getPromos().find((p) => engine.promoProductId(p) === productId) ?? null),
   });
 
 export const useTrend = (productId: string, branchId: string | "all", discount?: number) =>
@@ -83,11 +83,7 @@ export const useOrders = () =>
 
 /* ---------- pure helpers backed by the mock model (synchronous: drive the slider live) ---------- */
 
-export const simulateForPromo = (promoId: string, discountPct: number) => {
-  const input = engine.getPromoInput(promoId);
-  if (!input) return null;
-  return { without: engine.simulatePromo(input, 0), with: engine.simulatePromo(input, discountPct), input };
-};
+export const simulateForPromo = (promoId: string, discountPct: number) => engine.getPromoSim(promoId, discountPct);
 
 /* ---------- mutations ---------- */
 
@@ -186,11 +182,12 @@ export async function askAssistant(prompt: string, branchId: string | "all"): Pr
     }
     if (p.includes("promo")) {
       const top = engine.getPromos().sort((a, b) => engine.promoGain(b) - engine.promoGain(a))[0];
+      const topProduct = engine.promoProductId(top);
       return {
         tool: "suggest_promotions(top=1)",
         blocks: [
-          { type: "text", text: `Mi mejor promoción hoy: "${top.title}" con ${top.optimalDiscountPct}% de descuento, ganancia estimada +$${Math.round(engine.promoGain(top)).toLocaleString("es-MX")}. Ábrela en el simulador para comparar escenarios.` },
-          { type: "trend_chart", productId: top.productId, branchId: top.branchId, points: engine.getTrend(top.productId, top.branchId) },
+          { type: "text", text: `Mi mejor promoción hoy: "${top.title}" (${engine.promoShortLabel(top)}). Ganancia estimada +$${Math.round(engine.promoGain(top)).toLocaleString("es-MX")}. Ábrela en el simulador para comparar escenarios.` },
+          { type: "trend_chart", productId: topProduct, branchId: top.branchId, points: engine.getTrend(topProduct, top.branchId) },
         ],
       };
     }

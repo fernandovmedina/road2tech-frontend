@@ -101,11 +101,11 @@ Header controls (they change all data on the page): **Sucursal** select (all/one
    - **Sidebar, two tabs** `Productos | Promociones`: category filter chips, sort `Demanda en alza | En baja`, row with trend arrow and units/day, buttons "Tendencia" and **"Ver en calendario"**. The promotions tab lists suggested promotions with estimated gain.
 4. **Asistente de IA (GenUI chatbot):** answers with components, not just text. Tool results render as a trend chart (history + forecast) or a restock-order table, with a visible tool label (e.g. `plot_trend(...)`, `draft_restock_order(...)`). The assistant proposes; the user approves. Mock the conversation with canned replies keyed by the quick-prompt chips.
 
-### 7.2 Product detail — `/product/[id]` (mockup: `3 · Tendencia y simulador de promoción-html`)
+### 7.2 Tendencia y simulador de promoción — `/product/[id]` (mockup: `3 · Tendencia y simulador de promoción-html`)
 This is the "prediction" view the whiteboard calls the trend chart. **"Regresar al mapa"** goes back to `/`.
 - Trend chart: 30 days history (solid) + 14 days forecast without promotion (dashed) and with promotion (orange), uncertainty band, shaded promotion window; metric tiles (14-day demand, stock, days to expiry, expected waste).
-- **Promoción sugerida (IA):** adjustable discount slider (0–40%), shows the model's optimal discount, and the reasons (surplus vs shelf life, bought-together pattern, diminishing returns of discount).
-- **"Qué ganas y qué pierdes":** two scenarios side by side (**Si no aceptas** / **Si aceptas**) and a table: units sold, revenue, margin, waste cost, cross-sell revenue, **net profit**, with differences. Buttons: Aceptar promoción, Descartar, Ver en calendario. Accepting schedules it in the calendar.
+- **Promoción sugerida (IA):** single-product discount or anchor bundle. For a single promo, an adjustable discount slider (0–40%) with the model's optimal discount. For a bundle, the anchor (product + qty + discount) is decided by the model and shown read-only ("óptimo IA"); the adjustable slider controls the reward discount (0–100%). Shows the reasons (surplus vs shelf life, bought-together pattern, diminishing returns of discount).
+- **"Qué ganas y qué pierdes":** two scenarios side by side (**Si no aceptas** / **Si aceptas**) and a table: units sold, revenue, margin, waste cost, cross-sell revenue, giveaway cost, **net profit**, with differences. Buttons: Aceptar promoción, Descartar, Ver en calendario. Accepting schedules it in the calendar.
 
 ### 7.3 Restock calendar — `/calendar` (mockup: `4 · Calendario de restock-html`)
 - Branch select; sidebar with tabs `Productos | Proveedores`.
@@ -171,17 +171,28 @@ type BehaviorInsight = {
 
 type PromoScenario = {
   unitsSold: number; revenue: number; margin: number;
-  wasteUnits: number; wasteCost: number; crossSellRevenue: number; netProfit: number;
+  wasteUnits: number; wasteCost: number; crossSellRevenue: number;
+  giveawayCost: number; netProfit: number;
+};
+type PromoLine = {
+  productId: string;
+  role: "single" | "anchor" | "reward";
+  qty: number;          // anchor: units to buy (model decides); reward: 1 per ticket
+  discountPct: number;  // anchor: model decides; reward: adjustable slider 0..100
 };
 type PromoSuggestion = {
-  id: string; productId: string; branchId: string;
-  title: string; kind: "promo" | "crosssell";
-  discountPct: number; optimalDiscountPct: number;
+  id: string; branchId: string;
+  title: string; kind: "single" | "bundle";
+  lines: PromoLine[];   // single = 1 line; bundle = anchor + reward
+  discountPct: number;            // current adjustable discount (single discount or reward discount)
+  optimalDiscountPct: number;     // model's suggested adjustable discount
   startDate: string; endDate: string; // ISO
   drivers: ("demand" | "weather" | "event" | "season" | "shelf_life" | "bought_together")[];
   withoutPromo: PromoScenario; withPromo: PromoScenario;
   status: "pending" | "accepted" | "dismissed";
 };
+```
+The promo's primary product (used for navigation and the product page) is the anchor for bundles and the single product otherwise — see `promoProductId()` in `/lib/mock/engine`.
 
 type RestockSuggestion = {
   id: string; productId: string; branchId: string; supplierId: string;
@@ -209,8 +220,11 @@ Rule: components never import mock data directly; always through `/lib/api` hook
 
 - Believable demo set: ~7 branches in the Saltillo area (Centro, Valle Real, Zona Industrial, Ramos Arizpe, Los Pinos, Plaza Norte, Carlos Abedrop) with approximate coordinates, ~10 products (yogurt, lager 6-pack, white bread, whole milk, cola 2 L, potato chips, eggs, corn tortillas, granola, orange juice), 5 suppliers (Distribuidora Sierra, Lácteos del Valle, Panificadora Norte, Granja San Pedro, Botanas del Norte). Product/category names in Spanish.
 - Filters must actually change the numbers (branch, data mode, range) so the demo feels live.
-- **Promotion math (mock only; replace with the model later).** For discount `d` (0–100):
-  `demand(d) = base × (1 + 0.7 × (1 − e^(−d/14)))`, `sold = min(stock, demand)`, `waste = stock − sold`, `effectivePrice = price × (1 − d/100)`, `margin = sold × (effectivePrice − cost)`, `wasteCost = waste × cost`, `crossSell = max(0, sold − base) × carryRate × complementMargin`, `net = margin − wasteCost + crossSell`. The **optimal discount** is the `d` in 0..40 that maximizes `net`. The same function drives the slider and both scenario cards, so the numbers always agree.
+- **Promotion math (mock only; replace with the model later).** Single-product discount `d` (0–100):
+  `demand(d) = base × (1 + 0.7 × (1 − e^(−d/14)))`, `sold = min(stock, demand)`, `waste = stock − sold`, `effectivePrice = price × (1 − d/100)`, `margin = sold × (effectivePrice − cost)`, `wasteCost = waste × cost`, `crossSell = max(0, sold − base) × carryRate × complementMargin`, `net = margin − wasteCost + crossSell`.
+- **Bundle promotion (anchor + reward).** Anchor qty and discount are model inputs; the reward is 1 per ticket at the adjustable reward discount:
+  `lift = 1 + 0.6 × (rewardDiscount/100)`, `anchorSold = min(anchorStock, anchorBase × lift)`, `rewardGiven = min(⌊anchorSold / anchorQty⌋, tickets)`, `giveawayCost = rewardGiven × [ (1 − cannibalRate) × (rewardCost − rewardEffPrice) + cannibalRate × (rewardPrice − rewardEffPrice) ]`, `netProfit = margin − wasteCost + crossSell − giveawayCost`. `lift` and `cannibalRate` are declared assumptions.
+- The **optimal parameters** (anchor qty, anchor discount, reward discount) are **proposed by the model**, not computed in the frontend (`// TODO(backend)`). The same scenario function drives the slider and both scenario cards, so the numbers always agree. In the simulator the slider adjusts the reward discount for bundles (and the product discount for singles); the anchor is read-only.
 - Keep one consistent set of headline numbers across screens (e.g. the yogurt promotion estimate must match on Dashboard, Product detail and Calendar).
 - Mock latency of 300–600 ms so loading skeletons are visible; include one empty and one error state you can trigger.
 

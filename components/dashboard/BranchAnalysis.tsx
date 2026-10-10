@@ -10,7 +10,7 @@ import { categories } from "@/lib/mock/seed";
 import { formatMoney, formatNumber } from "@/lib/format";
 import { calendarHref, productHref } from "@/lib/links";
 import { HEAT_STOPS } from "@/lib/heat";
-import { promoGain } from "@/lib/mock/engine";
+import { promoGain, promoProductId, promoShortLabel } from "@/lib/mock/engine";
 import { ProductSearch } from "@/components/map/ProductSearch";
 import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -173,10 +173,10 @@ export function BranchAnalysis({ scope }: { scope: Scope }) {
                 <EmptyState text={A.noPromos} />
               ) : (
                 promoList.map((p) => (
-                  <Link key={p.id} href={productHref(p.productId, p.id)} className="rounded-xl border border-line p-3 transition-colors hover:border-accent hover:bg-accent-tint/40">
+                  <Link key={p.id} href={productHref(promoProductId(p), p.id)} className="rounded-xl border border-line p-3 transition-colors hover:border-accent hover:bg-accent-tint/40">
                     <p className="text-sm font-bold leading-snug">{p.title}</p>
                     <p className="mt-1 flex items-center justify-between text-xs text-muted">
-                      <span>−{p.optimalDiscountPct}% · {p.status === "accepted" ? "✓" : "IA"}</span>
+                      <span>{promoShortLabel(p)} · {p.status === "accepted" ? "✓" : "IA"}</span>
                       <span className="text-sm font-extrabold text-primary">{A.gain} +{formatMoney(promoGain(p))}</span>
                     </p>
                   </Link>

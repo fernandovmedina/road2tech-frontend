@@ -2,7 +2,7 @@
 
 > **This dataset is 100% synthetic.** It contains no real sales, inventory, prices, locations or supplier data
 > from OXXO, FEMSA or any other company. Product brands are real consumer brands used only for realism, with
-> approximate shelf prices; all supplier names are fictional; store coordinates are approximate points in real
+> approximate shelf prices; all supplier names and emails are fictional; store coordinates are approximate points in real
 > Saltillo neighborhoods; Mexico's 2026 World Cup knockout results are invented. Use it only for the hackathon.
 
 ## Overview
@@ -18,7 +18,7 @@
 | `zones.csv` | 8 | 0.00 MB | Zone catalog. |
 | `categories.csv` | 20 | 0.00 MB | Category catalog (20 categories). |
 | `products.csv` | 120 | 0.01 MB | Product catalog: 120 products, identical in every store. |
-| `suppliers.csv` | 19 | 0.00 MB | Supplier catalog (19 fictional distributors). |
+| `suppliers.csv` | 19 | 0.00 MB | Supplier catalog (19 fictional distributors with contact emails). |
 | `supplier_products.csv` | 405 | 0.01 MB | Each supplier's offer per product (3-5 offers per product). |
 | `calendar.csv` | 1,004 | 0.06 MB | One row per day, 2024-01-01 to 2026-09-30. |
 | `weather.csv` | 1,004 | 0.03 MB | Daily synthetic weather for Saltillo (semi-arid). |
@@ -40,8 +40,8 @@ inventory_lots / purchase_orders .(store_id, product_id, supplier_id) -> stores,
 
 `residential` (11 stores), and 2 stores each in `business`, `school`, `college`, `highway`, `industrial`,
 `shopping_center` and `hospital`. `school` (K-12, SEP calendar) and `college` (universities) are separate on purpose:
-school stores over-index on candy, snacks and juice and sell almost no alcohol or cigarettes, while college stores
-over-index on alcohol (with a Thursday-Saturday peak), energy drinks, coffee and cigarettes, and follow the
+school stores over-index on candy, snacks and juice and sell almost no alcoholic beverages or cigarettes, while college stores
+over-index on alcoholic beverages (with a Thursday-Saturday peak), energy drinks, coffee and cigarettes, and follow the
 university vacation calendar (`calendar.is_college_vacation`).
 
 ## Demand generation (`scripts/dataset/build_demand.py`)
@@ -53,7 +53,7 @@ expected_units = base_daily_demand
                  x weekday_multiplier[zone_type, weekday] x category_weekday[category, weekday]
                  x weather_multiplier[weather_label, weather_sensitivity] x temperature_slope
                  x event_multiplier[event, category/tag, zone_type]
-                 x annual_trend (+3.5 % volume per year; prices never change)
+                 x annual_trend (+3.5 % volume per year; shelf prices are fixed, campaign discounts alter net price)
 demand        = Poisson(expected_units x Gamma(shape=8, scale=1/8))
 units_sold    = min(demand, stock on hand)
 ```
@@ -67,10 +67,10 @@ Business rules encoded (exact factors are in `EVENT_RULES`, `ZONE_MULT`, `WEATHE
 - **Business / industrial:** weekday breakfast/lunch profile (coffee, prepared foods), weekend and holiday drop.
 - **Parties** (Sep 15-16, Super Bowl, Mexico match days, Liga MX playoffs, Father's Day): beer, snacks, ice, dips and soft
   drinks, strongest in `residential` and `college`.
-- **Christmas Eve / New Year's Eve:** alcohol, 2.5-3 L soft drinks, ice and disposables; hangover products the day after.
+- **Christmas Eve / New Year's Eve:** alcoholic beverages, 2.5-3 L soft drinks, ice and disposables; hangover products the day after.
 - **Halloween / Day of the Dead:** candy (and flowers, sweet bread). **Three Kings' Day:** bakery, Three Kings' cake (sold only Dec 26-Jan 10), hot chocolate.
   **Candlemas:** tamales. **Valentine's / Mother's Day:** chocolates and flowers.
-- **Paydays** (15th and last day, plus the next day): +6 % traffic, +12 % alcohol. **Dry law** on the June 2024 election weekend.
+- **Paydays** (15th and last day, plus the next day): +6 % traffic, +12 % alcoholic beverages. **Dry law** on the June 2024 election weekend.
 
 ## Best-supplier rule (`scripts/dataset/supplier_selection.py`)
 
@@ -172,12 +172,13 @@ Product catalog: 120 products, identical in every store.
 
 ### `suppliers.csv`
 
-Supplier catalog (19 fictional distributors).
+Supplier catalog (19 fictional distributors with contact emails).
 
 | Column | Type | Unit | Description | Example |
 |---|---|---|---|---|
 | `supplier_id` | string | - | Supplier key (SUP01-SUP19). | `SUP01` |
 | `supplier_name` | string | - | Fictional supplier name. | `Northern Beverage Distributors` |
+| `email` | string | - | Fictional supplier contact email (@gmail.com). | `northern.beverage.distributors@gmail.com` |
 | `categories_served` | string | `|`-separated category_id | Categories the supplier may sell. | `C01|C02|C11` |
 | `city` | string | - | Supplier base city. | `Saltillo` |
 | `reliability_score` | float | probability | Probability of on-time delivery (0.70-0.99). | `0.78` |
