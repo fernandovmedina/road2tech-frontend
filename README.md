@@ -1,36 +1,40 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# StockCopilot — Frontend
 
-## Getting Started
+Hackatec / Road2Tech project. Next.js (App Router) + TypeScript + Tailwind CSS.
 
-First, run the development server:
+This repository also contains **`copilot-api/`**, the Python service (FastAPI + LangGraph + Gemini)
+that powers the chat. See [`copilot-api/README.md`](copilot-api/README.md).
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Copilot chat (`/copilot`)
+
+A chatbot that **generates interface components**: every answer from the agent arrives as a typed
+tool result that the UI renders as a card with charts (trend + forecast, baseline vs. strategy
+simulation, restock list with supplier email, store KPIs, demand by branch, weekly plan). When the
+agent proposes a promotion, the run pauses and an **approval card** appears; nothing is activated
+without the store manager.
+
+Stack: CopilotKit v2 (`@copilotkit/react-core/v2`, `@copilotkit/runtime/v2`) over **AG-UI** to a
+LangGraph agent in Python. Charts use Recharts.
+
+```
+app/copilot/page.tsx                 Chat page
+app/api/copilotkit/[[...slug]]/      CopilotKit runtime → Python agent (POST {COPILOT_API_URL}/copilot)
+app/api/backend/[...path]/           Same-origin proxy to the Copilot API REST endpoints
+components/copilot/                  Workspace, tool renderers, cards, charts, approval card
+lib/copilot/  lib/api/  types/       Formatting, parsing, typed API client, contracts
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Run
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+# 1. Copilot API (Python) — see copilot-api/README.md
+cd copilot-api && uv sync && cp .env.example .env   # set DATASET_DIR and optionally GOOGLE_API_KEY
+uv run python -m stockcopilot                        # http://localhost:8000
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# 2. Frontend
+cd .. && pnpm install
+cp .env.example .env.local                           # COPILOT_API_URL=http://localhost:8000
+pnpm dev                                             # http://localhost:3000/copilot
+```
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Checks: `pnpm lint`, `npx tsc --noEmit`, and `uv run pytest` inside `copilot-api/`.

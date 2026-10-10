@@ -1,26 +1,104 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f9f9f7;
+  --foreground: #0b0b0b;
+
+  /* Copilot surfaces and ink (dataviz reference palette). */
+  --sc-ink: #0b0b0b;
+  --sc-surface: #fcfcfb;
+  --sc-surface-muted: #f3f3f0;
+  --sc-ink-secondary: #52514e;
+  --sc-ink-muted: #6f6e69;
+  --sc-border: rgba(11, 11, 11, 0.1);
+  --sc-grid: #e1e0d9;
+  --sc-axis: #c3c2b7;
+
+  /* One accent (brand) + chart series. */
+  --sc-accent: #2a78d6;
+  --sc-accent-soft: #e6f0fc;
+  --sc-series-1: #2a78d6;
+  --sc-series-1-band: rgba(42, 120, 214, 0.16);
+  --sc-series-baseline: #898781;
+
+  /* Status (always paired with an icon + label). */
+  --sc-good: #0ca30c;
+  --sc-good-ink: #006300;
+  --sc-warning: #fab219;
+  --sc-serious: #ec835a;
+  --sc-critical: #d03b3b;
+  --sc-critical-ink: #b42e2e;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background: #0d0d0d;
+    --foreground: #f0efec;
+    --sc-ink: #f0efec;
+    --sc-surface: #1a1a19;
+    --sc-surface-muted: #232322;
+    --sc-ink-secondary: #c3c2b7;
+    --sc-ink-muted: #9a9993;
+    --sc-border: rgba(255, 255, 255, 0.1);
+    --sc-grid: #2c2c2a;
+    --sc-axis: #383835;
+    --sc-accent: #3987e5;
+    --sc-accent-soft: #15263b;
+    --sc-series-1: #3987e5;
+    --sc-series-1-band: rgba(57, 135, 229, 0.22);
+    --sc-series-baseline: #9a9993;
+    --sc-good-ink: #0ca30c;
+    --sc-critical-ink: #e66767;
+  }
+}
+
+:root[data-theme="dark"] {
+  --background: #0d0d0d;
+  --foreground: #f0efec;
+  --sc-ink: #f0efec;
+  --sc-surface: #1a1a19;
+  --sc-surface-muted: #232322;
+  --sc-ink-secondary: #c3c2b7;
+  --sc-ink-muted: #9a9993;
+  --sc-border: rgba(255, 255, 255, 0.1);
+  --sc-grid: #2c2c2a;
+  --sc-axis: #383835;
+  --sc-accent: #3987e5;
+  --sc-accent-soft: #15263b;
+  --sc-series-1: #3987e5;
+  --sc-series-1-band: rgba(57, 135, 229, 0.22);
+  --sc-series-baseline: #9a9993;
+  --sc-good-ink: #0ca30c;
+  --sc-critical-ink: #e66767;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-ink: var(--sc-ink);
+  --color-surface: var(--sc-surface);
+  --color-surface-muted: var(--sc-surface-muted);
+  --color-ink-secondary: var(--sc-ink-secondary);
+  --color-ink-muted: var(--sc-ink-muted);
+  --color-line: var(--sc-border);
+  --color-accent: var(--sc-accent);
+  --color-accent-soft: var(--sc-accent-soft);
+  --color-good: var(--sc-good);
+  --color-good-ink: var(--sc-good-ink);
+  --color-warning: var(--sc-warning);
+  --color-serious: var(--sc-serious);
+  --color-critical: var(--sc-critical);
+  --color-critical-ink: var(--sc-critical-ink);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
 }
