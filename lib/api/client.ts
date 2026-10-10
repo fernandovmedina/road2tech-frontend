@@ -1,7 +1,7 @@
 import type { z } from "zod";
 import { getState, mutate, resetState } from "@/lib/mock/store";
 import type { DemoState } from "@/types";
-import { isMockMode } from "./config";
+import { goesToBackend } from "./config";
 import { ApiError, envelope, type Envelope } from "./envelope";
 
 // Single entry point for every API call. Components never call this directly: they use hooks (hooks.ts).
@@ -19,7 +19,7 @@ export async function request<T extends z.ZodType>(
   schema: T,
   opts: RequestOptions = {},
 ): Promise<Envelope<z.infer<T>>> {
-  if (!isMockMode) {
+  if (goesToBackend(path)) {
     const { httpRequest } = await import("./http");
     return httpRequest(path, schema, opts);
   }
