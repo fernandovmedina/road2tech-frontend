@@ -35,7 +35,7 @@ export function EventKpis({ predictions, totalBranches, scopeLabel }: EventKpisP
       />
       <Kpi
         label={copy.opportunities.eventKpis.extraStock}
-        value={`${formatCompact(extraUnits)} u`}
+        value={`${formatCompact(extraUnits)} ${copy.common.units}`}
         caption={copy.opportunities.eventKpis.extraStockCaption}
       />
       <Kpi

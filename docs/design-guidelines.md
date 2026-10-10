@@ -18,7 +18,7 @@ Regla transversal: un color de estado nunca es el único medio para comunicar es
 
 ## 2. Tokens
 
-Todos los tokens están en `app/globals.css` (`@theme inline`). **No se usan valores hex literales** en componentes; tampoco los alias deprecados del mapa (marcados `/* DEPRECATED alias — remove in T09 */`). Los radios y la sombra se exponen como variables de `:root` y como utilidades Tailwind (`rounded-card`, `rounded-block`, `rounded-control`, `shadow-card`).
+Todos los tokens están en `app/globals.css` (`@theme inline`). **No se usan valores hex literales** en componentes; tampoco los antiguos alias del mapa (`ink`, `surface`, `plane`, `hairline`, `brand`, `critical`, `normal-day`, `with-event`), que ya fueron retirados. Los radios y la sombra se exponen como variables de `:root` y como utilidades Tailwind (`rounded-card`, `rounded-block`, `rounded-control`, `shadow-card`).
 
 ### Colores
 
@@ -170,13 +170,13 @@ Reemplaza los KPIs inline de `KpiCards` y `StoreDemandKpis`, y a `StatTile`. Un 
   value="$48.20"
   icon={Receipt}
   caption="vs. mes anterior"
-  delta={+0.034}            // fracción; solo formateo, sin cálculo en cliente
-  tone="green"              // color del chip (opcional)
+  delta={{ value: "+3.4%", positive: true }}  // ya formateado; `positive` solo elige el color
+  tone="primary"            // chip: primary | accent | alert | info | warning | neutral
   variant="default"         // default | highlight (highlight = fondo oscuro)
 />
 ```
 
-Estructura: `rounded-card border-line bg-card shadow-card p-4`, chip `flex size-9 items-center justify-center rounded-[10px]`, valor `text-2xl font-bold tracking-tight`, pie `text-xs text-muted`.
+Estructura: `rounded-card border-line bg-card shadow-card p-4`, chip `flex size-9 items-center justify-center rounded-control`, valor `text-2xl font-bold tracking-tight`, pie `text-xs text-muted`.
 
 ### SegmentedControl
 
@@ -216,12 +216,12 @@ Se separan con divisores (`border-t border-line`) o bloques interiores, nunca ta
 
 ### DataLegend
 
-Leyenda de gráfica/mapa: items `{ token, label, shape }` donde `shape` es `"line" | "area" | "dot" | "square"`.
+Leyenda de gráfica/mapa: items `{ color, label, shape }` donde `color` es una variable CSS de token (`var(--color-primary)`) y `shape` es `"dot" | "line" | "dashed" | "band"`. El nombre accesible de la lista es la prop `label` (por defecto "Leyenda").
 
 ```tsx
 <DataLegend items={[
-  { token: "foreground", label: "Historial", shape: "line" },
-  { token: "primary", label: "Pronóstico", shape: "dot" },
+  { color: "var(--color-primary)", label: "Historial", shape: "line" },
+  { color: "var(--color-accent)", label: "Pronóstico", shape: "dashed" },
 ]} />
 ```
 

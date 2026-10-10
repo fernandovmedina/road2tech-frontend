@@ -50,18 +50,6 @@
   --color-heat-4: #e8590c;
   --color-heat-5: #a61e1e;
 
-  /* DEPRECATED map aliases — point at the canonical tokens; remove in T09. */
-  --color-ink: var(--color-foreground);
-  --color-ink-secondary: var(--color-muted);
-  --color-ink-muted: var(--color-subtle);
-  --color-surface: var(--color-card);
-  --color-plane: var(--color-background);
-  --color-hairline: var(--color-line);
-  --color-brand: var(--color-primary);
-  --color-brand-soft: var(--color-primary-tint);
-  --color-critical: var(--color-alert);
-  --color-normal-day: var(--color-series-baseline);
-  --color-with-event: var(--color-series-scenario);
 
   --font-sans: var(--font-manrope), system-ui, sans-serif;
   --radius-card: 16px;

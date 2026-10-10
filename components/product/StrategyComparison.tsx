@@ -8,7 +8,6 @@ import type { DiscountPoint, Strategy } from "@/types";
 const K = copy.product.compare;
 const L = copy.strategy.promo;
 
-type Scenario = Strategy["baseline"];
 type Good = "up" | "down";
 type Row = { key: string; label: string; base: ReactNode; treated: ReactNode; diff: ReactNode; delta: number; good: Good };
 

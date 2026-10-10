@@ -3,6 +3,7 @@
 export const copy = {
   common: {
     sampleData: "Datos de ejemplo",
+    allDay: "Todo el día",
     loading: "Cargando…",
     retry: "Reintentar",
     cancel: "Cancelar",
@@ -508,6 +509,7 @@ export const copy = {
     tabs: { products: "Productos", promotions: "Promociones" },
     contextLayer: "Contexto",
     contextHint: "Feriados, eventos, quincena, vacaciones y clima",
+    contextOff: "Sin contexto",
     events: {
       inTransit: "En camino",
       delivered: "Entregada ✓",

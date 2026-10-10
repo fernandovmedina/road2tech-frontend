@@ -1,4 +1,5 @@
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { copy } from "@/lib/copy";
 
 /**
  * Calendar context layer toggle, rendered with the standard segmented control
@@ -18,11 +19,11 @@ export function LayerSwitch({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <div>
+    <div aria-describedby={hint ? `${id}-hint` : undefined}>
       <SegmentedControl
         label={label}
         options={[
-          { value: "off", label: "Sin contexto" }, // TODO(copy): move "Sin contexto" to lib/copy.ts (read-only in this task)
+          { value: "off", label: copy.calendar.contextOff },
           { value: "on", label },
         ]}
         value={checked ? "on" : "off"}
