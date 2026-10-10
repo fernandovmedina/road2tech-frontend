@@ -62,24 +62,25 @@ export function ProductContent({
   return (
     <>
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
-        <TrendSection
-          storeId={storeId}
-          productId={product.product_id}
-          storeName={storeName}
-          window={ready ? { start: strategy.period.start_date, end: strategy.period.end_date } : null}
-          treatedRatio={ready && point ? treatedRatio(strategy, point) : null}
-          treatedLabel={point ? copy.product.chart.treatedAt(discountLabel(point.discount_pct)) : undefined}
-          comparing={ready && !blocked}
-        >
+        <div className="flex flex-col gap-5">
+          <TrendSection
+            storeId={storeId}
+            productId={product.product_id}
+            storeName={storeName}
+            window={ready ? { start: strategy.period.start_date, end: strategy.period.end_date } : null}
+            treatedRatio={ready && point ? treatedRatio(strategy, point) : null}
+            treatedLabel={point ? copy.product.chart.treatedAt(discountLabel(point.discount_pct)) : undefined}
+            comparing={ready && !blocked}
+          />
           <ProductMetrics product={product} storeId={storeId} expectedWasteUnits={wasteUnits} />
-        </TrendSection>
+        </div>
 
-        {state === "loading" && <Skeleton className="h-[420px] w-full rounded-2xl" />}
+        {state === "loading" && <Skeleton className="h-[420px] w-full rounded-card" />}
         {state === "error" && <ErrorState onRetry={onRetry} />}
         {state === "none" && <NoPromoCard storeName={storeName} />}
         {ready && blocked && (
           <Card className="flex flex-col gap-3 border-alert/30 bg-alert-tint/40">
-            <h2 className="text-lg font-extrabold text-alert-dark">{B.title}</h2>
+            <h2 className="text-lg font-bold text-alert-dark">{B.title}</h2>
             <p className="text-sm font-semibold">{notRecommendedText(strategy)}</p>
             <p className="text-sm text-muted">{B.text}</p>
             <ConstraintsList constraints={strategy.constraints} rejected />
@@ -88,7 +89,7 @@ export function ProductContent({
         {ready && !blocked && <PromoSlider strategy={strategy} storeName={storeName} discount={discount} onDiscount={setChosen} />}
       </div>
 
-      {state === "loading" && <Skeleton className="h-72 w-full rounded-2xl" />}
+      {state === "loading" && <Skeleton className="h-72 w-full rounded-card" />}
 
       {ready && !blocked && point && (
         <StrategyComparison strategy={strategy} point={point}>

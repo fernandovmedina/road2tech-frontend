@@ -41,7 +41,7 @@ export function StatusTimeline({ status }: { status: StrategyStatus }) {
         return (
           <li key={step.status} aria-current={current ? "step" : undefined} className={`min-w-0 flex-1 ${current ? "" : "hidden sm:block"}`}>
             <span aria-hidden className={`block h-1.5 rounded-full ${color}`} />
-            <span className={`mt-1 block truncate text-[11px] leading-tight ${current ? "font-bold text-foreground" : "font-medium text-muted"}`}>
+            <span className={`mt-1 block truncate text-xs leading-tight ${current ? "font-bold text-foreground" : "font-medium text-muted"}`}>
               {step.state === "done" && <span aria-hidden>✓ </span>}
               {t("strategyStatus", step.status)}
               <span className="sr-only"> ({S[step.state]})</span>

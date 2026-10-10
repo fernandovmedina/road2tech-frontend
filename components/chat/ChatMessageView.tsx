@@ -15,7 +15,7 @@ export function ChatMessageView({ entry, onRetry }: { entry: ChatEntry; onRetry?
       <div className="flex justify-end">
         {entry.blocks.map((b, i) =>
           b.type === "text" ? (
-            <p key={i} className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl bg-primary px-4 py-2.5 text-sm leading-relaxed text-white">
+            <p key={i} className="max-w-[85%] whitespace-pre-wrap break-words rounded-card bg-primary px-4 py-2.5 text-sm leading-relaxed text-white">
               {b.text}
             </p>
           ) : null,

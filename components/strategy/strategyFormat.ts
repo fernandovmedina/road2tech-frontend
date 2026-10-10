@@ -58,7 +58,7 @@ export function riskLevel(risk: number): RiskLevel {
 
 export const riskTone: Record<RiskLevel, string> = {
   low: "text-primary",
-  medium: "text-[#8A5A00]",
+  medium: "text-warning-dark",
   high: "text-alert-dark",
 };
 

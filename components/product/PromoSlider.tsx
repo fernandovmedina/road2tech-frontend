@@ -42,12 +42,12 @@ export function PromoSlider({
   return (
     <Card className="flex flex-col gap-5">
       <div className="flex items-center gap-2.5">
-        <h2 className="text-lg font-extrabold">{P.title}</h2>
+        <h2 className="text-lg font-bold">{P.title}</h2>
         <Badge tone="green"><span aria-hidden>✦&nbsp;</span>{P.badge}</Badge>
       </div>
 
-      <div className="rounded-[10px] bg-background px-4 py-3">
-        <p className="text-sm font-extrabold leading-snug">{P.headline(nameOf(strategy.promoted_product_id), shown, anchor)}</p>
+      <div className="rounded-block bg-background px-4 py-3">
+        <p className="text-sm font-bold leading-snug">{P.headline(nameOf(strategy.promoted_product_id), shown, anchor)}</p>
         <p className="mt-0.5 text-xs text-muted">
           {periodLabel(strategy.period.start_date, strategy.period.end_date)} · {storeName}
         </p>
@@ -55,8 +55,8 @@ export function PromoSlider({
 
       <div>
         <div className="flex items-end justify-between gap-3">
-          <label htmlFor={sliderId} className="text-sm font-extrabold">{P.discount}</label>
-          <output htmlFor={sliderId} className="text-2xl font-extrabold tabular-nums">{shown}</output>
+          <label htmlFor={sliderId} className="text-sm font-bold">{P.discount}</label>
+          <output htmlFor={sliderId} className="text-2xl font-bold tracking-tight tabular-nums">{shown}</output>
         </div>
         <input
           id={sliderId}
@@ -68,7 +68,7 @@ export function PromoSlider({
           onChange={(e) => onDiscount(toFraction(Number(e.target.value)))}
           aria-valuetext={P.valueText(shown)}
           disabled={!editable}
-          className="h-11 w-full cursor-pointer accent-[#0B6E4F] disabled:cursor-not-allowed disabled:opacity-60"
+          className="h-11 w-full cursor-pointer accent-primary disabled:cursor-not-allowed disabled:opacity-60"
         />
         <div className="flex items-center justify-between gap-2 text-xs text-muted">
           <span aria-hidden>0%</span>
@@ -77,7 +77,7 @@ export function PromoSlider({
               type="button"
               onClick={() => onDiscount(toFraction(optimal))}
               aria-label={P.applyOptimal(optimalShown)}
-              className="inline-flex min-h-11 items-center rounded-[10px] px-2 hover:bg-primary-tint"
+              className="inline-flex min-h-11 items-center rounded-control px-2 hover:bg-primary-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               {P.optimal}<strong className="ml-1 text-primary underline">{optimalShown}</strong>
             </button>

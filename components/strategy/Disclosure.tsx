@@ -24,7 +24,7 @@ export function Disclosure({
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => setOpen((v) => !v)}
-        className={`inline-flex min-h-11 items-center gap-1.5 rounded-[10px] text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${buttonClassName}`}
+        className={`inline-flex min-h-11 items-center gap-1.5 rounded-control text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${buttonClassName}`}
       >
         <span aria-hidden className={`inline-block text-xs transition-transform ${open ? "rotate-90" : ""}`}>▸</span>
         {label}

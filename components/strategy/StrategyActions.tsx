@@ -16,7 +16,7 @@ import type { Strategy, StrategyAction } from "@/types";
 const A = copy.strategy.actions;
 const Q = copy.product.accept;
 const linkClass =
-  "inline-flex min-h-11 items-center rounded-[10px] border border-line bg-white px-4 text-sm font-semibold hover:bg-background";
+  "inline-flex min-h-11 items-center rounded-control border border-line bg-card px-4 text-sm font-semibold hover:bg-background focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
 
 /** Figures the confirmation dialog shows when they differ from the strategy's own (e.g. the discount chosen on a slider). */
 type Estimate = { marginIncrement: number; interval: Strategy["confidence_interval"] };
@@ -131,7 +131,7 @@ export function StrategyActions({
         <p className="text-xs text-muted">{promo ? Q.locked : A.locked}</p>
       )}
       {error && (
-        <p role="alert" className="rounded-[10px] bg-alert-tint px-3 py-2 text-sm font-medium text-alert-dark">{error}</p>
+        <p role="alert" className="rounded-block bg-alert-tint px-3 py-2 text-sm font-medium text-alert-dark">{error}</p>
       )}
 
       <Modal

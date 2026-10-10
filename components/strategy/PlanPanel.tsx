@@ -43,11 +43,11 @@ const isRecommended = (s: Strategy) => s.status !== "rejected" && s.status !== "
 function PlanSkeleton() {
   return (
     <div role="status" aria-label={copy.common.loading} className="flex flex-col gap-4">
-      <Skeleton className="h-24 w-full rounded-2xl" />
+      <Skeleton className="h-24 w-full rounded-card" />
       <div className={cardGrid}>
-        <Skeleton className="h-72 rounded-2xl" />
-        <Skeleton className="h-72 rounded-2xl" />
-        <Skeleton className="hidden h-72 rounded-2xl xl:block" />
+        <Skeleton className="h-72 rounded-card" />
+        <Skeleton className="h-72 rounded-card" />
+        <Skeleton className="hidden h-72 rounded-card xl:block" />
       </div>
     </div>
   );
@@ -60,10 +60,10 @@ function Conflicts({ plan }: { plan: Plan }) {
   return (
     <Disclosure
       label={P.conflicts.summary(conflicts.length)}
-      className="rounded-[10px] border border-[#E8C26A] bg-[#FFF4D6] px-4 py-0.5"
-      buttonClassName="text-[#6B4500]"
+      className="rounded-block border border-warning/30 bg-warning-tint px-4 py-0.5"
+      buttonClassName="text-warning-dark"
     >
-      <ul className="flex flex-col gap-3 pb-3 text-sm text-[#6B4500]">
+      <ul className="flex flex-col gap-3 pb-3 text-sm text-warning-dark">
         {conflicts.map((c) => {
           const kind = lookup(P.conflicts.types, c.type);
           const resolution = lookup(P.conflicts.resolutions, c.resolution);
@@ -87,7 +87,7 @@ function Discarded({ strategies }: { strategies: Strategy[] }) {
   const { nameOf, byId } = useCatalog();
   if (strategies.length === 0) return null;
   return (
-    <Disclosure label={P.discarded(strategies.length)} className="rounded-2xl border border-line bg-white px-4 py-0.5">
+    <Disclosure label={P.discarded(strategies.length)} className="rounded-card border border-line bg-card px-4 py-0.5">
       <ul className="flex flex-col divide-y divide-line pb-2">
         {strategies.map((s) => (
           <li key={s.draft_id} className="py-2.5">
@@ -137,7 +137,7 @@ export function PlanPanel({ storeId }: { storeId: string }) {
     <section aria-labelledby="plan-title" aria-busy={recalculating} className="flex flex-col gap-4">
       <Card className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
         <div className="min-w-0 max-w-xl">
-          <h2 id="plan-title" className="text-lg font-extrabold leading-snug">{P.title}</h2>
+          <h2 id="plan-title" className="text-lg font-bold leading-snug">{P.title}</h2>
           <p className="mt-1 text-sm text-muted">{subtitle}</p>
           <p className="text-xs text-muted">{P.generatedAt(formatTimestamp(data.generated_at))}</p>
         </div>
@@ -154,7 +154,7 @@ export function PlanPanel({ storeId }: { storeId: string }) {
                 <p className="mt-1 text-xs text-muted">{P.recalculating}</p>
               </>
             ) : (
-              <p className="text-2xl font-extrabold tabular-nums text-primary">≈ {formatSignedMoney(data.portfolio.net_expected_margin_increment)}</p>
+              <p className="text-2xl font-bold tracking-tight tabular-nums text-primary">≈ {formatSignedMoney(data.portfolio.net_expected_margin_increment)}</p>
             )}
             <Disclosure label={copy.strategy.how.toggle} className="max-w-72">
               <p className="text-xs leading-relaxed text-muted">{P.portfolioHow}</p>
@@ -171,7 +171,7 @@ export function PlanPanel({ storeId }: { storeId: string }) {
       </Card>
 
       {recommended.length > 0 && recommended.length < max && (
-        <p role="status" className="rounded-[10px] border border-[#E8C26A] bg-[#FFF4D6] px-4 py-3 text-sm text-[#6B4500]">
+        <p role="status" className="rounded-block border border-warning/30 bg-warning-tint px-4 py-3 text-sm text-warning-dark">
           <span className="font-bold">{P.fewer(recommended.length)} </span>
           {reasonText(data.reason_if_fewer)}
         </p>

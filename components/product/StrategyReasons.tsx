@@ -25,7 +25,7 @@ export function StrategyReasons({ strategy }: { strategy: Pick<Strategy, "driver
   if (bullets.length === 0) return null;
   return (
     <section aria-label={R.reasonsTitle}>
-      <h3 className="mb-2 text-[11px] font-extrabold uppercase tracking-wide text-muted">{R.reasonsTitle}</h3>
+      <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">{R.reasonsTitle}</h3>
       <ul className="flex flex-col gap-2 text-sm leading-snug">
         {bullets.map((b) => (
           <li key={b} className="flex gap-2">

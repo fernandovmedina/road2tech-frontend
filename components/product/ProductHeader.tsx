@@ -13,7 +13,7 @@ import { StatusTimeline } from "@/components/strategy/StatusTimeline";
 import type { StrategyStatus } from "@/types";
 
 export const backLinkClass =
-  "inline-flex min-h-11 shrink-0 items-center gap-2 rounded-[10px] border border-line bg-white px-4 text-sm font-semibold hover:bg-background";
+  "inline-flex min-h-11 shrink-0 items-center gap-2 rounded-control border border-line bg-card px-4 text-sm font-semibold hover:bg-background focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
 
 /** "← Regresar al mapa": back to the dashboard, where the map lives. */
 export function BackLink() {

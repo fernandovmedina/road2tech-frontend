@@ -28,32 +28,17 @@ function Risk({ value }: { value: number }) {
 /** Waste shown as a cost: "−$10,150", or "$0" when nothing is thrown away. */
 const wasteMoney = (v: number): string => (v > 0 ? `−${formatMoney(v)}` : formatMoney(0));
 
-/** "Si no aceptas": the loss is the headline when there is waste, otherwise the profit the store keeps. */
-function DeclineCard({ b }: { b: Scenario }) {
-  const waste = b.waste_cost > 0;
+/**
+ * One column of the comparison. Both columns share this structure; only the tone changes: series-baseline
+ * ("Si no aceptas") and series-scenario ("Si aceptas"), per the standard.
+ */
+function ScenarioCard({ label, headline, text, tone }: { label: string; headline: string; text: string; tone: "baseline" | "scenario" }) {
+  const dark = tone === "scenario";
   return (
-    <section aria-label={K.decline} className="rounded-xl bg-accent-tint p-5">
-      <h3 className="text-[11px] font-extrabold uppercase tracking-wide text-accent-dark">{K.decline}</h3>
-      <p className="mt-2 text-3xl font-extrabold tabular-nums text-accent-dark">
-        {waste ? K.wasteHeadline(formatMoney(b.waste_cost)) : K.profitHeadline(formatMoney(b.margin))}
-      </p>
-      <p className="mt-2 text-sm text-accent-dark">
-        {waste ? K.declineWithWaste(K.wasteUnits(Math.round(b.waste_units)), formatMoney(b.margin)) : K.declineNoWaste(formatMoney(b.margin))}
-      </p>
-    </section>
-  );
-}
-
-/** "Si aceptas": the gain the model expects at the chosen discount, with the profit it leaves. */
-function AcceptCard({ a, b, gain }: { a: Scenario; b: Scenario; gain: number }) {
-  const good = gain >= 0;
-  return (
-    <section aria-label={K.accept} className={`rounded-xl p-5 ${good ? "bg-primary-tint" : "bg-alert-tint"}`}>
-      <h3 className={`text-[11px] font-extrabold uppercase tracking-wide ${good ? "text-primary" : "text-alert-dark"}`}>{K.accept}</h3>
-      <p className={`mt-2 text-3xl font-extrabold tabular-nums ${good ? "text-primary" : "text-alert-dark"}`}>{formatSignedMoney(gain)}</p>
-      <p className={`mt-2 text-sm ${good ? "text-primary" : "text-alert-dark"}`}>
-        {K.acceptText(formatMoney(a.margin), formatMoney(b.margin), K.wasteUnits(Math.round(a.waste_units)))}
-      </p>
+    <section aria-label={label} className={`rounded-block p-5 ${dark ? "bg-series-scenario text-white" : "bg-series-baseline text-foreground"}`}>
+      <h3 className={`text-xs font-bold uppercase tracking-wide ${dark ? "text-white/80" : "text-foreground/80"}`}>{label}</h3>
+      <p className={`mt-2 text-2xl font-bold tracking-tight tabular-nums ${dark ? "text-white" : "text-foreground"}`}>{headline}</p>
+      <p className={`mt-2 text-sm ${dark ? "text-white/85" : "text-foreground/80"}`}>{text}</p>
     </section>
   );
 }
@@ -91,18 +76,28 @@ export function StrategyComparison({ strategy, point, children }: { strategy: St
   ];
 
   return (
-    <section aria-labelledby="compare-title" className="flex flex-col gap-4 rounded-2xl border border-line bg-white p-5">
+    <section aria-labelledby="compare-title" className="flex flex-col gap-4 rounded-card border border-line bg-card p-5">
       <div>
-        <h2 id="compare-title" className="text-lg font-extrabold">{K.title}</h2>
+        <h2 id="compare-title" className="text-lg font-bold">{K.title}</h2>
         <p className="text-sm text-muted">{K.subtitle(periodDays(strategy.period.start_date, strategy.period.end_date))}</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-[1.15fr_1fr]">
-        <DeclineCard b={b} />
-        <AcceptCard a={a} b={b} gain={gain} />
+      <div className="grid gap-4 md:grid-cols-2">
+        <ScenarioCard
+          tone="baseline"
+          label={K.decline}
+          headline={b.waste_cost > 0 ? K.wasteHeadline(formatMoney(b.waste_cost)) : K.profitHeadline(formatMoney(b.margin))}
+          text={b.waste_cost > 0 ? K.declineWithWaste(K.wasteUnits(Math.round(b.waste_units)), formatMoney(b.margin)) : K.declineNoWaste(formatMoney(b.margin))}
+        />
+        <ScenarioCard
+          tone="scenario"
+          label={K.accept}
+          headline={formatSignedMoney(gain)}
+          text={K.acceptText(formatMoney(a.margin), formatMoney(b.margin), K.wasteUnits(Math.round(a.waste_units)))}
+        />
       </div>
 
-      <div className="relative overflow-x-auto rounded-xl bg-background">
+      <div className="relative overflow-x-auto rounded-block bg-background">
         <table className="w-full min-w-[520px] text-sm tabular-nums">
           <caption className="sr-only">{K.title}</caption>
           <thead>
@@ -113,7 +108,7 @@ export function StrategyComparison({ strategy, point, children }: { strategy: St
               <th scope="col" className="px-4 py-3 font-semibold">{K.difference}</th>
             </tr>
           </thead>
-          <tbody className="bg-white">
+          <tbody className="bg-card">
             {rows.map((r) => (
               <tr key={r.key} className="border-t border-line">
                 <th scope="row" className="px-4 py-3 text-left font-medium">{r.label}</th>
@@ -122,8 +117,8 @@ export function StrategyComparison({ strategy, point, children }: { strategy: St
                 <td className={`px-4 py-3 font-bold ${diffClass(r.delta, r.good)}`}>{r.diff}</td>
               </tr>
             ))}
-            <tr className="border-t border-line bg-background font-extrabold">
-              <th scope="row" className="px-4 py-3 text-left font-extrabold">{K.rows.profit}</th>
+            <tr className="border-t border-line bg-background font-bold">
+              <th scope="row" className="px-4 py-3 text-left font-bold">{K.rows.profit}</th>
               <td className="px-4 py-3">{formatMoney(b.margin)}</td>
               <td className="px-4 py-3">{formatMoney(a.margin)}</td>
               <td className={`px-4 py-3 ${gain >= 0 ? "text-primary" : "text-alert-dark"}`}>{formatSignedMoney(gain)}</td>

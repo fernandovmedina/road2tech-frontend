@@ -19,8 +19,8 @@ export function CalculationDetails({ strategy, point }: { strategy: Strategy; po
   const risks = tendency?.risks ?? [];
 
   return (
-    <details className="group rounded-2xl border border-line bg-white">
-      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-2xl px-5 py-3 text-sm font-bold text-primary">
+    <details className="group rounded-card border border-line bg-card">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-card px-5 py-3 text-sm font-bold text-primary">
         {H.toggle}
         <span aria-hidden className="text-lg transition-transform group-open:rotate-180">⌄</span>
       </summary>
@@ -30,7 +30,7 @@ export function CalculationDetails({ strategy, point }: { strategy: Strategy; po
           {tendency?.ai_summary && <p className="mt-2 leading-relaxed text-muted">{tendency.ai_summary}</p>}
         </section>
 
-        <p className="rounded-[10px] bg-primary-tint px-3 py-2 font-semibold text-primary">
+        <p className="rounded-block bg-primary-tint px-3 py-2 font-semibold text-primary">
           {H.range(formatMoney(range.low), formatMoney(range.high))}
         </p>
 
