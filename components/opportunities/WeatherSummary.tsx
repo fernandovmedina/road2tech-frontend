@@ -1,4 +1,5 @@
 import { Cloud, CloudLightning, CloudRain, CloudSun, type LucideIcon, Sun } from "lucide-react";
+import { copy } from "@/lib/copy";
 import { WEATHER_LABELS } from "@/lib/opportunities/labels";
 import type { WeatherCondition, WeatherForecast } from "@/types/demandEvent";
 
@@ -14,10 +15,10 @@ export function WeatherSummary({ weather }: { weather: WeatherForecast }) {
   const Icon = WEATHER_ICONS[weather.condition];
   return (
     <span className="inline-flex items-center gap-1.5">
-      <Icon className="size-4 shrink-0 text-ink-secondary" aria-hidden />
+      <Icon className="size-4 shrink-0 text-muted" aria-hidden />
       <span>
         {WEATHER_LABELS[weather.condition]} · {weather.temperatureC}°C ·{" "}
-        {weather.precipitationChancePct}% rain
+        {copy.opportunities.weather.rain(weather.precipitationChancePct)}
       </span>
     </span>
   );

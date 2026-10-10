@@ -813,6 +813,7 @@ export const copy = {
       selectedBranch: "Sucursal seleccionada",
       open24h: "Abierta 24 horas",
       forecastTitle: "Pronóstico de demanda a 7 días",
+      unitPerDay: "u/día",
       current: "Actual",
       predicted: "Pronosticado",
       confidence: (share: string) => `Confianza del pronóstico ${share}`,

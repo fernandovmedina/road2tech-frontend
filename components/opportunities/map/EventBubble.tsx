@@ -1,4 +1,5 @@
 import { cn } from "@/lib/cn";
+import { copy } from "@/lib/copy";
 import { formatSignedPoints } from "@/lib/format";
 import type { LabelSide, OpportunityPoint } from "@/lib/opportunities/presentation";
 import { EventTypeIcon } from "../EventTypeIcon";
@@ -30,8 +31,8 @@ export function EventBubble({ point, isSelected, isHighlighted, labelSide, label
     <div className="relative" style={{ width: size, height: size }}>
       <div
         className={cn(
-          "flex size-full items-center justify-center rounded-full ring-2 ring-surface transition-transform duration-150",
-          isSelected ? "scale-110 shadow-lg outline-2 outline-offset-2 outline-ink" : "shadow-md",
+          "flex size-full items-center justify-center rounded-full ring-2 ring-card transition-transform duration-150",
+          isSelected ? "scale-110 shadow-lg outline-2 outline-offset-2 outline-foreground" : "shadow-md",
           isHighlighted && !isSelected && "scale-105",
         )}
         style={{ backgroundColor: point.bin.fill, color: point.bin.iconColor }}
@@ -43,13 +44,13 @@ export function EventBubble({ point, isSelected, isHighlighted, labelSide, label
           className={cn(
             "absolute whitespace-nowrap rounded-md px-2 py-1 text-center shadow-sm ring-1",
             LABEL_POSITION[shownSide],
-            isSelected ? "bg-ink text-white ring-ink" : "bg-surface/95 text-ink ring-ink/10",
+            isSelected ? "bg-foreground text-white ring-foreground" : "bg-card/95 text-foreground ring-line",
           )}
         >
           <p className="text-[11px] font-semibold leading-tight">{point.name}</p>
-          <p className={cn("text-[10px] leading-tight", isSelected ? "text-white/80" : "text-ink-secondary")}>
+          <p className={cn("text-[10px] leading-tight", isSelected ? "text-white/80" : "text-muted")}>
             {labelMode === "effect"
-              ? `${formatSignedPoints(point.effectPp)} vs. normal day`
+              ? `${formatSignedPoints(point.effectPp)} ${copy.opportunities.timeline.vsNormalDay}`
               : point.scheduleLabel}
           </p>
         </div>

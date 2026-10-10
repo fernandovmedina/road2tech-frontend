@@ -1,4 +1,5 @@
-import { StatTile } from "@/components/ui/StatTile";
+import { Kpi } from "@/components/ui/Kpi";
+import { copy } from "@/lib/copy";
 import { formatCompact, formatInteger, formatMxnCompact } from "@/lib/format";
 import type { EventPrediction } from "@/types/eventPrediction";
 
@@ -9,6 +10,7 @@ type EventKpisProps = {
 };
 
 export function EventKpis({ predictions, totalBranches, scopeLabel }: EventKpisProps) {
+  // TODO(backend): these aggregates should come pre-computed from the events endpoint.
   const extraSales = predictions.reduce((total, p) => total + p.expectedExtraSalesMxn, 0);
   const extraUnits = predictions.reduce(
     (total, p) =>
@@ -21,25 +23,25 @@ export function EventKpis({ predictions, totalBranches, scopeLabel }: EventKpisP
 
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <StatTile
-        label="Opportunity points"
+      <Kpi
+        label={copy.opportunities.eventKpis.points}
         value={formatInteger(predictions.length)}
         caption={scopeLabel}
       />
-      <StatTile
-        label="Expected extra sales"
+      <Kpi
+        label={copy.opportunities.eventKpis.extraSales}
         value={formatMxnCompact(extraSales)}
-        caption="Caused by these events"
+        caption={copy.opportunities.eventKpis.extraSalesCaption}
       />
-      <StatTile
-        label="Extra stock recommended"
-        value={`${formatCompact(extraUnits)} units`}
-        caption="Includes a 10% safety buffer"
+      <Kpi
+        label={copy.opportunities.eventKpis.extraStock}
+        value={`${formatCompact(extraUnits)} u`}
+        caption={copy.opportunities.eventKpis.extraStockCaption}
       />
-      <StatTile
-        label="Branches affected"
-        value={`${branchesAffected} of ${totalBranches}`}
-        caption="Inside at least one influence radius"
+      <Kpi
+        label={copy.opportunities.eventKpis.branches}
+        value={copy.opportunities.eventKpis.ofTotal(branchesAffected, totalBranches)}
+        caption={copy.opportunities.eventKpis.branchesCaption}
       />
     </div>
   );

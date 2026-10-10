@@ -1,3 +1,4 @@
+import { copy } from "@/lib/copy";
 import { formatSignedPercent, formatSignedPoints } from "@/lib/format";
 import { WEEKDAY_LABELS } from "@/lib/opportunities/labels";
 import { eventEffectPp, type ScenarioRow } from "@/lib/opportunities/predictionInsights";
@@ -18,51 +19,55 @@ export function ScenarioComparisonPanel({ event, prediction, rows }: ScenarioCom
   const overall = prediction.overallScenarios;
 
   return (
-    <article className="flex flex-col gap-5" aria-label="Scenario comparison">
+    <article className="flex flex-col gap-5" aria-label={copy.opportunities.scenarioComparison.aria}>
       <header>
-        <p className="text-xs font-semibold uppercase tracking-wider text-ink-secondary">
-          Scenario comparison
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted">
+          {copy.opportunities.scenarioComparison.eyebrow}
         </p>
-        <h2 className="mt-1 text-lg font-semibold leading-snug text-ink">
-          Normal {weekday} vs. {weekday} with {event.name}
+        <h2 className="mt-1 text-lg font-semibold leading-snug text-foreground">
+          {copy.opportunities.scenarioComparison.title(weekday, event.name)}
         </h2>
-        <p className="mt-1 text-sm text-ink-secondary">
-          Both scenarios are % change versus an average day. The gap between them is what the
-          event adds, in percentage points (pp).
-        </p>
+        <p className="mt-1 text-sm text-muted">{copy.opportunities.scenarioComparison.description}</p>
       </header>
 
       {lead && (
-        <section aria-labelledby="lead-product-heading" className="rounded-xl bg-plane p-4">
-          <h3 id="lead-product-heading" className="text-xs font-medium text-ink-secondary">
-            Lead product · {lead.productName}
+        <section aria-labelledby="lead-product-heading" className="rounded-block bg-background p-4">
+          <h3 id="lead-product-heading" className="text-xs font-medium text-muted">
+            {copy.opportunities.scenarioComparison.leadProduct(lead.productName)}
           </h3>
           <dl className="mt-2 grid grid-cols-3 gap-3">
             <ScenarioFigure
-              label={`Normal ${weekday}`}
+              label={copy.opportunities.scenarioComparison.normalLabel(weekday)}
               value={formatSignedPercent(lead.scenarios.normalDayPct)}
-              swatchClassName="bg-normal-day"
+              swatchClassName="bg-series-baseline"
             />
             <ScenarioFigure
-              label={`${weekday} with the event`}
+              label={copy.opportunities.scenarioComparison.eventLabel(weekday)}
               value={formatSignedPercent(lead.scenarios.withEventPct)}
-              swatchClassName="bg-with-event"
+              swatchClassName="bg-series-scenario"
             />
-            <ScenarioFigure label="Event effect" value={formatSignedPoints(lead.effectPp)} />
+            <ScenarioFigure
+              label={copy.opportunities.scenarioComparison.effectLabel}
+              value={formatSignedPoints(lead.effectPp)}
+            />
           </dl>
         </section>
       )}
 
       <ScenarioDumbbellChart
         rows={rows}
-        normalLabel={`Normal ${weekday}`}
-        eventLabel={`${weekday} with the event`}
+        normalLabel={copy.opportunities.scenarioComparison.normalLabel(weekday)}
+        eventLabel={copy.opportunities.scenarioComparison.eventLabel(weekday)}
       />
 
-      <p className="text-xs text-ink-secondary">
-        All {rows.length} affected products, revenue-weighted: {formatSignedPercent(overall.normalDayPct)}{" "}
-        on a normal {weekday} → {formatSignedPercent(overall.withEventPct)} with the event (
-        {formatSignedPoints(eventEffectPp(overall))}).
+      <p className="text-xs text-muted">
+        {copy.opportunities.scenarioComparison.footnote(
+          rows.length,
+          weekday,
+          formatSignedPercent(overall.normalDayPct),
+          formatSignedPercent(overall.withEventPct),
+          formatSignedPoints(eventEffectPp(overall)),
+        )}
       </p>
     </article>
   );

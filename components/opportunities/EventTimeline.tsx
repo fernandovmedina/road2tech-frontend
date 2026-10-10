@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { cn } from "@/lib/cn";
+import { copy } from "@/lib/copy";
 import { formatMxnCompact, formatSignedPoints } from "@/lib/format";
 import type { OpportunityPoint } from "@/lib/opportunities/presentation";
 import { EventTypeIcon } from "./EventTypeIcon";
@@ -33,7 +34,7 @@ export function EventTimeline({ points, selectedEventId, onSelect, emptyMessage 
 
   if (points.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-ink/15 px-4 text-sm text-ink-secondary">
+      <div className="flex h-full items-center justify-center rounded-block border border-dashed border-line px-4 text-sm text-muted">
         {emptyMessage}
       </div>
     );
@@ -42,7 +43,7 @@ export function EventTimeline({ points, selectedEventId, onSelect, emptyMessage 
   return (
     <ol
       ref={listRef}
-      aria-label="Opportunity points by date"
+      aria-label={copy.opportunities.timeline.aria}
       className="flex h-full gap-2 overflow-x-auto pb-1"
     >
       {points.map((point) => {
@@ -54,11 +55,11 @@ export function EventTimeline({ points, selectedEventId, onSelect, emptyMessage 
               aria-pressed={isSelected}
               onClick={() => onSelect(point.eventId)}
               className={cn(
-                "flex h-full w-56 flex-col justify-between rounded-xl border bg-surface px-3 py-2 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-                isSelected ? "border-ink ring-1 ring-ink" : "border-ink/10 hover:border-ink/30",
+                "flex h-full w-56 flex-col justify-between rounded-block border bg-card px-3 py-2 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+                isSelected ? "border-foreground ring-1 ring-foreground" : "border-line hover:border-axis",
               )}
             >
-              <span className="flex items-center gap-2 text-xs text-ink-secondary">
+              <span className="flex items-center gap-2 text-xs text-muted">
                 <span
                   className="flex size-5 shrink-0 items-center justify-center rounded-full"
                   style={{ backgroundColor: point.bin.fill, color: point.bin.iconColor }}
@@ -67,9 +68,9 @@ export function EventTimeline({ points, selectedEventId, onSelect, emptyMessage 
                 </span>
                 {point.scheduleLabel}
               </span>
-              <span className="truncate text-sm font-semibold text-ink">{point.name}</span>
-              <span className="text-xs text-ink-secondary">
-                {formatSignedPoints(point.effectPp)} vs. normal day ·{" "}
+              <span className="truncate text-sm font-semibold text-foreground">{point.name}</span>
+              <span className="text-xs text-muted">
+                {formatSignedPoints(point.effectPp)} {copy.opportunities.timeline.vsNormalDay} ·{" "}
                 {formatMxnCompact(point.expectedExtraSalesMxn)}
               </span>
             </button>

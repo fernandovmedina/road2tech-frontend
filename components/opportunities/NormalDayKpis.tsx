@@ -1,4 +1,5 @@
-import { StatTile } from "@/components/ui/StatTile";
+import { Kpi } from "@/components/ui/Kpi";
+import { copy } from "@/lib/copy";
 import { formatSignedPercent } from "@/lib/format";
 import { WEEKDAY_LABELS } from "@/lib/opportunities/labels";
 import type { BaselineRow } from "@/lib/opportunities/predictionInsights";
@@ -22,25 +23,25 @@ export function NormalDayKpis({ weekday, rows, totalBranches }: NormalDayKpisPro
 
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <StatTile
-        label="Scenario"
-        value={`Normal ${WEEKDAY_LABELS[weekday]}`}
-        caption="No events applied"
+      <Kpi
+        label={copy.opportunities.normalDayKpis.scenario}
+        value={copy.opportunities.normalDayKpis.scenarioValue(WEEKDAY_LABELS[weekday])}
+        caption={copy.opportunities.normalDayKpis.scenarioCaption}
       />
-      <StatTile
-        label="Branches monitored"
+      <Kpi
+        label={copy.opportunities.normalDayKpis.branchesMonitored}
         value={String(totalBranches)}
-        caption="Saltillo metro area"
+        caption={copy.opportunities.normalDayKpis.branchesCaption}
       />
-      <StatTile
-        label="Strongest normal-day lift"
+      <Kpi
+        label={copy.opportunities.normalDayKpis.strongestLift}
         value={strongest ? formatSignedPercent(strongest.changePct) : "—"}
-        caption={strongest ? `${strongest.productName} vs. an average day` : undefined}
+        caption={strongest ? copy.opportunities.normalDayKpis.versusAverage(strongest.productName) : undefined}
       />
-      <StatTile
-        label="Biggest normal-day dip"
+      <Kpi
+        label={copy.opportunities.normalDayKpis.biggestDip}
         value={weakest ? formatSignedPercent(weakest.changePct) : "—"}
-        caption={weakest ? `${weakest.productName} vs. an average day` : undefined}
+        caption={weakest ? copy.opportunities.normalDayKpis.versusAverage(weakest.productName) : undefined}
       />
     </div>
   );
