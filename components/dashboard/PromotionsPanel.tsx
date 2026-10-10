@@ -33,12 +33,12 @@ export function PromotionsPanel({ storeId }: { storeId: string }) {
             <li key={s.draft_id}>
               <Link
                 href={productHref(s.promoted_product_id, { storeId, strategyId: s.draft_id })}
-                className="flex min-h-11 flex-col gap-0.5 rounded-xl border border-line p-3 transition-colors hover:bg-background focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                className="flex min-h-11 flex-col gap-0.5 rounded-block bg-background p-3 transition-colors hover:bg-primary-tint/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
                 <span className="line-clamp-2 text-sm font-bold leading-snug">{promoTitle(s, nameOf, byId.has(s.promoted_product_id))}</span>
                 <span className="text-sm text-muted">
                   {copy.strategy.promo.gain}{" "}
-                  <span className="font-extrabold tabular-nums text-primary">{formatSignedMoney(s.expected_margin_increment)}</span>
+                  <span className="font-bold tabular-nums text-primary">{formatSignedMoney(s.expected_margin_increment)}</span>
                 </span>
               </Link>
             </li>
