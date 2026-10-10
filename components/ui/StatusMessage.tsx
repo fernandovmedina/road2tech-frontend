@@ -17,12 +17,12 @@ export function StatusMessage({ tone, title, description, action }: StatusMessag
       className="flex flex-col items-center justify-center gap-2 px-6 py-10 text-center"
     >
       {isError ? (
-        <TriangleAlert className="size-6 text-critical" aria-hidden />
+        <TriangleAlert className="size-6 text-alert" aria-hidden />
       ) : (
-        <Info className="size-6 text-ink-muted" aria-hidden />
+        <Info className="size-6 text-subtle" aria-hidden />
       )}
-      <p className="text-sm font-semibold text-ink">{title}</p>
-      <p className="max-w-sm text-sm text-ink-secondary">{description}</p>
+      <p className="text-sm font-semibold text-foreground">{title}</p>
+      <p className="max-w-sm text-sm text-muted">{description}</p>
       {action}
     </div>
   );
