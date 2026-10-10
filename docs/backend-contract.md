@@ -570,6 +570,8 @@ Catálogo (120 productos). Parámetros: `category_id`, `q`, `page`, `page_size`.
 
 Chat del asistente (GenUI). Respuesta completa, sin streaming. El frontend permite iniciar en alcance cadena para preguntas de tendencia, suficiencia de stock y merma. Con `NEXT_PUBLIC_CHAT_ANALYSIS_SOURCE=compat`, esas consultas pasan por el adaptador tipado `POST /assistant/analysis`; al desplegar la Lambda que acepta tienda opcional, `backend` las manda a `POST /chat`. Ambas respuestas pueden devolver `focus_store_id` y `focus_product_id` para continuar en la sucursal y producto detectados (ver D20).
 
+Al cargar el dashboard con una sucursal seleccionada, el frontend inicia una vez el flujo comercial por defecto. El agente debe consultar demanda prevista, histórico de ventas, stock/pedidos vigentes y restricciones; preseleccionar hasta cinco promociones viables; optimizar compatibilidad y mostrar únicamente las tres mejores. Debe conservar las respuestas estructuradas de las herramientas como fuente de verdad, declarar que el resultado es una simulación y no completar el cupo con opciones inventadas cuando menos de cinco pasan las reglas. Este flujo es de consulta: no aprueba ni activa promociones. Mientras el backend `/chat` no garantice esta orquestación, las preguntas generales de decisión comercial pasan por el adaptador determinista `/assistant/analysis`; las solicitudes específicas de una nueva promoción siguen usando `/chat`.
+
 Body:
 
 ```json
