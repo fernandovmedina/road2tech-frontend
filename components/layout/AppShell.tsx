@@ -29,7 +29,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-screen">
       <a
         href="#main-content"
-        className="sr-only rounded-lg bg-white px-4 py-2 text-sm font-bold text-primary focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50"
+        className="sr-only rounded-control bg-card px-4 py-2 text-sm font-bold text-primary focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50"
       >
         {copy.shell.skipToContent}
       </a>
