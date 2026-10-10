@@ -50,16 +50,22 @@ Repo already has: Next.js (App Router) + React + TypeScript + Tailwind CSS v4 + 
 
 The mockups in `proyect_context/ui/*/` are **reference, not production code**: replicate their values in your own components. Open each `*.dc.html` for exact spacing and layout (serve the folder, e.g. `python3 -m http.server`).
 
+**Normative standard:** `docs/design-guidelines.md` is the single source of truth for the visual standard (tokens, type scale, components, screen patterns). This table is a summary; on any conflict, the guidelines document wins.
+
 | Token | Value |
 |---|---|
 | Font | Manrope (400–800), tabular numerals for numbers |
-| App background / card | `#F3F5F4` / `#FFFFFF`, border `#E3E8E6`, radius 16px (cards), 10px (controls) |
+| App background / card | `#F3F5F4` / `#FFFFFF`, border `#E3E8E6`, radius 16px (cards), 12px (inner blocks), 10px (controls) |
 | Sidebar | `#0F1F1A`, text `#CFE3DA`, active item `#1C4A3B`, width 232px |
 | Primary (actions, history line) | `#0B6E4F`, hover `#08523B`, light tint `#E3F3EC` |
 | Forecast / promotion accent | `#E8590C`, tint `#FFF1E6`, dark text `#B34700` |
 | Alert (run-out) | `#C92A2A`, tint `#FDECEC`, text `#A31616` |
 | Info (overstock, demand up) | `#1D4E89`, tint `#E7F0FB` |
 | Text / muted | `#101828` / `#5B6776` |
+| Muted 2 (subtle) / axis | `#87928F` / `#BDC8C4` |
+| Warning (no demand) | `#B7791F`, tint `#FFF4D6`, text `#8A5A00` |
+| Scenario series (normal / event) | `#86B6EF` / `#1C5CAB` |
+| KPI value | 24px bold, 36px icon chip, context footnote (see guidelines) |
 | Heat gradient (low → high) | `#FFF3BF` → `#FFD43B` → `#FF922B` → `#E8590C` → `#A61E1E` |
 | Touch targets | ≥ 44px (small buttons 40px) |
 
