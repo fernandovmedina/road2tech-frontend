@@ -60,7 +60,7 @@ export function StockRow({ item, branchName }: { item: StockItem; branchName: st
       <td className="py-3 pr-5 text-right">
         <Link
           href={calendarHref({ storeId: item.store_id, productId: item.product_id, date: item.next_restock_date ?? undefined })}
-          className="inline-flex min-h-11 items-center whitespace-nowrap rounded-[10px] border border-line px-3 text-sm font-semibold hover:bg-background"
+          className="inline-flex min-h-11 items-center whitespace-nowrap rounded-control border border-line px-3 text-sm font-semibold hover:bg-background"
         >
           {copy.common.viewInCalendar}
           <span className="sr-only"> · {item.product_name}</span>

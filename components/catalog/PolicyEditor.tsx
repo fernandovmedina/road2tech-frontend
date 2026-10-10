@@ -158,7 +158,7 @@ export function PolicyEditor({ storeId }: { storeId: string }) {
       </div>
 
       {suggestionCount > 0 && (
-        <div className="mx-5 mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-primary-tint px-4 py-3">
+        <div className="mx-5 mt-3 flex flex-wrap items-center justify-between gap-3 rounded-block bg-primary-tint px-4 py-3">
           <p className="text-sm font-semibold text-primary">{P.suggestionsReady(suggestionCount)}</p>
           <div className="flex gap-2">
             <Button size="sm" onClick={applySuggestions}>{P.apply}</Button>
@@ -168,7 +168,7 @@ export function PolicyEditor({ storeId }: { storeId: string }) {
       )}
 
       {(suggest.isError || save.isError) && (
-        <div role="alert" className="mx-5 mt-3 rounded-xl border border-alert/30 bg-alert-tint px-4 py-3 text-sm font-semibold text-alert-dark">
+        <div role="alert" className="mx-5 mt-3 rounded-block border border-alert/30 bg-alert-tint px-4 py-3 text-sm font-semibold text-alert-dark">
           {save.isError ? saveError : P.suggestError}
         </div>
       )}

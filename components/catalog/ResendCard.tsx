@@ -45,22 +45,22 @@ export function ResendCard({ supplier }: { supplier: Supplier | null }) {
     <Card className="flex flex-col gap-4 self-start">
       <div className="flex items-center gap-2.5">
         <span aria-hidden className="h-2.5 w-2.5 rounded-full bg-primary" />
-        <h2 className="text-lg font-extrabold">{R.title}</h2>
+        <h2 className="text-lg font-bold">{R.title}</h2>
       </div>
       <p className="text-sm text-muted">{R.text}</p>
 
       <MailRecipientField id="mail-recipient" label={R.to} />
       {supplier ? (
-        <p className="rounded-xl bg-background p-3 text-xs text-muted">{R.supplierLine(supplier.supplier_name, supplier.email)}</p>
+        <p className="rounded-block bg-background p-3 text-xs text-muted">{R.supplierLine(supplier.supplier_name, supplier.email)}</p>
       ) : (
-        <p className="rounded-xl bg-background p-3 text-sm text-muted">{R.noSupplier}</p>
+        <p className="rounded-block bg-background p-3 text-sm text-muted">{R.noSupplier}</p>
       )}
 
       <Button variant="secondary" disabled={!supplier} onClick={openConfirm}>{R.test}</Button>
 
       <div aria-live="polite">
         {send.data && (
-          <div className="rounded-xl border border-primary/30 bg-primary-tint p-3 text-sm text-primary">
+          <div className="rounded-block border border-primary/30 bg-primary-tint p-3 text-sm text-primary">
             <p className="font-bold">{R.ok(send.data.email.to)}</p>
           </div>
         )}
@@ -80,9 +80,9 @@ export function ResendCard({ supplier }: { supplier: Supplier | null }) {
       >
         <div className="flex flex-col gap-3 text-sm">
           {supplier && <p>{R.confirmText(recipient)}</p>}
-          <p className="rounded-xl bg-accent-tint p-3 text-accent-dark">{R.demoNotice}</p>
+          <p className="rounded-block bg-accent-tint p-3 text-accent-dark">{R.demoNotice}</p>
           {send.isError && (
-            <p role="alert" className="rounded-xl border border-alert/30 bg-alert-tint p-3 font-semibold text-alert-dark">{R.error}</p>
+            <p role="alert" className="rounded-block border border-alert/30 bg-alert-tint p-3 font-semibold text-alert-dark">{R.error}</p>
           )}
         </div>
       </Modal>

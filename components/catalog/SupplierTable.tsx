@@ -22,7 +22,7 @@ export function SupplierTable({
       <div className="max-h-[460px] overflow-auto">
         <table className="w-full min-w-[640px] text-left text-sm">
           <caption className="sr-only">{S.tableLabel}</caption>
-          <thead className="sticky top-0 z-10 bg-white text-xs font-bold uppercase tracking-wide text-muted shadow-[0_1px_0_var(--color-line)]">
+          <thead className="sticky top-0 z-10 bg-card text-xs font-bold uppercase tracking-wide text-muted shadow-[0_1px_0_var(--color-line)]">
             <tr>
               <th scope="col" className="px-5 py-3">{S.cols.name}</th>
               <th scope="col" className="py-3 pr-3">{S.cols.city}</th>
@@ -47,7 +47,7 @@ export function SupplierTable({
                       type="button"
                       aria-pressed={selected}
                       onClick={(e) => { e.stopPropagation(); onSelect(s.supplier_id); }}
-                      className="block min-h-11 w-full rounded-lg text-left"
+                      className="block min-h-11 w-full rounded-control text-left"
                     >
                       <span className="block font-bold text-foreground">{s.supplier_name}</span>
                       <span className="block break-all text-xs text-muted">{s.email}</span>

@@ -13,7 +13,7 @@ export function StockLevelBar({ quantity, min, max, status }: { quantity: number
   return (
     <div>
       <div
-        className="relative h-2.5 rounded-full bg-[#EEF1F0]"
+        className="relative h-2.5 rounded-full bg-line"
         role="img"
         aria-label={S.levelLabel(formatNumber(quantity), formatNumber(min), formatNumber(max))}
       >
