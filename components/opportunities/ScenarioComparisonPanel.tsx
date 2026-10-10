@@ -1,3 +1,4 @@
+import { PanelSection } from "@/components/ui/PanelSection";
 import { copy } from "@/lib/copy";
 import { formatSignedPercent, formatSignedPoints } from "@/lib/format";
 import { WEEKDAY_LABELS } from "@/lib/opportunities/labels";
@@ -31,11 +32,11 @@ export function ScenarioComparisonPanel({ event, prediction, rows }: ScenarioCom
       </header>
 
       {lead && (
-        <section aria-labelledby="lead-product-heading" className="rounded-block bg-background p-4">
-          <h3 id="lead-product-heading" className="text-xs font-medium text-muted">
-            {copy.opportunities.scenarioComparison.leadProduct(lead.productName)}
-          </h3>
-          <dl className="mt-2 grid grid-cols-3 gap-3">
+        <PanelSection
+          title={copy.opportunities.scenarioComparison.leadProduct(lead.productName)}
+          className="rounded-block bg-background p-4"
+        >
+          <dl className="grid grid-cols-3 gap-3">
             <ScenarioFigure
               label={copy.opportunities.scenarioComparison.normalLabel(weekday)}
               value={formatSignedPercent(lead.scenarios.normalDayPct)}
@@ -51,7 +52,7 @@ export function ScenarioComparisonPanel({ event, prediction, rows }: ScenarioCom
               value={formatSignedPoints(lead.effectPp)}
             />
           </dl>
-        </section>
+        </PanelSection>
       )}
 
       <ScenarioDumbbellChart

@@ -1,5 +1,6 @@
-import { ArrowUpRight, Boxes, ChevronRight, MapPin, PackageSearch, Store } from "lucide-react";
+import { ArrowUpRight, Boxes, ChevronRight, MapPin, Store } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { PanelSection } from "@/components/ui/PanelSection";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatusMessage } from "@/components/ui/StatusMessage";
 import { copy } from "@/lib/copy";
@@ -34,16 +35,11 @@ export function BranchProductOverviewPanel({
         </div>
       </header>
 
-      <section aria-labelledby="priority-products-heading">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <h3 id="priority-products-heading" className="text-sm font-semibold text-foreground">{copy.opportunities.branchOverview.priorityTitle}</h3>
-            <p className="mt-0.5 text-xs text-muted">{copy.opportunities.branchOverview.priorityDescription}</p>
-          </div>
-          <PackageSearch className="size-5 shrink-0 text-primary" aria-hidden />
-        </div>
-
-        <div className="mt-3 space-y-2" aria-busy={query.isPending}>
+      <PanelSection
+        title={copy.opportunities.branchOverview.priorityTitle}
+        description={copy.opportunities.branchOverview.priorityDescription}
+      >
+        <div className="space-y-2" aria-busy={query.isPending}>
           {query.isPending ? (
             [0, 1, 2, 3, 4].map((item) => <Skeleton key={item} className="h-[78px] rounded-block" />)
           ) : query.isError ? (
@@ -92,7 +88,7 @@ export function BranchProductOverviewPanel({
             <StatusMessage tone="empty" title={copy.opportunities.branchOverview.emptyTitle} description={copy.opportunities.branchOverview.emptyDescription} />
           )}
         </div>
-      </section>
+      </PanelSection>
     </article>
   );
 }

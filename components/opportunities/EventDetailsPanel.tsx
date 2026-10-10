@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Meter } from "@/components/ui/Meter";
+import { PanelSection } from "@/components/ui/PanelSection";
 import { copy } from "@/lib/copy";
 import {
   formatDistance,
@@ -80,26 +81,24 @@ export function EventDetailsPanel({
         </div>
       </header>
 
-      <section aria-labelledby="projected-change-heading" className="rounded-block bg-background p-4">
-        <h3 id="projected-change-heading" className="text-xs font-medium text-muted">
-          {copy.opportunities.eventDetails.effectTitle}
-        </h3>
-        <p className="mt-1 text-3xl font-semibold tracking-tight text-foreground">
+      <PanelSection
+        title={copy.opportunities.eventDetails.effectTitle}
+        description={copy.opportunities.eventDetails.effectDescription(
+          weekday,
+          formatSignedPercent(normalDayPct),
+          formatSignedPercent(withEventPct),
+          rows.length,
+        )}
+        className="rounded-block bg-background p-4"
+      >
+        <p className="text-3xl font-semibold tracking-tight text-foreground">
           {formatSignedPoints(eventEffectPp(prediction.overallScenarios))}
         </p>
-        <p className="mt-1 text-xs text-muted">
-          {copy.opportunities.eventDetails.effectDescription(
-            weekday,
-            formatSignedPercent(normalDayPct),
-            formatSignedPercent(withEventPct),
-            rows.length,
-          )}
-        </p>
-        <Button variant="primary" size="sm" onClick={onCompare} className="mt-3">
+        <Button variant="primary" size="sm" onClick={onCompare}>
           {copy.opportunities.eventDetails.compare(weekday)}
           <ArrowRight className="size-4" aria-hidden />
         </Button>
-      </section>
+      </PanelSection>
 
       <dl className="grid grid-cols-2 gap-x-4 gap-y-4 text-sm">
         <EventFact icon={Users} label={copy.opportunities.eventDetails.facts.attendance}>
@@ -128,19 +127,13 @@ export function EventDetailsPanel({
         </EventFact>
       </dl>
 
-      <section aria-labelledby="products-heading" className="flex flex-col gap-2">
-        <h3 id="products-heading" className="text-sm font-semibold text-foreground">
-          {copy.opportunities.eventDetails.productsTitle}
-        </h3>
+      <PanelSection title={copy.opportunities.eventDetails.productsTitle}>
         <ProductImpactTable rows={rows} weekdayLabel={weekday} />
-      </section>
+      </PanelSection>
 
-      <section aria-labelledby="branches-heading" className="flex flex-col gap-2">
-        <h3 id="branches-heading" className="text-sm font-semibold text-foreground">
-          {copy.opportunities.eventDetails.branchesTitle}
-        </h3>
+      <PanelSection title={copy.opportunities.eventDetails.branchesTitle}>
         <AffectedBranchList branches={prediction.affectedBranches} branchNames={branchNames} />
-      </section>
+      </PanelSection>
     </article>
   );
 }

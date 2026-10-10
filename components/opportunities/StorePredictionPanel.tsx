@@ -5,9 +5,9 @@ import {
   Clock3,
   MapPin,
   PackagePlus,
-  Sparkles,
   Store,
 } from "lucide-react";
+import { PanelSection } from "@/components/ui/PanelSection";
 import { copy } from "@/lib/copy";
 import { formatInteger, formatShare, formatSignedPercent } from "@/lib/format";
 import { readableTag, RISK_PRESENTATION, ZONE_LABELS } from "@/lib/opportunities/storePresentation";
@@ -81,9 +81,8 @@ export function StorePredictionPanel({ branch, product, prediction }: StorePredi
         </p>
       </section>
 
-      <section aria-labelledby="inventory-heading">
-        <h3 id="inventory-heading" className="text-sm font-semibold text-foreground">{copy.opportunities.storePanel.inventory.title}</h3>
-        <dl className="mt-3 grid grid-cols-3 gap-2">
+      <PanelSection title={copy.opportunities.storePanel.inventory.title}>
+        <dl className="grid grid-cols-3 gap-2">
           <div className="rounded-block border border-line p-3">
             <dt className="flex items-center gap-1 text-[11px] text-muted"><Boxes className="size-3" aria-hidden />{copy.opportunities.storePanel.inventory.onHand}</dt>
             <dd className="mt-1 text-lg font-semibold text-foreground">{formatInteger(prediction.inventoryUnits)}</dd>
@@ -97,13 +96,10 @@ export function StorePredictionPanel({ branch, product, prediction }: StorePredi
             <dd className="mt-1 text-lg font-semibold" style={{ color: risk.color }}>+{formatInteger(prediction.recommendedExtraUnits)}</dd>
           </div>
         </dl>
-      </section>
+      </PanelSection>
 
-      <section aria-labelledby="drivers-heading">
-        <h3 id="drivers-heading" className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-          <Sparkles className="size-4 text-primary" aria-hidden /> {copy.opportunities.storePanel.driversTitle}
-        </h3>
-        <ul className="mt-2 space-y-2">
+      <PanelSection title={copy.opportunities.storePanel.driversTitle}>
+        <ul className="space-y-2">
           {prediction.reasons.map((reason) => (
             <li key={reason} className="flex items-center gap-2 text-sm text-muted">
               <CheckCircle2 className="size-4 shrink-0 text-primary" aria-hidden />{reason}
@@ -111,7 +107,7 @@ export function StorePredictionPanel({ branch, product, prediction }: StorePredi
           ))}
         </ul>
         {product.tags.length > 0 ? (
-          <div className="mt-3 flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1.5">
             {product.tags.map((tag) => (
               <span key={tag} className="rounded-control bg-background px-2 py-1 text-[11px] font-medium text-muted">
                 {readableTag(tag)}
@@ -119,16 +115,18 @@ export function StorePredictionPanel({ branch, product, prediction }: StorePredi
             ))}
           </div>
         ) : null}
-      </section>
+      </PanelSection>
 
-      <section className="rounded-block border border-primary/20 bg-primary-tint/45 p-4" aria-labelledby="action-heading">
-        <h3 id="action-heading" className="text-sm font-semibold text-foreground">{copy.opportunities.storePanel.action.title}</h3>
-        <p className="mt-1 text-sm leading-relaxed text-muted">
+      <PanelSection
+        title={copy.opportunities.storePanel.action.title}
+        className="rounded-block border border-primary/20 bg-primary-tint/45 p-4"
+      >
+        <p className="text-sm leading-relaxed text-muted">
           {prediction.recommendedExtraUnits > 0
             ? copy.opportunities.storePanel.action.addUnits(formatInteger(prediction.recommendedExtraUnits))
             : copy.opportunities.storePanel.action.keepSchedule}
         </p>
-      </section>
+      </PanelSection>
     </article>
   );
 }
