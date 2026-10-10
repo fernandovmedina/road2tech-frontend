@@ -81,9 +81,9 @@ export function DayPanel({
   return (
     <div className="mt-4 flex flex-col gap-4">
       {focus && (
-        <section aria-label={C.focus.product} className="rounded-xl border border-line bg-white p-4">
+        <section aria-label={C.focus.product} className="rounded-block bg-background p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-sm font-extrabold">
+            <h3 className="text-sm font-bold">
               {C.focus.product}: {focus.name}
             </h3>
             <Button variant="secondary" size="sm" onClick={onClearFocus}>{C.focus.clear}</Button>
@@ -99,7 +99,7 @@ export function DayPanel({
                     <button
                       type="button"
                       onClick={() => onPickDate(d.event.date)}
-                      className="flex min-h-11 w-full items-center gap-2 rounded-lg px-2 text-left text-sm hover:bg-background"
+                      className="flex min-h-11 w-full items-center gap-2 rounded-control px-2 text-left text-sm hover:bg-background"
                     >
                       <span aria-hidden className={`h-2.5 w-2.5 shrink-0 rounded-sm ${categoryDot[d.category]}`} />
                       <span className="shrink-0 font-bold">{formatDate(d.event.date)}</span>
@@ -114,8 +114,8 @@ export function DayPanel({
       )}
 
       {date && (
-        <section aria-label={C.selectedDay} className="rounded-xl bg-background p-4">
-          <h3 className="text-sm font-extrabold">
+        <section aria-label={C.selectedDay} className="rounded-block bg-background p-4">
+          <h3 className="text-sm font-bold">
             {C.selectedDay}: {formatDateLong(date)}
           </h3>
           {events.length === 0 ? (
@@ -130,7 +130,7 @@ export function DayPanel({
 
           {ctx && (
             <div className="mt-3 border-t border-line pt-3">
-              <h4 className="text-xs font-extrabold text-muted">{C.contextLayer}</h4>
+              <h4 className="text-xs font-bold text-muted">{C.contextLayer}</h4>
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                 {ctx.tags.map((tag) => (
                   <Badge key={tag.key} tone={tag.tone === "info" ? "blue" : "gray"}>{tag.text}</Badge>

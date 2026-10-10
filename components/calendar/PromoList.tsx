@@ -38,7 +38,7 @@ export function PromoList({
 
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="mt-1 text-sm font-extrabold">{L.title}</h3>
+      <h3 className="text-base font-bold">{L.title}</h3>
       <ul className="flex flex-col gap-2">
         {live.map((s) => {
           const on = s.draft_id === selectedId;
@@ -48,7 +48,7 @@ export function PromoList({
                 type="button"
                 aria-pressed={on}
                 onClick={() => onSelect(on ? null : s.draft_id)}
-                className={`w-full rounded-xl border p-3 text-left transition-colors ${on ? "border-accent bg-accent-tint/60" : "border-line bg-white hover:border-accent/60"}`}
+                className={`w-full rounded-block border p-3 text-left transition-colors ${on ? "border-accent bg-accent-tint/60" : "border-line bg-card hover:border-accent/60"}`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-sm font-bold leading-snug">{s.title}</p>
@@ -58,7 +58,7 @@ export function PromoList({
                   <span>
                     {formatDate(s.period.start_date)} – {formatDate(s.period.end_date)} · −{Math.round(s.proposed_discount_pct * 100)}%
                   </span>
-                  <span className="font-extrabold text-primary">{L.gain} +{formatMoney(s.expected_margin_increment)}</span>
+                  <span className="font-bold text-primary">{L.gain} +{formatMoney(s.expected_margin_increment)}</span>
                 </p>
               </button>
             </li>

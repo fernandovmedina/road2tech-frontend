@@ -42,7 +42,7 @@ export function RestockSuggestionCard({
   return (
     <article
       ref={ref}
-      className={`rounded-xl border p-3 ${s.is_urgent && !sent ? "border-alert/50 bg-alert-tint/40" : "border-line"} ${highlighted ? "ring-2 ring-primary ring-offset-2" : ""}`}
+      className={`rounded-block border p-3 ${s.is_urgent && !sent ? "border-alert/50 bg-alert-tint/40" : "border-line"} ${highlighted ? "ring-2 ring-primary ring-offset-2" : ""}`}
     >
       <div className="flex items-start justify-between gap-2">
         <h4 className="text-sm font-bold leading-snug">{productName}</h4>

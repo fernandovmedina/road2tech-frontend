@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAsOf, useCalendar, useCatalog, useRestockSuggestions, useStorePlan } from "@/lib/api/hooks";
 import { copy } from "@/lib/copy";
 import { formatMonth } from "@/lib/format";
+import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ErrorState } from "@/components/ui/States";
@@ -22,7 +23,7 @@ const C = copy.calendar;
 const BASE_LAYERS = "deliveries,strategies,alerts";
 
 const navBtn =
-  "flex h-11 w-11 items-center justify-center rounded-[10px] border border-line bg-white text-lg hover:bg-background";
+  "flex h-11 w-11 items-center justify-center rounded-control border border-line bg-card text-lg hover:bg-background";
 
 /**
  * Calendar of one store. Mounted with `key` per deep link so the initial focus/date apply once.
@@ -139,9 +140,9 @@ export function CalendarContent({
   const hasEventsThisMonth = days.some((d) => d.inMonth && eventsByDate.has(d.iso));
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[360px_1fr]">
+    <div className="grid gap-4 xl:grid-cols-[27rem_minmax(0,1fr)]">
       {orderMissing && (
-        <p role="status" className="rounded-[10px] bg-[#FFF4D6] px-3 py-2 text-sm font-semibold text-[#8A5A00] xl:col-span-2">
+        <p role="status" className="rounded-control bg-warning-tint px-3 py-2 text-sm font-semibold text-warning-dark xl:col-span-2">
           {C.orderMissing}
         </p>
       )}
@@ -194,12 +195,12 @@ export function CalendarContent({
         ) : (
           <>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-extrabold" aria-live="polite">{formatMonth(cursor.year, cursor.month)}</h2>
+              <h2 className="text-lg font-bold" aria-live="polite">{formatMonth(cursor.year, cursor.month)}</h2>
               <div className="flex flex-wrap items-center gap-2">
                 <LayerSwitch id="calendar-context" label={C.contextLayer} hint={C.contextHint} checked={showContext} onChange={setShowContext} />
-                <button type="button" onClick={() => jumpTo(asOf)} className="min-h-11 rounded-[10px] border border-line bg-white px-3 text-sm font-semibold hover:bg-background">
+                <Button variant="secondary" onClick={() => jumpTo(asOf)}>
                   {C.goToday}
-                </button>
+                </Button>
                 <button type="button" aria-label={C.prev} onClick={() => setCursorOverride(shiftMonth(cursor, -1))} className={navBtn}>‹</button>
                 <button type="button" aria-label={C.next} onClick={() => setCursorOverride(shiftMonth(cursor, 1))} className={navBtn}>›</button>
               </div>
@@ -227,7 +228,7 @@ export function CalendarContent({
                   focusProductId={focusProduct}
                   onSelectDate={setSelectedDate}
                 />
-                {!hasEventsThisMonth && <p className="mt-3 rounded-[10px] bg-background px-3 py-2 text-sm text-muted">{C.noEvents}</p>}
+                {!hasEventsThisMonth && <p className="mt-3 rounded-control bg-background px-3 py-2 text-sm text-muted">{C.noEvents}</p>}
                 <DayPanel
                   storeId={storeId}
                   date={selectedDate}
