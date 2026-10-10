@@ -22,7 +22,7 @@ export function StockRow({ item, branchName }: { item: StockItem; branchName: st
       <td className="py-3 pr-3">
         <StockLevelBar quantity={item.closing_qty} min={item.reorder_point} max={item.max_stock} status={item.status} />
       </td>
-      <td className="py-3 pr-3 tabular-nums">{S.coverageDays(formatRate(item.coverage_days))}</td>
+      <td className="py-3 pr-3 tabular-nums">{item.coverage_days === null ? S.none : S.coverageDays(formatRate(item.coverage_days))}</td>
       <td className="py-3 pr-3">
         <Badge tone={statusTone[item.status]}>{t("stockStatus", item.status)}</Badge>
       </td>

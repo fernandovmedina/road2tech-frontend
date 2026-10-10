@@ -4,20 +4,32 @@ import { apiMode } from "./config";
 // "hybrid" mode: these go to the real API, everything else keeps answering from lib/mock.
 // /chat is deliberately absent: it will be replaced by the LangGraph + CopilotKit agent (openspec change
 // integrate-copilot-agent-chat), so it keeps answering from the mock.
+// Still mock (not deployed): tendency, plan, strategies:generate and drafts/* (the M0 endpoints).
 // Verified against the live API on 2026-10-10; when the backend ships another endpoint, add it here
 // (or switch to NEXT_PUBLIC_API_MODE=http once all of docs/backend-contract.md exists).
 
 type Method = "GET" | "POST" | "PUT" | "DELETE";
 
 const LIVE: { method: Method; re: RegExp }[] = [
+  { method: "GET", re: /^\/meta$/ },
+  { method: "GET", re: /^\/stores$/ },
+  { method: "GET", re: /^\/chain\/summary$/ },
+  { method: "GET", re: /^\/stores\/[^/]+\/kpis$/ },
+  { method: "GET", re: /^\/heat$/ },
+  { method: "GET", re: /^\/stores\/[^/]+\/behaviors$/ },
+  { method: "GET", re: /^\/stores\/[^/]+\/stock$/ },
+  { method: "GET", re: /^\/stock\/summary$/ },
+  { method: "GET", re: /^\/stores\/[^/]+\/stock-policy$/ },
+  { method: "PUT", re: /^\/stores\/[^/]+\/stock-policy$/ },
   { method: "POST", re: /^\/auth\/(signin|logout)$/ },
   { method: "POST", re: /^\/stores\/[^/]+\/stock-policy:suggest$/ },
   { method: "GET", re: /^\/stores\/[^/]+\/restock-suggestions$/ },
-  { method: "POST", re: /^\/restock-orders$/ },
+  // POST /emails sends to a recipient chosen in the UI. /restock-orders and /suppliers/{id}/test-email stay off this
+  // list on purpose: they mail the supplier's own address unless the Lambda has DEMO_MAILBOX set.
+  { method: "POST", re: /^\/emails$/ },
   { method: "GET", re: /^\/stores\/[^/]+\/calendar$/ },
   { method: "GET", re: /^\/suppliers$/ },
   { method: "GET", re: /^\/suppliers\/[^/]+\/offers$/ },
-  { method: "POST", re: /^\/suppliers\/[^/]+\/test-email$/ },
   { method: "GET", re: /^\/products$/ },
 ];
 

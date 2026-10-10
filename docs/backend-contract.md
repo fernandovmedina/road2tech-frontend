@@ -10,18 +10,29 @@ Ejemplos: valores tomados del dataset real (`S001` = "OXXO República Oriente", 
 
 ## 0. Estado de implementación del backend (verificado contra la API desplegada el 2026-10-10)
 
-Base URL: `https://avbylri05m.execute-api.us-east-1.amazonaws.com` (Go Lambdas sobre DynamoDB `road2tech-stores`; código en `BackendRoad2Tech/api`). Probado con el usuario demo: las respuestas pasan los esquemas zod del frontend (`lib/api/schemas.ts`), CORS permite cualquier origen y los errores usan `{code, message, request_id}`.
+Base URL: `https://avbylri05m.execute-api.us-east-1.amazonaws.com` (Go Lambdas sobre DynamoDB `road2tech-stores`; código en `BackendRoad2Tech/api`). Probado con el usuario demo contra las 25 tiendas: las respuestas pasan los esquemas zod del frontend (`lib/api/schemas.ts`), CORS permite cualquier origen y los errores usan `{code, message, request_id}`.
 
 | Estado | Endpoints |
 |---|---|
-| **Desplegado y consumido por el frontend** | `POST /auth/signin`, `POST /auth/logout`, `POST /stores/{id}/stock-policy:suggest`, `GET /stores/{id}/restock-suggestions`, `POST /restock-orders`, `GET /stores/{id}/calendar`, `GET /suppliers`, `GET /suppliers/{id}/offers`, `POST /suppliers/{id}/test-email`, `GET /products` |
-| **No existe aún (404)** | `GET /meta`, `/chain/summary`, `/stores`, `/stores/{id}/kpis`, `/heat`, `/stores/{id}/behaviors`, `/stores/{id}/stock`, `/stock/summary`, `GET/PUT /stores/{id}/stock-policy`, y los 7 M0: `tendency`, `strategies:generate`, `strategies:prompt`, `drafts/{id}` (+ `add-to-plan`, `approve`, `reject`), `plan` |
+| **Desplegado y consumido por el frontend** | `GET /meta`, `/stores`, `/chain/summary`, `/stores/{id}/kpis`, `/heat`, `/stores/{id}/behaviors`, `/stores/{id}/stock`, `/stock/summary`, `GET/PUT /stores/{id}/stock-policy`, `POST /stores/{id}/stock-policy:suggest`, `GET /stores/{id}/restock-suggestions`, `GET /stores/{id}/calendar`, `GET /suppliers`, `/suppliers/{id}/offers`, `GET /products`, `POST /emails`, `POST /auth/signin`, `POST /auth/logout` |
+| **Desplegado pero fuera del frontend** | `POST /chat` (se reemplaza por el agente LangGraph + CopilotKit, change `integrate-copilot-agent-chat`); `POST /restock-orders` y `POST /suppliers/{id}/test-email` (mandan al correo del proveedor, o a `DEMO_MAILBOX` si la Lambda la tiene, y el frontend no puede elegir el destinatario) |
+| **No existe aún (404)** | Los 7 M0: `GET /stores/{id}/tendency`, `POST /stores/{id}/strategies:generate`, `strategies:prompt`, `GET /drafts/{id}`, `POST /drafts/{id}/add-to-plan`, `approve`, `reject`, `GET /stores/{id}/plan` |
 
 Los M0 existen en `BackendRoad2Tech/services/copilot-api` (FastAPI, datos en CSV/PostgreSQL), pero **no están desplegados** y su forma difiere de este contrato (por ejemplo `/stores/{id}/overview`, `/stores/{id}/restock`).
 
-Cómo lo usa el frontend: `NEXT_PUBLIC_API_MODE=hybrid` manda al backend real los endpoints de la primera fila (lista en `lib/api/liveRoutes.ts`) y deja el resto en mock. Cuando el backend publique los demás, se agregan a esa lista o se pasa a `http`.
+Cómo lo usa el frontend: `NEXT_PUBLIC_API_MODE=hybrid` manda al backend real los endpoints de las dos primeras filas que consume (lista en `lib/api/liveRoutes.ts`) y deja el resto (M0 y chat) en mock. Cuando el backend publique los M0 se agregan a esa lista o se pasa a `http`.
 
-Diferencias ya absorbidas por el frontend: el login es `POST /auth/signin` (no `/auth/login`) y existe `POST /auth/logout`, que revoca el token. `POST /chat` está desplegado pero se va a eliminar (lo reemplaza el agente LangGraph + CopilotKit, change `integrate-copilot-agent-chat`), por eso el frontend lo deja en mock.
+Correo a proveedores (decisión actual): el frontend arma el mensaje (`lib/emailTemplates.ts`) y lo manda con `POST /emails` (§3.19 de `api/ENDPOINTS.md` del backend: `to`, `subject`, `text`, `htmlBody`, `from_name`) a la dirección configurada por el usuario en la interfaz (`lib/mailSettings.ts`; valor inicial `daniel.sunflores@gmail.com`, se guarda en el navegador). Así el destinatario no depende de variables de entorno del backend y ningún proveedor recibe correo real. Como no pasa por `POST /restock-orders`, el pedido **no queda registrado** (no hay PO, no suma `on_order` ni cambia la sugerencia). **Petición para backend:** que `POST /restock-orders` acepte un `to` opcional (o que registre el pedido sin enviar) para unir ambas cosas.
+
+Diferencias entre el backend desplegado y este contrato, ya absorbidas por el frontend:
+- El login es `POST /auth/signin` (no `/auth/login`) y existe `POST /auth/logout`, que revoca el token.
+- `GET /stores/{id}/stock`: `coverage_days` es `null` cuando el producto no tiene demanda prevista (la tabla muestra "—").
+- `GET /chain/summary`: `store_ranking` llega `null` (no `[]`) si el filtro de zona no coincide con ninguna tienda.
+- `GET /chain/summary` y `GET /stores/{id}/kpis` responden `400 invalid_request` si `to > data_as_of`. En modo "Predicción ML" (rangos futuros) el frontend les pide la ventana equivalente que termina en `data_as_of`. **Duda para backend:** ¿qué significa `mode=forecast` en estos dos endpoints? Hoy devuelven lo mismo que `actual`. `GET /heat` y `GET /stores/{id}/behaviors` sí aceptan rangos futuros.
+- `PUT /stores/{id}/stock-policy` devuelve solo `{store_id, items:[{product_id, reorder_point, max_stock, updated_at}], updated_at}`; la pantalla vuelve a pedir la página.
+- `GET /stores/{id}/behaviors` no trae `strategy_id` ni `restock_suggestion_id` (necesitan el plan, que depende de los M0): las tarjetas de merma no enlazan a una promoción mientras tanto. Con el rango por defecto solo devuelve alertas de merma.
+- `ai_opportunity_mxn` y el portafolio valen 0 hasta que existan los M0.
+
 ---
 
 ## 1. Convenciones

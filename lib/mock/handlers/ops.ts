@@ -153,6 +153,22 @@ export const routes: MockRoute[] = [
       return order;
     },
   },
+  // Free-form e-mail to the address in the body (nothing is really sent in mock mode).
+  {
+    method: "POST",
+    path: "/emails",
+    handler: async ({ body }) => {
+      const d = await loadOps();
+      const m = (body ?? {}) as { to?: unknown; subject?: unknown };
+      if (typeof m.to !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m.to)) throw new MockHttpError(400, "invalid_request", "to debe ser un correo válido.");
+      if (typeof m.subject !== "string" || !m.subject.trim()) throw new MockHttpError(400, "invalid_request", "subject es obligatorio.");
+      return {
+        status: "sent" as const,
+        sent_at: nowIso(d.asOf),
+        email: { to: m.to, subject: m.subject, provider_message_id: `re_mock_${Math.floor(hash01(`mail|${m.to}|${m.subject}`) * 1e8)}` },
+      };
+    },
+  },
   {
     method: "POST",
     path: "/suppliers/:supplierId/test-email",

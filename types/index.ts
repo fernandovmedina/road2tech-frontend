@@ -30,6 +30,7 @@ export type PolicySuggestion = z.infer<typeof S.policySuggestionSchema>;
 export type RestockReason = z.infer<typeof S.restockReasonSchema>;
 export type RestockSuggestion = z.infer<typeof S.restockSuggestionSchema>;
 export type RestockOrder = z.infer<typeof S.restockOrderSchema>;
+export type SentEmail = z.infer<typeof S.sentEmailSchema>;
 export type TestEmailResult = z.infer<typeof S.testEmailSchema>;
 
 export type CalendarEvent = z.infer<typeof S.calendarEventSchema>;

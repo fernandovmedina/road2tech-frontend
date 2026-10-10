@@ -49,7 +49,7 @@ export function Kpi({
         {Icon && (
           <span
             className={cn(
-              "flex size-9 shrink-0 items-center justify-center rounded-[10px]",
+              "flex size-9 shrink-0 items-center justify-center rounded-control",
               toneClasses[tone],
             )}
           >

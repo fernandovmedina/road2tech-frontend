@@ -1,14 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { useAsOf, useCatalog, useMeta, useSendRestockOrder, useStores, useSuppliers } from "@/lib/api/hooks";
+import { useAsOf, useCatalog, useSendEmail, useStores, useSuppliers } from "@/lib/api/hooks";
 import { displayBranchName } from "@/lib/branding";
 import { copy } from "@/lib/copy";
+import { buildOrderEmail } from "@/lib/emailTemplates";
 import { formatDate, formatMoney, formatMoneyExact, formatNumber } from "@/lib/format";
 import { t } from "@/lib/labels";
+import { useMailRecipient } from "@/lib/mailSettings";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
+import { MailRecipientField } from "@/components/ui/MailRecipientField";
 import { Modal } from "@/components/ui/Modal";
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
@@ -36,11 +39,11 @@ export function OrderModal({ suggestion, onClose }: { suggestion: RestockSuggest
 
 function OrderForm({ suggestion, onClose }: { suggestion: RestockSuggestion | null; onClose: () => void }) {
   const asOf = useAsOf();
-  const meta = useMeta();
   const stores = useStores();
   const suppliers = useSuppliers();
   const catalog = useCatalog();
-  const send = useSendRestockOrder();
+  const send = useSendEmail();
+  const { recipient } = useMailRecipient();
   const toast = useToast();
 
   const [supplierId, setSupplierId] = useState(suggestion?.supplier.supplier_id ?? "");
@@ -91,10 +94,9 @@ function OrderForm({ suggestion, onClose }: { suggestion: RestockSuggestion | nu
   const productName = catalog.nameOf(suggestion.product_id);
   const store = stores.data?.find((s) => s.store_id === suggestion.store_id);
   const branchName = store ? displayBranchName(store) : suggestion.store_id;
-  const demoMode = meta.data?.demo_mode ?? false;
   const when = suggestion.order_date === asOf ? M.today : M.onDate(formatDate(suggestion.order_date));
   const qtyLabel = Number.isFinite(qty) ? formatNumber(qty) : "—";
-  const order = send.data;
+  const sent = send.data;
   const blocked = !!qtyError;
 
   function pickSupplier(id: string) {
@@ -104,8 +106,20 @@ function OrderForm({ suggestion, onClose }: { suggestion: RestockSuggestion | nu
 
   function submit() {
     if (blocked || !suggestion) return;
+    const body = buildOrderEmail({
+      brand: branchName,
+      supplierName: choice.name,
+      supplierEmail: choice.email,
+      productName,
+      productId: suggestion.product_id,
+      qty,
+      unitCost: choice.unitCost,
+      totalCost: cost,
+      orderDate: suggestion.order_date,
+      expectedDelivery: choice.expectedDelivery,
+    });
     send.mutate(
-      { suggestionId: suggestion.id, supplierId: choice.supplierId, qty },
+      { to: recipient, subject: M.subjectValue(productName, branchName), fromName: branchName, ...body },
       { onSuccess: () => toast.show(M.sentTitle) },
     );
   }
@@ -116,7 +130,7 @@ function OrderForm({ suggestion, onClose }: { suggestion: RestockSuggestion | nu
   }
 
   let footer;
-  if (order) {
+  if (sent) {
     footer = <Button onClick={onClose}>{copy.common.close}</Button>;
   } else if (confirming) {
     footer = (
@@ -138,32 +152,28 @@ function OrderForm({ suggestion, onClose }: { suggestion: RestockSuggestion | nu
 
   return (
     <Modal open onClose={onClose} title={M.title} footer={footer} width="max-w-2xl">
-      {order ? (
+      {sent ? (
         <div className="flex flex-col items-center gap-3 py-6 text-center">
           <span aria-hidden className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-tint text-2xl text-primary">✓</span>
           <p className="text-lg font-extrabold">{M.sentTitle}</p>
-          <p className="max-w-sm text-sm text-muted">{M.sentText(order.email.to)}</p>
-          <p className="text-sm font-bold">{M.arrival(formatDate(order.expected_delivery_date))}</p>
+          <p className="max-w-sm text-sm text-muted">{M.sentText(sent.email.to)}</p>
+          <p className="text-sm font-bold">{M.arrival(formatDate(choice.expectedDelivery))}</p>
           <p className="text-xs text-muted">
-            {formatNumber(order.qty)} {copy.common.units} · {formatMoney(order.estimated_cost)}
+            {qtyLabel} {copy.common.units} · {formatMoney(cost)}
           </p>
-          {(order.demo_redirect || demoMode) && (
-            <p role="note" className="rounded-[10px] bg-[#FFF4D6] px-3 py-2 text-sm font-semibold text-[#8A5A00]">{M.sentDemo}</p>
-          )}
         </div>
       ) : confirming ? (
         <div className="flex flex-col gap-4">
           <div>
             <h3 className="text-base font-extrabold">{M.confirmTitle}</h3>
-            <p className="mt-1 text-sm text-muted">{M.confirmText(qtyLabel, choice.name, choice.email ?? M.toPending)}</p>
+            <p className="mt-1 text-sm text-muted">{M.confirmText(qtyLabel, choice.name, recipient)}</p>
           </div>
           <dl className="grid gap-x-4 gap-y-2 rounded-xl bg-background p-4 text-sm sm:grid-cols-2">
-            <div><dt className="text-xs text-muted">{M.to}</dt><dd className="font-semibold">{choice.email ?? M.toPending}</dd></div>
+            <div><dt className="text-xs text-muted">{M.to}</dt><dd className="break-all font-semibold">{recipient}</dd></div>
             <div><dt className="text-xs text-muted">{M.supplier}</dt><dd className="font-semibold">{choice.name}</dd></div>
             <div><dt className="text-xs text-muted">{M.qty}</dt><dd className="font-semibold">{qtyLabel}</dd></div>
             <div><dt className="text-xs text-muted">{M.cost}</dt><dd className="font-semibold">{formatMoney(cost)}</dd></div>
           </dl>
-          {demoMode && <p role="note" className="rounded-[10px] bg-[#FFF4D6] px-3 py-2 text-sm font-semibold text-[#8A5A00]">{M.demoNotice}</p>}
           {send.isError && (
             <div role="alert" className="rounded-xl border border-alert/30 bg-alert-tint p-3">
               <p className="text-sm font-bold text-alert-dark">{M.errorTitle}</p>
@@ -188,10 +198,12 @@ function OrderForm({ suggestion, onClose }: { suggestion: RestockSuggestion | nu
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field id="order-to" label={M.to} value={choice.email ?? M.toPending} readOnly />
+            <MailRecipientField id="order-to" label={M.to} showHint={false} />
             <Field id="order-subject" label={M.subject} value={M.subjectValue(productName, branchName)} readOnly />
           </div>
-          <p className="-mt-2 text-xs text-muted">{M.subjectNote}</p>
+          <p className="-mt-2 text-xs text-muted">
+            {choice.email ? M.toNote(choice.email) : null} {M.subjectNote}
+          </p>
 
           <div className="flex flex-col gap-1">
             {choices.length > 1 ? (
@@ -253,8 +265,6 @@ function OrderForm({ suggestion, onClose }: { suggestion: RestockSuggestion | nu
             </div>
           </div>
           {edited && <p className="-mt-2 text-xs text-muted">{M.scenarioNote}</p>}
-
-          {demoMode && <p role="note" className="rounded-[10px] bg-[#FFF4D6] px-3 py-2 text-sm font-semibold text-[#8A5A00]">{M.demoNotice}</p>}
         </div>
       )}
     </Modal>

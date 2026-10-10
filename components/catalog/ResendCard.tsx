@@ -1,10 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useSendTestEmail } from "@/lib/api/hooks";
+import { useSendEmail } from "@/lib/api/hooks";
 import { copy } from "@/lib/copy";
+import { buildTestEmail } from "@/lib/emailTemplates";
+import { useMailRecipient } from "@/lib/mailSettings";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { MailRecipientField } from "@/components/ui/MailRecipientField";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import type { Supplier } from "@/types";
@@ -12,12 +15,13 @@ import type { Supplier } from "@/types";
 const R = copy.suppliers.resend;
 
 /**
- * "Resend conectado": sends a test e-mail to the selected supplier after an explicit confirmation.
+ * "Resend conectado": sends a test e-mail for the selected supplier after an explicit confirmation.
  * The parent keys this component by supplier id so the mutation result resets when the selection changes.
- * TODO(backend): the real recipient is resolved by the backend; in demo it is redirected to a test mailbox.
+ * The message goes to the address configured in the field (lib/mailSettings.ts), never to the supplier's own address.
  */
 export function ResendCard({ supplier }: { supplier: Supplier | null }) {
-  const send = useSendTestEmail();
+  const send = useSendEmail();
+  const { recipient } = useMailRecipient();
   const toast = useToast();
   const [confirming, setConfirming] = useState(false);
 
@@ -28,7 +32,7 @@ export function ResendCard({ supplier }: { supplier: Supplier | null }) {
 
   const confirm = () => {
     if (!supplier) return;
-    send.mutate(supplier.supplier_id, {
+    send.mutate({ to: recipient, subject: copy.mail.test.subject, fromName: copy.shell.brand, ...buildTestEmail(supplier.supplier_name, supplier.email) }, {
       // The result stays visible in the card through `send.data`.
       onSuccess: () => {
         setConfirming(false);
@@ -45,12 +49,9 @@ export function ResendCard({ supplier }: { supplier: Supplier | null }) {
       </div>
       <p className="text-sm text-muted">{R.text}</p>
 
+      <MailRecipientField id="mail-recipient" label={R.to} />
       {supplier ? (
-        <dl className="rounded-xl bg-background p-3 text-sm">
-          <dt className="text-xs font-semibold text-muted">{R.to}</dt>
-          <dd className="break-all font-bold">{supplier.email}</dd>
-          <dd className="mt-0.5 text-xs text-muted">{supplier.supplier_name}</dd>
-        </dl>
+        <p className="rounded-xl bg-background p-3 text-xs text-muted">{R.supplierLine(supplier.supplier_name, supplier.email)}</p>
       ) : (
         <p className="rounded-xl bg-background p-3 text-sm text-muted">{R.noSupplier}</p>
       )}
@@ -61,7 +62,6 @@ export function ResendCard({ supplier }: { supplier: Supplier | null }) {
         {send.data && (
           <div className="rounded-xl border border-primary/30 bg-primary-tint p-3 text-sm text-primary">
             <p className="font-bold">{R.ok(send.data.email.to)}</p>
-            {send.data.demo_redirect && <p className="mt-0.5 text-xs">{R.okRedirected}</p>}
           </div>
         )}
       </div>
@@ -79,7 +79,7 @@ export function ResendCard({ supplier }: { supplier: Supplier | null }) {
         }
       >
         <div className="flex flex-col gap-3 text-sm">
-          {supplier && <p>{R.confirmText(supplier.email)}</p>}
+          {supplier && <p>{R.confirmText(recipient)}</p>}
           <p className="rounded-xl bg-accent-tint p-3 text-accent-dark">{R.demoNotice}</p>
           {send.isError && (
             <p role="alert" className="rounded-xl border border-alert/30 bg-alert-tint p-3 font-semibold text-alert-dark">{R.error}</p>

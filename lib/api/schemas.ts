@@ -109,15 +109,19 @@ export const chainSummarySchema = z.object({
     stores_with_plan: z.number(),
     strategies_count: z.number(),
   }),
-  store_ranking: z.array(
-    z.object({
-      store_id: z.string(),
-      colonia: z.string(),
-      zone_type: z.string(),
-      opportunity_mxn: money,
-      strategies_count: z.number(),
-    }),
-  ),
+  // The backend sends `null` instead of [] when the zone filter matches no store.
+  store_ranking: z
+    .array(
+      z.object({
+        store_id: z.string(),
+        colonia: z.string(),
+        zone_type: z.string(),
+        opportunity_mxn: money,
+        strategies_count: z.number(),
+      }),
+    )
+    .nullable()
+    .transform((v) => v ?? []),
 });
 
 export const storeKpisSchema = z.object({
@@ -191,7 +195,8 @@ export const stockItemSchema = z.object({
   ),
   reorder_point: z.number(),
   max_stock: z.number(),
-  coverage_days: z.number(),
+  /** `null` when the product has no forecast demand (coverage is unbounded). */
+  coverage_days: z.number().nullable(),
   status: stockStatusSchema,
   earliest_expiry: isoDate.nullable(),
   expiring_qty_7d: z.number(),
@@ -220,6 +225,13 @@ export const policyItemSchema = z.object({
   reorder_point: z.number(),
   max_stock: z.number(),
   updated_at: z.string().nullable(),
+});
+
+/** Answer of PUT /stores/{id}/stock-policy: only the saved values (the screen refetches the page afterwards). */
+export const policySaveSchema = z.object({
+  store_id: z.string().optional(),
+  items: z.array(z.object({ product_id: z.string(), reorder_point: z.number(), max_stock: z.number(), updated_at: z.string().nullable() })),
+  updated_at: z.string().optional(),
 });
 
 export const policyPageSchema = pageOf(policyItemSchema).extend({ store_id: z.string() });
@@ -296,6 +308,13 @@ export const restockOrderSchema = z.object({
   sent_at: z.string(),
   email: z.object({ to: z.string(), subject: z.string(), provider_message_id: z.string() }),
   demo_redirect: z.boolean(),
+});
+
+/** Answer of POST /emails (free-form message sent with Resend to the address in the body). */
+export const sentEmailSchema = z.object({
+  status: z.literal("sent"),
+  sent_at: z.string(),
+  email: z.object({ to: z.string(), subject: z.string(), provider_message_id: z.string().optional() }),
 });
 
 export const testEmailSchema = z.object({

@@ -25,6 +25,19 @@ export function rangeToDates(asOf: string, range: RangeKey): { from: string; to:
   }
 }
 
+/**
+ * KPIs and the chain summary describe closed days: the backend rejects `to > data_as_of` (400). For the "next N days"
+ * ranges of the forecast mode they get the equivalent-length window that ends at data_as_of instead.
+ * TODO(backend): define what `mode=forecast` means for these two endpoints.
+ */
+function closedWindow(asOf: string, range: RangeKey): { from: string; to: string } {
+  switch (range) {
+    case "next14": return { from: addDays(asOf, -13), to: asOf };
+    case "next30": return { from: addDays(asOf, -29), to: asOf };
+    default: return rangeToDates(asOf, range);
+  }
+}
+
 /* ---------- meta / catalogs ---------- */
 
 export const useMeta = () =>
@@ -99,7 +112,7 @@ export function useChainSummary(scope: Pick<Scope, "mode" | "range">, zone?: str
     queryKey: qk("chain", scope, zone, asOf),
     enabled: !!asOf,
     queryFn: async () => {
-      const { from, to } = rangeToDates(asOf!, scope.range);
+      const { from, to } = closedWindow(asOf!, scope.range);
       return (await request("/chain/summary", S.chainSummarySchema, { query: { from, to, mode: scope.mode, zone } })).data;
     },
     placeholderData: keepPreviousData,
@@ -112,7 +125,7 @@ export function useStoreKpis(storeId: string | "all", scope: Pick<Scope, "mode" 
     queryKey: qk("kpis", storeId, scope, asOf),
     enabled: !!asOf && storeId !== "all",
     queryFn: async () => {
-      const { from, to } = rangeToDates(asOf!, scope.range);
+      const { from, to } = closedWindow(asOf!, scope.range);
       return (await request(`/stores/${storeId}/kpis`, S.storeKpisSchema, { query: { from, to, mode: scope.mode } })).data;
     },
     placeholderData: keepPreviousData,
@@ -275,7 +288,7 @@ export const useRegeneratePlan = () =>
 
 export const useSavePolicy = () =>
   useInvalidating(({ storeId, items }: { storeId: string; items: { product_id: string; reorder_point: number; max_stock: number }[] }) =>
-    request(`/stores/${storeId}/stock-policy`, S.itemsOf(S.policyItemSchema), { method: "PUT", body: { items } }).then((r) => r.data));
+    request(`/stores/${storeId}/stock-policy`, S.policySaveSchema, { method: "PUT", body: { items } }).then((r) => r.data));
 
 export const useSuggestPolicy = () =>
   useMutation({
@@ -283,18 +296,20 @@ export const useSuggestPolicy = () =>
       request(`/stores/${storeId}/stock-policy:suggest`, S.policySuggestionSchema, { method: "POST", body: { product_ids: productIds } }).then((r) => r.data),
   });
 
-/** Sends the order e-mail. Only call after an explicit confirmation. The backend picks the real recipient. */
-export const useSendRestockOrder = () =>
-  useInvalidating(({ suggestionId, supplierId, qty }: { suggestionId: string; supplierId: string; qty: number }) =>
-    request("/restock-orders", S.restockOrderSchema, {
-      method: "POST",
-      body: { suggestion_id: suggestionId, supplier_id: supplierId, qty },
-    }).then((r) => r.data));
+export type OutgoingEmail = { to: string; subject: string; text: string; htmlBody: string; fromName: string };
 
-export const useSendTestEmail = () =>
+/**
+ * Sends one e-mail through Resend (POST /emails). Only call after an explicit confirmation.
+ * The recipient is chosen in the UI (lib/mailSettings.ts); the backend does not redirect it.
+ * TODO(backend): POST /restock-orders would also record the purchase order, but it mails the supplier's own address.
+ */
+export const useSendEmail = () =>
   useMutation({
-    mutationFn: (supplierId: string) =>
-      request(`/suppliers/${supplierId}/test-email`, S.testEmailSchema, { method: "POST", body: {} }).then((r) => r.data),
+    mutationFn: (m: OutgoingEmail) =>
+      request("/emails", S.sentEmailSchema, {
+        method: "POST",
+        body: { to: m.to, subject: m.subject, text: m.text, htmlBody: m.htmlBody, from_name: m.fromName },
+      }).then((r) => r.data),
   });
 
 /* ---------- chat ---------- */
