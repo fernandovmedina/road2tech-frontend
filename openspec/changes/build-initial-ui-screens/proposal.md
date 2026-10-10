@@ -5,7 +5,7 @@ StockCopilot has approved mockups and a product definition (`proyect_context/`, 
 ## What Changes
 
 - Build all 7 screens from the approved mockups on Next.js (App Router) + React + TypeScript + Tailwind v4: Login, Dashboard, Product detail / promotion simulator, Restock calendar, Stock, Suppliers, Products.
-- Add an app shell (fixed sidebar, protected routes, mocked session in `localStorage`, shared filters for branch / data mode / date range that persist across screens).
+- Add an app shell (fixed sidebar, protected routes, mocked session in `localStorage` (no roles or permissions), shared filters for branch / data mode / date range that persist across screens).
 - Add a typed mock data layer (`/types`, `/lib/mock`, `/lib/api` with TanStack Query hooks) with simulated latency, plus a trigger for empty and error states. Components never import mocks directly, so real endpoints replace them without touching UI.
 - Implement complete interactive flows with modals and confirmations: accept/dismiss promotion (schedules it in calendar), "Orden Restock" modal with mocked email send, supplier edit + test email, min/max AI suggestions, GenUI chatbot with canned replies.
 - Centralize all Spanish UI copy in `/lib/copy.ts`; code stays in English; `es-MX` / MXN formatting; "Datos de ejemplo" badge on every screen.

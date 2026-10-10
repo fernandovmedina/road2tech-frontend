@@ -5,7 +5,7 @@ Defines the application frame: mocked authentication, route protection, navigati
 ## ADDED Requirements
 
 ### Requirement: Mock login
-The system SHALL provide a `/login` screen with email, password and profile (regional manager / store manager) fields, validating input client-side with Spanish error messages and showing a loading state while submitting.
+The system SHALL provide a `/login` screen with email and password fields, validating input client-side with Spanish error messages and showing a loading state while submitting.
 
 #### Scenario: Valid demo credentials
 - **WHEN** the user submits `demo@stockcopilot.com` / `demo1234`
@@ -19,12 +19,19 @@ The system SHALL provide a `/login` screen with email, password and profile (reg
 - **WHEN** the email is malformed or the password is empty
 - **THEN** a field-level Spanish error is shown and no request is made
 
-### Requirement: Profile limits branches
-The system SHALL limit the branches offered in every branch select to those of the session user: all branches for a regional manager, a single branch for a store manager.
+### Requirement: Password visibility toggle
+The login form SHALL provide an icon button inside the password field that toggles between hiding and showing the password, with an accessible label reflecting the current action.
 
-#### Scenario: Store manager
-- **WHEN** a store manager is logged in
-- **THEN** branch selects offer only their branch
+#### Scenario: Reveal password
+- **WHEN** the user clicks the eye button
+- **THEN** the password is shown as plain text and the button label changes to "Ocultar contraseña"
+
+### Requirement: No roles or access permissions
+The system SHALL NOT distinguish user roles or restrict access by permission: every authenticated user sees all branches and all screens.
+
+#### Scenario: Any authenticated user
+- **WHEN** a user is logged in
+- **THEN** all branches appear in every branch select and no screen or action is hidden or blocked by role
 
 ### Requirement: Route protection
 The system SHALL redirect any route except `/login` to `/login` when there is no session, and `/login` to `/` when a session exists.
