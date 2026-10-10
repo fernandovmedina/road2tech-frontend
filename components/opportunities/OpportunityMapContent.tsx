@@ -100,7 +100,7 @@ export function OpportunityMapContent({
         onSearchChange={setSearch}
       />
 
-      <StoreDemandKpis predictions={data.predictions} />
+      <StoreDemandKpis predictions={data.predictions} summary={data.summary} />
 
       <div className={`grid gap-4 xl:grid-cols-[minmax(0,1fr)_27rem] ${embedded ? "xl:min-h-[600px]" : "xl:h-[calc(100dvh-18rem)] xl:min-h-[620px]"}`}>
         <Card className="relative min-h-[32rem] overflow-hidden">
@@ -132,8 +132,8 @@ export function OpportunityMapContent({
       </div>
 
       <p className="text-xs text-ink-secondary">
-        Synthetic demo aligned with BackendRoad2Tech dataset v2. Forecasts combine product demand,
-        store zone, weather sensitivity and commercial demand drivers. No live backend is connected yet.
+        Forecasts combine product demand, store zone, weather sensitivity and commercial demand drivers.
+        {data.summary ? " Predictions come from the StockCopilot backend." : " Synthetic demo aligned with BackendRoad2Tech dataset v2."}
       </p>
     </OpportunityMapFrame>
   );

@@ -49,8 +49,11 @@ Todos los tokens están en `app/globals.css` (`@theme inline`). **No se usan val
 | `warning-dark` | `#8a5a00` | Texto ámbar sobre `warning-tint` |
 | `axis` | `#bdc8c4` | Ejes y líneas de referencia en gráficas |
 | `heat-1 … heat-5` | `#fff3bf → #ffd43b → #ff922b → #e8590c → #a61e1e` | Escala de calor (bajo → alto) |
-| `series-baseline` | `#86b6ef` | Escenario "día normal" / "Si no aceptas" |
-| `series-scenario` | `#1c5cab` | Escenario "con evento" / "Si aceptas" |
+| `series-baseline` | `#86b6ef` | Escenario "día normal" |
+| `series-scenario` | `#1c5cab` | Escenario "con evento" |
+| `decline` | `#e9edeb` | Tarjeta "Si no aceptas" (neutro) |
+| `accept` | `#0b6e4f` | Tarjeta "Si aceptas" (verde: aquí ganas) |
+| `accept-line` | `#12b76a` | Línea de la serie "Si aceptas" en gráficas |
 
 ### Otros tokens
 
@@ -257,7 +260,7 @@ Todo panel con datos remotos muestra esqueleto en carga, estado vacío con instr
 - **Marcadores**: enfocables con teclado, tooltip "Retail <colonia>" + valor principal, crecen al hover/foco. Selección = anillo `foreground`, sin cambiar el relleno de riesgo.
 - **Leyendas**: visibles, en español, con los mismos tokens que la gráfica (`DataLegend`).
 - **Panel de detalle**: lateral de 27rem con `PanelSection`, scroll propio en ≥ 1280px, debajo del mapa en menores.
-- **Comparativo "Si no aceptas / Si aceptas"**: lado a lado con `series-baseline` ("Si no aceptas") y `series-scenario` ("Si aceptas"), mismo componente en gráfica, tarjeta y tabla. Las cifras vienen del backend; el cliente solo formatea o resta dos valores ya enviados.
+- **Comparativo "Si no aceptas / Si aceptas"**: lado a lado con `decline` ("Si no aceptas", neutro) y `accept` ("Si aceptas", verde; `accept-line` en gráficas), mismo componente en gráfica, tarjeta y tabla. Las cifras vienen del backend; el cliente solo formatea o resta dos valores ya enviados.
 - **Gráficas Recharts**: línea sólida = historial (`foreground`), discontinua = pronóstico (`accent`), banda sombreada = incertidumbre, ejes en `axis`. Sin dependencias nuevas.
 
 ---

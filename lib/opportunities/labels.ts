@@ -1,6 +1,17 @@
 import type { DemandEventType, EventImportance, WeatherCondition } from "@/types/demandEvent";
 import type { Weekday } from "@/types/weekday";
 
+/** Reason codes of GET /predictions/* (`reason_codes`), in the wording of the demand map. Unknown codes are shown as is. */
+const PREDICTION_REASONS: Record<string, string> = {
+  commute_peak: "Commute-hour uplift",
+  weather_hot: "Warm afternoon forecast",
+  weather_cold: "Cool morning forecast",
+  payday: "Payday spending",
+  holiday: "Holiday or event demand",
+};
+
+export const predictionReasonLabel = (code: string): string => PREDICTION_REASONS[code] ?? code;
+
 export const EVENT_TYPE_ORDER = [
   "football_match",
   "concert",

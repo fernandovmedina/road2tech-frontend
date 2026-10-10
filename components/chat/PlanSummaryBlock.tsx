@@ -13,11 +13,11 @@ export function PlanSummaryBlock({ block }: { block: BlockOf<"plan_summary"> }) 
       <h3 className="text-sm font-bold">{C.title}</h3>
       <p className="text-xs text-muted">{C.hint}</p>
       <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-block bg-series-baseline p-3">
+        <div className="rounded-block bg-decline p-3">
           <dt className="text-xs font-semibold text-foreground/80">{C.current}</dt>
           <dd className="text-lg font-bold text-foreground">{formatMoney(block.current_net_expected_margin_increment)}</dd>
         </div>
-        <div className="rounded-block bg-series-scenario p-3">
+        <div className="rounded-block bg-accept p-3">
           <dt className="text-xs font-semibold text-white/80">{C.withDraft}</dt>
           <dd className="text-lg font-bold text-white">{formatMoney(block.with_draft_net_expected_margin_increment)}</dd>
         </div>

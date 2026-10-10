@@ -2,12 +2,14 @@ import type { Branch } from "@/types/branch";
 import type { Product } from "@/types/product";
 import type { StoreDemandPrediction } from "@/types/storeDemandPrediction";
 import { useBranches, useProducts } from "./catalog";
-import { useStoreDemandPredictions, type StoreDemandFilters } from "./storeDemand";
+import { useStoreDemandPredictions, type StoreDemandFilters, type StoreDemandSummary } from "./storeDemand";
 
 export type OpportunityMapData = {
   branches: Branch[];
   products: Product[];
   predictions: StoreDemandPrediction[];
+  /** Chain totals computed by the backend; `null` while the demo generator answers (mock mode). */
+  summary: StoreDemandSummary | null;
 };
 
 export type OpportunityMapDataState =
@@ -26,7 +28,8 @@ export function useOpportunityMapData(filters: StoreDemandFilters): OpportunityM
     return {
       status: "success",
       data: {
-        predictions: predictions.data,
+        predictions: predictions.data.predictions,
+        summary: predictions.data.summary,
         branches: branches.data,
         products: products.data,
       },

@@ -5,6 +5,8 @@ import { apiMode } from "./config";
 // /chat is deliberately absent: it will be replaced by the LangGraph + CopilotKit agent (openspec change
 // integrate-copilot-agent-chat), so it keeps answering from the mock.
 // Still mock (not deployed): tendency, plan, strategies:generate and drafts/* (the M0 endpoints).
+// The demand map (components/opportunities) reads /predictions/* through lib/api/storeDemand.ts, which keeps its own
+// demo generator in mock mode.
 // Verified against the live API on 2026-10-10; when the backend ships another endpoint, add it here
 // (or switch to NEXT_PUBLIC_API_MODE=http once all of docs/backend-contract.md exists).
 
@@ -15,6 +17,8 @@ const LIVE: { method: Method; re: RegExp }[] = [
   { method: "GET", re: /^\/stores$/ },
   { method: "GET", re: /^\/chain\/summary$/ },
   { method: "GET", re: /^\/stores\/[^/]+\/kpis$/ },
+  { method: "GET", re: /^\/predictions\/stores$/ },
+  { method: "GET", re: /^\/stores\/[^/]+\/predictions\/products$/ },
   { method: "GET", re: /^\/heat$/ },
   { method: "GET", re: /^\/stores\/[^/]+\/behaviors$/ },
   { method: "GET", re: /^\/stores\/[^/]+\/stock$/ },

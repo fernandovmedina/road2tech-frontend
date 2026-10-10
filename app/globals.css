@@ -39,6 +39,10 @@
   --color-warning-dark: #8a5a00;
   --color-series-baseline: #86b6ef;
   --color-series-scenario: #1c5cab;
+  /* "Si no aceptas" (neutral) / "Si aceptas" (green = you gain). Card fill + chart line for the accepted series. */
+  --color-decline: #e9edeb;
+  --color-accept: #0b6e4f;
+  --color-accept-line: #12b76a;
 
   --color-heat-1: #fff3bf;
   --color-heat-2: #ffd43b;

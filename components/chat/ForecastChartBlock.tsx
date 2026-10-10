@@ -14,7 +14,7 @@ const C = copy.chat.forecast;
 // Same series colors as the product trend chart: green history, orange dashed forecast, dark-blue treated.
 const HISTORY = "var(--color-primary)";
 const FORECAST = "var(--color-accent)";
-const TREATED = "var(--color-series-scenario)";
+const TREATED = "var(--color-accept-line)";
 const BAND = "var(--color-accent)";
 const AXIS = "var(--color-axis)";
 const TICK = "var(--color-muted)";

@@ -201,7 +201,8 @@ const demandPredictionFields = {
   recommended_extra_qty: z.number(),
   risk: demandRiskSchema,
   /** Stable codes the frontend translates (`weather_hot`, `weekend_event`...). An unknown code is shown as is. */
-  reason_codes: z.array(z.string()),
+  // The backend sends `null` instead of [] when the forecast has no driver for the product.
+  reason_codes: z.array(z.string()).nullable().transform((v) => v ?? []),
 };
 
 export const storeDemandItemSchema = z.object({

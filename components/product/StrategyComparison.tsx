@@ -29,13 +29,13 @@ function Risk({ value }: { value: number }) {
 const wasteMoney = (v: number): string => (v > 0 ? `−${formatMoney(v)}` : formatMoney(0));
 
 /**
- * One column of the comparison. Both columns share this structure; only the tone changes: series-baseline
- * ("Si no aceptas") and series-scenario ("Si aceptas"), per the standard.
+ * One column of the comparison. Both columns share this structure; only the tone changes: neutral `decline`
+ * ("Si no aceptas") and green `accept` ("Si aceptas") so the benefit of accepting reads at a glance.
  */
 function ScenarioCard({ label, headline, text, tone }: { label: string; headline: string; text: string; tone: "baseline" | "scenario" }) {
   const dark = tone === "scenario";
   return (
-    <section aria-label={label} className={`rounded-block p-5 ${dark ? "bg-series-scenario text-white" : "bg-series-baseline text-foreground"}`}>
+    <section aria-label={label} className={`rounded-block p-5 ${dark ? "bg-accept text-white" : "bg-decline text-foreground"}`}>
       <h3 className={`text-xs font-bold uppercase tracking-wide ${dark ? "text-white/80" : "text-foreground/80"}`}>{label}</h3>
       <p className={`mt-2 text-2xl font-bold tracking-tight tabular-nums ${dark ? "text-white" : "text-foreground"}`}>{headline}</p>
       <p className={`mt-2 text-sm ${dark ? "text-white/85" : "text-foreground/80"}`}>{text}</p>

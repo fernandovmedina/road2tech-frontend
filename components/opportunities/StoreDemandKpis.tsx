@@ -1,17 +1,19 @@
 import { AlertTriangle, Boxes, TrendingUp, Warehouse } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { formatInteger, formatSignedPercent } from "@/lib/format";
+import type { StoreDemandSummary } from "@/lib/api/storeDemand";
 import type { StoreDemandPrediction } from "@/types/storeDemandPrediction";
 
-export function StoreDemandKpis({ predictions }: { predictions: readonly StoreDemandPrediction[] }) {
-  const totalDemand = predictions.reduce((sum, prediction) => sum + prediction.predictedDailyDemand, 0);
-  const averageUplift = predictions.length
+/** Totals come from the backend (`summary`) when present; the demo generator has none, so they are added up here. */
+export function StoreDemandKpis({ predictions, summary }: { predictions: readonly StoreDemandPrediction[]; summary?: StoreDemandSummary | null }) {
+  const totalDemand = summary?.predictedDailyDemand ?? predictions.reduce((sum, prediction) => sum + prediction.predictedDailyDemand, 0);
+  const averageUplift = summary?.averageUpliftPct ?? (predictions.length
     ? predictions.reduce((sum, prediction) => sum + prediction.upliftPct, 0) / predictions.length
-    : 0;
-  const atRisk = predictions.filter((prediction) => prediction.risk !== "healthy").length;
-  const extraUnits = predictions.reduce((sum, prediction) => sum + prediction.recommendedExtraUnits, 0);
+    : 0);
+  const atRisk = summary?.storesAtRisk ?? predictions.filter((prediction) => prediction.risk !== "healthy").length;
+  const extraUnits = summary?.recommendedExtraUnits ?? predictions.reduce((sum, prediction) => sum + prediction.recommendedExtraUnits, 0);
   const stats = [
-    { label: "Forecast demand", value: `${formatInteger(totalDemand)} units/day`, caption: "Across 25 branches", icon: TrendingUp, tone: "text-brand bg-brand-soft" },
+    { label: "Forecast demand", value: `${formatInteger(totalDemand)} units/day`, caption: `Across ${summary?.storesCount ?? 25} branches`, icon: TrendingUp, tone: "text-brand bg-brand-soft" },
     { label: "Average uplift", value: formatSignedPercent(averageUplift), caption: "Compared with current demand", icon: Warehouse, tone: "text-[#7f4b00] bg-[#fff0d2]" },
     { label: "Branches to watch", value: `${atRisk}`, caption: "Low stock coverage", icon: AlertTriangle, tone: "text-critical bg-[#fbe2e2]" },
     { label: "Suggested extra stock", value: `${formatInteger(extraUnits)} units`, caption: "Four-day target", icon: Boxes, tone: "text-[#16785f] bg-[#d9f0e8]" },

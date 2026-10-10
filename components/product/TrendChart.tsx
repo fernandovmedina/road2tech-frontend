@@ -12,10 +12,10 @@ const C = copy.product.chart;
 export type TrendWindow = { start: string; end: string };
 
 // Chart colors come from the canonical tokens (never hex literals): green = history, orange dashed = forecast,
-// dark blue = treated series ("Si aceptas") and an orange tint for the uncertainty band.
+// bright green = treated series ("Si aceptas") and an orange tint for the uncertainty band.
 const HISTORY = "var(--color-primary)";
 const FORECAST = "var(--color-accent)";
-const TREATED = "var(--color-series-scenario)";
+const TREATED = "var(--color-accept-line)";
 const BAND = "var(--color-accent)";
 const AXIS = "var(--color-axis)";
 const TICK = "var(--color-muted)";
@@ -69,7 +69,7 @@ function clampWindow(rows: Row[], window: TrendWindow | null | undefined): Trend
 
 /**
  * Demand trend: solid green = history, dashed orange = forecast, shaded bands = P50-P80 and P80-P90 from the backend,
- * dark blue = forecast with the promotion (only when a treated series is given), shaded block = promotion window.
+ * bright green = forecast with the promotion (only when a treated series is given), shaded block = promotion window.
  */
 export function TrendChart({
   history,

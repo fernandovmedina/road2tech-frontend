@@ -85,7 +85,7 @@ export function StorePredictionPanel({ branch, product, prediction }: StorePredi
           </div>
           <div className="rounded-lg border border-ink/10 p-3">
             <dt className="flex items-center gap-1 text-[11px] text-ink-secondary"><Clock3 className="size-3" aria-hidden />Coverage</dt>
-            <dd className="mt-1 text-lg font-semibold text-ink">{prediction.daysOfCover.toFixed(1)}d</dd>
+            <dd className="mt-1 text-lg font-semibold text-ink">{prediction.daysOfCover === null ? "—" : `${prediction.daysOfCover.toFixed(1)}d`}</dd>
           </div>
           <div className="rounded-lg border border-ink/10 p-3">
             <dt className="flex items-center gap-1 text-[11px] text-ink-secondary"><PackagePlus className="size-3" aria-hidden />Add</dt>

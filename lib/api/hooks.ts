@@ -53,7 +53,7 @@ export const useMeta = () => useQuery(metaOptions());
 /** The "today" of the whole UI. `undefined` until /meta answers; dependent queries wait for it. */
 export const useAsOf = (): string | undefined => useMeta().data?.data_as_of;
 
-const storesOptions = () =>
+export const storesOptions = () =>
   queryOptions({
     queryKey: qk("stores"),
     queryFn: async () => (await request("/stores", S.itemsOf(S.storeSchema))).data.items,
@@ -78,7 +78,7 @@ export const useProducts = (p: PageParams & { categoryId?: string; q?: string } 
   });
 
 /** Whole catalog (120 products) for name lookups and autocomplete; pages of 100 are merged. */
-const catalogOptions = () =>
+export const catalogOptions = () =>
   queryOptions({
     queryKey: qk("catalog"),
     queryFn: async () => {
