@@ -1,3 +1,4 @@
+import { copy } from "@/lib/copy";
 import { formatDistance } from "@/lib/format";
 import type { AffectedBranch } from "@/types/eventPrediction";
 
@@ -8,7 +9,7 @@ type AffectedBranchListProps = {
 
 export function AffectedBranchList({ branches, branchNames }: AffectedBranchListProps) {
   if (branches.length === 0) {
-    return <p className="text-sm text-ink-secondary">No branch is inside the influence radius.</p>;
+    return <p className="text-sm text-muted">{copy.opportunities.affectedBranches.none}</p>;
   }
 
   return (
@@ -16,13 +17,13 @@ export function AffectedBranchList({ branches, branchNames }: AffectedBranchList
       {branches.map((branch) => (
         <li
           key={branch.branchId}
-          className="inline-flex items-center gap-1.5 rounded-full border border-ink/10 bg-surface px-2.5 py-1 text-xs"
+          className="inline-flex items-center gap-1.5 rounded-full border border-line bg-card px-2.5 py-1 text-xs"
         >
-          <span className="size-2 rounded-[2px] bg-ink" aria-hidden />
-          <span className="font-medium text-ink">
+          <span className="size-2 rounded-[2px] bg-foreground" aria-hidden />
+          <span className="font-medium text-foreground">
             {branchNames.get(branch.branchId) ?? branch.branchId}
           </span>
-          <span className="text-ink-secondary">{formatDistance(branch.distanceMeters)}</span>
+          <span className="text-muted">{formatDistance(branch.distanceMeters)}</span>
         </li>
       ))}
     </ul>

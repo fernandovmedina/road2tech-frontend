@@ -13,11 +13,11 @@ type EventFactProps = {
 export function EventFact({ icon: Icon, label, wide = false, children }: EventFactProps) {
   return (
     <div className={cn(wide && "col-span-2")}>
-      <dt className="flex items-center gap-1.5 text-xs font-medium text-ink-secondary">
+      <dt className="flex items-center gap-1.5 text-xs font-medium text-muted">
         {Icon && <Icon className="size-3.5" aria-hidden />}
         {label}
       </dt>
-      <dd className="mt-1 flex flex-col gap-1.5 font-medium text-ink">{children}</dd>
+      <dd className="mt-1 flex flex-col gap-1.5 font-medium text-foreground">{children}</dd>
     </div>
   );
 }

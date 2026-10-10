@@ -9,7 +9,7 @@ export function ImportanceBadge({ importance }: { importance: EventImportance })
     <span
       className={cn(
         "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold",
-        importance === "regular" ? "bg-ink/[0.06] text-ink-secondary" : "bg-ink text-white",
+        importance === "regular" ? "bg-foreground/5 text-muted" : "bg-foreground text-white",
       )}
     >
       {isPlayoff && <Trophy className="size-3" aria-hidden />}

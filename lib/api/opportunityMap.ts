@@ -4,12 +4,19 @@ import type { StoreDemandPrediction } from "@/types/storeDemandPrediction";
 import { useBranches, useProducts } from "./catalog";
 import { useStoreDemandPredictions, type StoreDemandFilters, type StoreDemandSummary } from "./storeDemand";
 
+export type OpportunityMapSummary = {
+  totalDemand: number;
+  averageUplift: number;
+  atRiskBranches: number;
+  extraUnits: number;
+};
+
 export type OpportunityMapData = {
   branches: Branch[];
   products: Product[];
   predictions: StoreDemandPrediction[];
-  /** Chain totals computed by the backend; `null` while the demo generator answers (mock mode). */
-  summary: StoreDemandSummary | null;
+  /** Aggregated KPIs for the header, computed once so components only format. */
+  summary: OpportunityMapSummary;
 };
 
 export type OpportunityMapDataState =
@@ -25,13 +32,18 @@ export function useOpportunityMapData(filters: StoreDemandFilters): OpportunityM
 
   // Data first: a failed background refetch keeps showing the last good data.
   if (predictions.data && branches.data && products.data) {
+    // Live mode: totals come from the backend. The demo generator sends none, so the data layer adds them up here.
+    // TODO(backend): send this summary already aggregated in every mode.
+    const summary = predictions.data.summary
+      ? fromBackend(predictions.data.summary)
+      : summarize(predictions.data.predictions);
     return {
       status: "success",
       data: {
         predictions: predictions.data.predictions,
-        summary: predictions.data.summary,
         branches: branches.data,
         products: products.data,
+        summary,
       },
     };
   }
@@ -48,4 +60,23 @@ export function useOpportunityMapData(filters: StoreDemandFilters): OpportunityM
   }
 
   return { status: "pending" };
+}
+
+function fromBackend(summary: StoreDemandSummary): OpportunityMapSummary {
+  return {
+    totalDemand: summary.predictedDailyDemand,
+    averageUplift: summary.averageUpliftPct,
+    atRiskBranches: summary.storesAtRisk,
+    extraUnits: summary.recommendedExtraUnits,
+  };
+}
+
+function summarize(predictions: readonly StoreDemandPrediction[]): OpportunityMapSummary {
+  const totalDemand = predictions.reduce((sum, p) => sum + p.predictedDailyDemand, 0);
+  const averageUplift = predictions.length
+    ? predictions.reduce((sum, p) => sum + p.upliftPct, 0) / predictions.length
+    : 0;
+  const atRiskBranches = predictions.filter((p) => p.risk !== "healthy").length;
+  const extraUnits = predictions.reduce((sum, p) => sum + p.recommendedExtraUnits, 0);
+  return { totalDemand, averageUplift, atRiskBranches, extraUnits };
 }

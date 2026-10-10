@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import { cn } from "@/lib/cn";
+import { copy } from "@/lib/copy";
 
 export type DataLegendShape = "dot" | "line" | "dashed" | "band";
 
@@ -13,12 +14,12 @@ export type DataLegendItem = {
 /** Chart/map legend. Colors come from the canonical CSS variable tokens, matching the chart itself. */
 export function DataLegend({
   items,
-  label,
+  label = copy.common.legend,
   className = "",
 }: {
   items: readonly DataLegendItem[];
-  /** Accessible name for the list (Spanish, from `lib/copy.ts`). */
-  label: string;
+  /** Accessible name for the list (Spanish, from `lib/copy.ts`). Defaults to "Leyenda". */
+  label?: string;
   className?: string;
 }) {
   return (
