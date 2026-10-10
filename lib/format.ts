@@ -56,13 +56,13 @@ const mxnCompactEn = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 1,
 });
 const shareEn = new Intl.NumberFormat("en-US", { style: "percent", maximumFractionDigits: 0 });
-const eventDateEn = new Intl.DateTimeFormat("en-US", {
+const eventDateEs = new Intl.DateTimeFormat("es-MX", {
   timeZone: "America/Monterrey",
   weekday: "short",
   month: "short",
   day: "numeric",
 });
-const eventTimeEn = new Intl.DateTimeFormat("en-US", {
+const eventTimeEs = new Intl.DateTimeFormat("es-MX", {
   timeZone: "America/Monterrey",
   hour: "numeric",
   minute: "2-digit",
@@ -88,6 +88,6 @@ export function formatDistance(meters: number): string {
 
 export function formatEventSchedule(iso: string, isAllDay: boolean): string {
   const date = new Date(iso);
-  const time = isAllDay ? "All day" : eventTimeEn.format(date);
-  return `${eventDateEn.format(date)} · ${time}`;
+  const time = isAllDay ? "Todo el día" : eventTimeEs.format(date);
+  return `${eventDateEs.format(date)} · ${time}`;
 }

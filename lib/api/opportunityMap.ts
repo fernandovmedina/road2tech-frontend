@@ -4,10 +4,19 @@ import type { StoreDemandPrediction } from "@/types/storeDemandPrediction";
 import { useBranches, useProducts } from "./catalog";
 import { useStoreDemandPredictions, type StoreDemandFilters } from "./storeDemand";
 
+export type OpportunityMapSummary = {
+  totalDemand: number;
+  averageUplift: number;
+  atRiskBranches: number;
+  extraUnits: number;
+};
+
 export type OpportunityMapData = {
   branches: Branch[];
   products: Product[];
   predictions: StoreDemandPrediction[];
+  /** Aggregated KPIs for the header, computed once so components only format. */
+  summary: OpportunityMapSummary;
 };
 
 export type OpportunityMapDataState =
@@ -23,12 +32,15 @@ export function useOpportunityMapData(filters: StoreDemandFilters): OpportunityM
 
   // Data first: a failed background refetch keeps showing the last good data.
   if (predictions.data && branches.data && products.data) {
+    // TODO(backend): the real API should send this summary already aggregated.
+    const summary = summarize(predictions.data);
     return {
       status: "success",
       data: {
         predictions: predictions.data,
         branches: branches.data,
         products: products.data,
+        summary,
       },
     };
   }
@@ -45,4 +57,14 @@ export function useOpportunityMapData(filters: StoreDemandFilters): OpportunityM
   }
 
   return { status: "pending" };
+}
+
+function summarize(predictions: readonly StoreDemandPrediction[]): OpportunityMapSummary {
+  const totalDemand = predictions.reduce((sum, p) => sum + p.predictedDailyDemand, 0);
+  const averageUplift = predictions.length
+    ? predictions.reduce((sum, p) => sum + p.upliftPct, 0) / predictions.length
+    : 0;
+  const atRiskBranches = predictions.filter((p) => p.risk !== "healthy").length;
+  const extraUnits = predictions.reduce((sum, p) => sum + p.recommendedExtraUnits, 0);
+  return { totalDemand, averageUplift, atRiskBranches, extraUnits };
 }

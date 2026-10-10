@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { StatusMessage } from "@/components/ui/StatusMessage";
+import { copy } from "@/lib/copy";
 import type { OpportunityMapData } from "@/lib/api/opportunityMap";
 import { ALL_PRODUCTS_ID } from "@/lib/api/storeDemand";
+import { t } from "@/lib/labels";
 import { readableTag } from "@/lib/opportunities/storePresentation";
 import { BranchProductOverviewPanel } from "./BranchProductOverviewPanel";
 import { OpportunityMapFrame } from "./OpportunityMapFrame";
